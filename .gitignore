@@ -13,6 +13,8 @@
 .idea/**/dictionaries
 .idea/**/shelf
 .idea/**/contentModel.xml
+.idea/**/misc.xml
+.idea/**/parapy_assignment.iml
 .env
 .venv
 env/
