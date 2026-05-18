@@ -15,13 +15,26 @@ maindir = os.path.dirname(__file__)
 # ---------------------------------------------------------------------------
 
 class MissionStrategyApp(Base):
-    """Top-level KBE app coordinating fleet, depots and jobs."""
+    """
+        Description: The top-level class that uses the fleet, jobs and the mission profiles to
+                     create the final strategy.
+        Inputs: - JSON file of the fleet with its availability, location, etc...
+                - Mission preferences (Strict deadlines or not)
+        Outputs: - The chosen strategy, with the specific vehicles that will do their action at
+                   specified jobs at a certain time.
+                 - Arrangement geometry in 2D (depots) and 3D (storage)
+                 - The routes of the final strategy
+                 - Visualization output of the arrangement
+                 - PDF summary of the chosen strategy
+        To Do's: - make preference interface (action with standard preference with easy names such as greedy or hurry)
+                 also the option to define own preferences and normalize within function.
+                 - If time: combine multiple work jobs into one mission. """
 
-    # UML attributes
+    # Mission attributes
     needed_tools: str = Input("")
     needed_machinery: str = Input("")
-    site_location: str = Input("")
-    deadlines: List[str] = Input([])
+    site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
+    site_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
 
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
@@ -31,18 +44,47 @@ class MissionStrategyApp(Base):
 
     @Attribute
     def all_jobs(self) -> List[Base]:
+        # Later done to put jobs next to each other for time planning and mission generation
         return [*self.transport_jobs, *self.work_jobs]
 
     @Attribute
     def number_of_machines_in_fleet(self) -> int:
+        # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
+
+    def MissionIterator(self) -> None:
+        # Function that iterates over all the different possible strategies. In order to achieve a specific mission,
+        # the possible combinations of transport and work jobs are generated here. These are then used in
+        # EvaluateCostFunction, which uses the MissionIterator with the normalized mission preferences.
+        # A viability check is also performed. (Such as cancelling machines that are too far anyway)
+
+        # To do: think about how to apply this.
+        # Idea: Can maybe use nearest-neighbour method to start searching from the most close-by truck
+        # Include deadline logic to skip useless vehicles
+        # If strict deadlines boolean true, only strategies that can manage this deadline are considered.
+
+        # To do: Also tries to do the arranging of vehicles and containers, if this turns out to be too computationally
+        # expensive, a rough estimate can be made with maximal dimensions and volume logic, and the actual arranging is
+        # done in a final visualization function, in order to get the most efficient loading.
+        # Idea: start with one container (with the max volume check), and keep adding trucks until it fits, to ensure
+        # minimal truck usage.
+        raise NotImplementedError
 
     # UML operation – placeholder
     def EvaluateCostFunction(self) -> float:
-        """Placeholder for multi-objective cost/emission/time function."""
+        # Function that evaluates the cost function for each viable generated strategy, together with the normalized
+        # mission preferences. This function evaluates the cost function for each mission 'block' (matrix multiplication?)
+        # which results in a single scalar value. The lowest value and corresponding strategy is picked.
+        # This acts as our robust optimizer
+
         raise NotImplementedError
 
     # -- Export geometry function --
+
+    # With the final chosen strategy, arrangement is conducted for the depots and containers. Vehicles are only
+    # 2D [x, y] and tools can also be stacked in 3D [x, y, z] in boxes. A new Python file will perform the 2D and
+    # 3D arrangement logic.
+    # To do: work out, also include arrangement logic and rules (turn radius, path widths, stacking logic, ...)
 
     # ------------------------------
 
@@ -57,12 +99,22 @@ class MissionStrategyApp(Base):
         # Export JSON results
         raise NotImplementedError
 
+    # Define (normalized) preferences function
+
 # ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
 
 class TransportJob(Base):
-    """Job representing transport between two GPS locations."""
+    """
+    Description: Job representing the transport of a vehicle from its initial position to a target location.
+    Inputs: - Locations of the specific vehicles
+            - Vehicle specific work hours at the site (locations).
+    Outputs: - Valhalla outputs
+    To Do's: - Think about if a vehicle is more efficient to drive to the depot, or if the vehicle should be picked up
+             from its starting location by a truck from the depot.
+             - Look at outputs of Valhalla and inputs needed for tools
+    """
 
     volume: float = Input(0.0)
     weight: float = Input(0.0)
@@ -75,57 +127,81 @@ class TransportJob(Base):
     # Dotted UML link “Get Fleet”: reference to the fleet used for this job
     fleet: Optional["Fleet"] = Input(None)
 
-    # UML operations – placeholders
+    # Using Valhalla
     def RoutePlanner(self):
         raise NotImplementedError
 
+    # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
+    # downtimes, maintenance, ..., which can be used later in the cost function evaluation
     def TimeKeeper(self):
         raise NotImplementedError
 
+    # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
+    # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
+    # Maintenance threshold is placed in the Pareto distribution for maintenance
     def MaintenancePredictor(self):
         raise NotImplementedError
 
+    # Talk to Arjan -> External tool
     def CalculateNOX(self) -> float:
         raise NotImplementedError
 
+    # Talk to Arjan -> External tool
     def CalculateCO2(self) -> float:
         raise NotImplementedError
 
+    # Talk to Arjan, depends on work hours, employees, machinery, historical data
     def CalculateCost(self) -> float:
         raise NotImplementedError
 
 
 class WorkJob(Base):
-    """Job representing on-site work using machines and tools."""
+    """
+    Description: Each type of work job is an instance of this class, which has its own deadline and specific machinery.
+    Inputs: - Specific machinery and manhours
+            - Job definition
+    Outputs: -
+    To Do's: - Think about man hours vs machine hours, multiple people per machine?
+    """
 
+    # Can be a list if needed_machinery is also a list (when multiple machine types are used for a specific job)
     man_hours: float = Input(0.0)
 
-    # overall_dimensions: array[x, y, z]
-    overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+    deadline: str = Input("")
 
+    # List specifying which type of machinery is required, order is not important
     needed_tools: str = Input("")
-    needed_machinery: str = Input("")
+    needed_vehicles: str = Input("")
 
-    # Resources actually assigned to this work job
+    # Resources actually assigned to this work job - Not in UML yet, maybe in extended UML?
     assigned_tools: List["Tool"] = Input([])
-    assigned_machines: List["Machine"] = Input([])
+    assigned_vehicles: List["Machine"] = Input([])
 
-    # Dotted UML link “Get Fleet”
+    # Dotted UML link “Get Fleet”, the work job gets the individual machine attributes (its age, location, etc.) for each
+    # instance of the assigned machines from the fleet to determine the individual contributions to the overall cost
+    # function of each mission iteration.
     fleet: Optional["Fleet"] = Input(None)
 
-    # UML operations – placeholders
+    # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
+    # downtimes, maintenance, ..., which can be used later in the cost function evaluation
     def TimeKeeper(self):
         raise NotImplementedError
 
+    # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
+    # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
+    # Maintenance threshold is placed in the Pareto distribution for maintenance
     def MaintenancePredictor(self):
         raise NotImplementedError
 
-    def CalculateCO2(self) -> float:
-        raise NotImplementedError
-
+    # Talk to Arjan -> External tool
     def CalculateNOX(self) -> float:
         raise NotImplementedError
 
+    # Talk to Arjan -> External tool
+    def CalculateCO2(self) -> float:
+        raise NotImplementedError
+
+    # Talk to Arjan, depends on work hours, employees, machinery, historical data
     def CalculateCost(self) -> float:
         raise NotImplementedError
 
@@ -134,11 +210,15 @@ class WorkJob(Base):
 # ---------------------------------------------------------------------------
 
 class Fleet(Base):
-    """Collection of machines available for missions."""
+    """Collection of machines available for missions.
+       If time: Can also include fleet worth and budget in order to suggest acquisitions for reduction of costs, emissions, ...
+       If all machines are fully utilized for the misison, it can suggest what machines to acquire and show where to store them.
+       These machines can be rented, which integrates with FleetsOnline system to rent machines from each other. """
 
-    location: str = Input("")
     budget: float = Input(0.0)
     fleetWorth: float = Input(0.0)
+
+    # Can be used for output or visualization colors. Could also be used for regulations (such as different NOx emissions per sector)
     sector: str = Input("")
 
     # Composition: a fleet has many machines
@@ -156,21 +236,27 @@ class Depot(Base):
     # Get locations (which depots) and dimensions of the machines
     machines: List["Machine"] = Input([])
 
-    # UML operation – placeholder
+    def DepotMachineAllocation(self):
+        """ Function looks at the depot location and any machine with a gps location within a certain
+            radius (couple hundred meters...) gets assigned to within this depot. The remaining machines
+            are road parked."""
+        raise NotImplementedError
+
     def DepotMachineArrangement(self):
-        """Placeholder for machine arrangement / packing algorithm."""
+        """ This function is a Python file on its own, that uses an available algorithm to arrange the vehicle bounding
+            boxes using the path width and turning radius in a 2D clever arrangement. """
         raise NotImplementedError
 
 if __name__ == "__main__":
     from parapy.gui import display
 
     fleet = Fleet(location="NL", budget=1_000_000, machines=[])
-    app = MissionStrategyApp(
-        needed_tools="shovels, pumps",
-        needed_machinery="tractors, trucks",
-        site_location="Some worksite",
-        fleet=fleet,
-        show_in_tree=True,  # optional Input if you add it later
-    )
-
+    # app = MissionStrategyApp(
+    #     needed_tools="shovels, pumps",
+    #     needed_machinery="tractors, trucks",
+    #     site_location="Some worksite",
+    #     fleet=fleet,
+    #     show_in_tree=True,  # optional Input if you add it later
+    # )
+    app = MissionStrategyApp()
     display(app)

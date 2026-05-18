@@ -25,6 +25,8 @@ class Machine(Base):
 
     gps_location: str = Input("")
 
+    availability: bool = Input(True)
+
     # UML operations – placeholders
     def CalculateIndividualCO2(self) -> float:
         raise NotImplementedError
