@@ -1,4 +1,4 @@
-from _future_ import annotations
+# from _future_ import annotations
 
 from typing import List, Tuple, Optional
 
@@ -45,7 +45,7 @@ class TransportJob(Base):
     needed_machinery: str = Input("")
 
     # Dotted UML link “Get Fleet”: reference to the fleet used for this job
-    fleet: Optional[Fleet] = Input(None)
+    fleet: Optional["Fleet"] = Input(None)
 
     # UML operations – placeholders
     def RoutePlanner(self):
@@ -79,11 +79,11 @@ class WorkJob(Base):
     needed_machinery: str = Input("")
 
     # Resources actually assigned to this work job
-    assigned_tools: List[Tool] = Input([])
-    assigned_machines: List[Machine] = Input([])
+    assigned_tools: List["Tool"] = Input([])
+    assigned_machines: List["Machine"] = Input([])
 
     # Dotted UML link “Get Fleet”
-    fleet: Optional[Fleet] = Input(None)
+    fleet: Optional["Fleet"] = Input(None)
 
     # UML operations – placeholders
     def TimeKeeper(self):
