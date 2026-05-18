@@ -2,8 +2,10 @@
 
 from typing import List, Tuple, Optional
 
-from parapy.core import Base, Input
+from parapy.core import Base, Input, Attribute, Part, child, action
+from parapy.exchange import STEPWriter
 
+from machine import *
 
 # ---------------------------------------------------------------------------
 # Top-level application
@@ -132,3 +134,5 @@ class Depot(Base):
     def DepotMachineArrangement(self):
         """Placeholder for machine arrangement / packing algorithm."""
         raise NotImplementedError
+
+if __name__ == "__main__":
