@@ -1,11 +1,14 @@
 # from _future_ import annotations
 
+import os
 from typing import List, Tuple, Optional
 
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 
 from machine import *
+
+maindir = os.path.dirname(__file__)
 
 # ---------------------------------------------------------------------------
 # Top-level application
@@ -26,9 +29,32 @@ class MissionStrategyApp(Base):
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
 
+    @Attribute
+    def all_jobs(self) -> List[Base]:
+        return [*self.transport_jobs, *self.work_jobs]
+
+    @Attribute
+    def number_of_machines_in_fleet(self) -> int:
+        return len(self.fleet.machines) if self.fleet else 0
+
     # UML operation – placeholder
     def EvaluateCostFunction(self) -> float:
         """Placeholder for multi-objective cost/emission/time function."""
+        raise NotImplementedError
+
+    # -- Export geometry function --
+
+    # ------------------------------
+
+    # -- Actions / Buttons --
+
+    @action(button_label="Generate Strategies")
+    def generate_strategies(self):
+        raise NotImplementedError
+
+    @action(button_label="Export Results")
+    def export_results(self):
+        # Export JSON results
         raise NotImplementedError
 
 # ---------------------------------------------------------------------------
@@ -136,3 +162,15 @@ class Depot(Base):
         raise NotImplementedError
 
 if __name__ == "__main__":
+    from parapy.gui import display
+
+    fleet = Fleet(location="NL", budget=1_000_000, machines=[])
+    app = MissionStrategyApp(
+        needed_tools="shovels, pumps",
+        needed_machinery="tractors, trucks",
+        site_location="Some worksite",
+        fleet=fleet,
+        show_in_tree=True,  # optional Input if you add it later
+    )
+
+    display(app)
