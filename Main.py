@@ -214,7 +214,7 @@ class Fleet(Base):
        If time: Can also include fleet worth and budget in order to suggest acquisitions for reduction of costs, emissions, ...
        If all machines are fully utilized for the misison, it can suggest what machines to acquire and show where to store them.
        These machines can be rented, which integrates with FleetsOnline system to rent machines from each other. """
-
+#        TODO: link fleet to specific vehicles and tools, if new UML approved
     budget: float = Input(0.0)
     fleetWorth: float = Input(0.0)
 
@@ -250,7 +250,7 @@ class Depot(Base):
 if __name__ == "__main__":
     from parapy.gui import display
 
-    fleet = Fleet(location="NL", budget=1_000_000, machines=[])
+    # fleet = Fleet(location="NL", budget=1_000_000, machines=[])
     # app = MissionStrategyApp(
     #     needed_tools="shovels, pumps",
     #     needed_machinery="tractors, trucks",
