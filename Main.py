@@ -37,6 +37,9 @@ class MissionStrategyApp(Base):
     site_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
 
     # Aggregations / associations
+    mission_preferences: List[float] = Input([0.0, 0.0, 0.0])  # List of weights for the different optimalization goals
+
+    # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
     depots: List["Depot"] = Input([])
     transport_jobs: List["TransportJob"] = Input([])
@@ -51,6 +54,10 @@ class MissionStrategyApp(Base):
     def number_of_machines_in_fleet(self) -> int:
         # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
+
+    # Define (normalized) preferences function
+    def NormalizePreferences(self):
+        raise NotImplementedError
 
     def MissionIterator(self) -> None:
         # Function that iterates over all the different possible strategies. In order to achieve a specific mission,
@@ -77,6 +84,9 @@ class MissionStrategyApp(Base):
         # which results in a single scalar value. The lowest value and corresponding strategy is picked.
         # This acts as our robust optimizer
 
+        raise NotImplementedError
+
+    def ContainerVisualization(self):
         raise NotImplementedError
 
     # -- Export geometry function --
@@ -224,8 +234,8 @@ class Fleet(Base):
     # Composition: a fleet has many machines
     pumps: List["Pump"] = Input([])
     tools: List["Tool"] = Input([])
-    tractors: List["Crane"] = Input([])
-    cranes: List["Tractor"] = Input([])
+    tractors: List["Tractor"] = Input([])
+    cranes: List["Crane"] = Input([])
     trucks: List["Truck"] = Input([])
     vehicles: List["Vehicle"] = Input([])
 
