@@ -36,6 +36,8 @@ class MissionStrategyApp(Base):
     site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
     site_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
 
+    mission_preferences: List[float] = Input([0.0, 0.0, 0.0]) # List of weights for the different optimalization goals
+
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
     depots: List["Depot"] = Input([])
@@ -51,6 +53,13 @@ class MissionStrategyApp(Base):
     def number_of_machines_in_fleet(self) -> int:
         # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
+
+
+    # Define (normalized) preferences function
+    def NormalizePreferences(self):
+
+        raise NotImplementedError
+
 
     def MissionIterator(self) -> None:
         # Function that iterates over all the different possible strategies. In order to achieve a specific mission,
@@ -79,6 +88,11 @@ class MissionStrategyApp(Base):
 
         raise NotImplementedError
 
+
+    def ContainerVisualization(self):
+
+        raise NotImplementedError
+
     # -- Export geometry function --
 
     # With the final chosen strategy, arrangement is conducted for the depots and containers. Vehicles are only
@@ -99,9 +113,8 @@ class MissionStrategyApp(Base):
         # Export JSON results
         raise NotImplementedError
 
-    # Define (normalized) preferences function
 
-# ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
 
@@ -224,8 +237,8 @@ class Fleet(Base):
     # Composition: a fleet has many machines
     pumps: List["Pump"] = Input([])
     tools: List["Tool"] = Input([])
-    tractors: List["Crane"] = Input([])
-    cranes: List["Tractor"] = Input([])
+    cranes: List["Crane"] = Input([])
+    tractors: List["Tractor"] = Input([])
     trucks: List["Truck"] = Input([])
     vehicles: List["Vehicle"] = Input([])
 
