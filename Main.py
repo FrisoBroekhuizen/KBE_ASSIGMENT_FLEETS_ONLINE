@@ -242,6 +242,10 @@ class Depot(Base):
             are road parked."""
         raise NotImplementedError
 
+    def MachineTurningRadius(self):
+        """ Function that computes the turning radius of a given machine, to be used in the DepotMachineArrangement function"""
+        raise NotImplementedError
+
     def DepotMachineArrangement(self):
         """ This function is a Python file on its own, that uses an available algorithm to arrange the vehicle bounding
             boxes using the path width and turning radius in a 2D clever arrangement. """

@@ -70,6 +70,8 @@ class Vehicle(Machine):
     """
 
     vehicle_id: str = Input("")
+
+    # Turning parameters for turning radius during depot arranging
     wheelbase: float = Input(0.0)
     wheelbase_track: float = Input(0.0)
     number_of_axles: float = Input(0.0)
@@ -87,20 +89,6 @@ class Tractor(Vehicle):
 
     max_loading_weight: float = Input(0.0)
     contents: object = Input(None)  # default: empty
-
-
-class Bulldozer(Vehicle):
-    """
-    Description:
-        Bulldozer used for terrain manipulation on site.
-
-    UML attributes:
-        - terrain: string
-        - operational_site_hours: float
-    """
-
-    terrain: str = Input("")
-    operational_site_hours: float = Input(0.0)
 
 
 class Truck(Vehicle):
@@ -131,17 +119,6 @@ class Crane(Vehicle):
     is_stationary: bool = Input(False)
 
 
-class Forklift(Vehicle):
-    """
-    Description:
-        Forklift used for material handling.
-
-    UML attributes:
-        - indoor_use: bool
-    """
-
-    indoor_use: bool = Input(False)
-
 class Tool(Machine):
     """
     Description:
@@ -154,7 +131,7 @@ class Tool(Machine):
     tool_id: str = Input("")
 
 
-class Pump(Machine):
+class Pump(Tool):
     """
     Description:
         Pump or similar stationary tool.
