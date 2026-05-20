@@ -8,6 +8,8 @@ from parapy.exchange import STEPWriter
 
 from machine import *
 
+import Routing
+
 maindir = os.path.dirname(__file__)
 
 # ---------------------------------------------------------------------------
@@ -129,17 +131,24 @@ class TransportJob(Base):
     volume: float = Input(0.0)
     weight: float = Input(0.0)
 
-    begin_location_gps: str = Input("")
-    end_location_gps: str = Input("")
+    begin_location_gps: Tuple[float, float] = Input((0.0, 0.0))
+    end_location_gps: Tuple[float, float] = Input((0.0, 0.0))
+
+    routeDuration: float = 0
+    routeDistance: float = 0
 
     needed_machinery: str = Input("")
 
     # Dotted UML link “Get Fleet”: reference to the fleet used for this job
     fleet: Optional["Fleet"] = Input(None)
 
-    # Using Valhalla
-    def RoutePlanner(self):
-        raise NotImplementedError
+    # As long as Valhalla is not used, if a route is planned for a tractor, we will determine the routeDuration
+    # using the computed routeDistance and an average speed for a tractor.
+    @Attribute
+    def Route(self) -> List[float]:
+        routeDuration, routeDistance = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps)
+        return[routeDuration, routeDistance]
+
 
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
     # downtimes, maintenance, ..., which can be used later in the cost function evaluation
