@@ -222,7 +222,12 @@ class Fleet(Base):
     sector: str = Input("")
 
     # Composition: a fleet has many machines
-    machines: List["Machine"] = Input([])
+    pumps: List["Pump"] = Input([])
+    tools: List["Tool"] = Input([])
+    tractors: List["Crane"] = Input([])
+    cranes: List["Tractor"] = Input([])
+    trucks: List["Truck"] = Input([])
+    vehicles: List["Vehicle"] = Input([])
 
 
 class Depot(Base):
@@ -250,7 +255,7 @@ class Depot(Base):
 if __name__ == "__main__":
     from parapy.gui import display
 
-    fleet = Fleet(location="NL", budget=1_000_000, machines=[])
+    # fleet = Fleet(location="NL", budget=1_000_000, machines=[])
     # app = MissionStrategyApp(
     #     needed_tools="shovels, pumps",
     #     needed_machinery="tractors, trucks",
