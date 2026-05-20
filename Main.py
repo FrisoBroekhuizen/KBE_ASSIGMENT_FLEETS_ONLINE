@@ -37,7 +37,7 @@ class MissionStrategyApp(Base):
     site_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
 
     # Aggregations / associations
-    mission_preferences: List[float] = Input([0.0, 0.0, 0.0])  # List of weights for the different optimalization goals
+    mission_preferences: List[float] = Input([0.0, 0.0, 0.0])  # List of weights for the different optimalisation goals
 
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
