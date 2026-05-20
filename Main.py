@@ -222,7 +222,12 @@ class Fleet(Base):
     sector: str = Input("")
 
     # Composition: a fleet has many machines
-    machines: List["Machine"] = Input([])
+    pumps: List["Pump"] = Input([])
+    tools: List["Tool"] = Input([])
+    tractors: List["Crane"] = Input([])
+    cranes: List["Tractor"] = Input([])
+    trucks: List["Truck"] = Input([])
+    vehicles: List["Vehicle"] = Input([])
 
 
 class Depot(Base):
