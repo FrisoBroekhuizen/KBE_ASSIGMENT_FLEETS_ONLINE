@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Tuple
 
-from parapy.core import Base, Input
+from parapy.core import Base, Input, Attribute
+
+import numpy as np
 
 
 # ---------------------------------------------------------------------------
@@ -74,8 +76,61 @@ class Vehicle(Machine):
 
     # Turning parameters for turning radius during depot arranging
     wheelbase: float = Input(0.0)
+    wheelbase_rear: float = Input(0.0)
     wheelbase_track: float = Input(0.0)
-    number_of_axles: float = Input(0.0)
+    number_of_axles: int = Input(2)
+    max_steering_angle: float = Input(30.0)
+
+    dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+    dimensions_rear: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+
+    @Attribute
+    def TurnRadius(self):
+        max_steering_angle = self.max_steering_angle * np.pi / 180
+
+        # 2-axle vehicles (cars)
+        # Using the low-speed Ackerman model
+        if self.number_of_axles <= 2:
+            rear_turning_radius = self.wheelbase / np.tan(max_steering_angle)
+            outer_steering_angle = np.arctan(self.wheelbase / (rear_turning_radius + self.wheelbase_track))
+            max_turning_radius = (rear_turning_radius + self.wheelbase_track) / np.cos(outer_steering_angle)
+
+            overhang = np.sqrt(((self.dimensions[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions[1] - self.wheelbase_track) / 2) ** 2)
+
+            max_turning_radius += overhang
+
+        # 3-axle vehicles (trucks)
+        # Low-speed non-Ackerman with articulation
+        elif self.number_of_axles >= 3:
+            center_turning_radius = self.wheelbase / np.tan(max_steering_angle)
+            outer_front_steering_angle = np.arctan(self.wheelbase / (center_turning_radius + self.wheelbase_track))
+            max_front_turning_radius = (center_turning_radius + self.wheelbase_track) / np.cos(outer_front_steering_angle)
+
+            overhang_front = np.sqrt(((self.dimensions[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions[1] - self.wheelbase_track) / 2) ** 2)
+            max_front_turning_radius += overhang_front
+
+            max_center_turning_radius = (center_turning_radius + self.wheelbase_track)
+
+            overhang_center = (self.dimensions[1] - self.wheelbase_track) / 2
+            max_center_turning_radius += overhang_center
+
+            if self.wheelbase_rear > center_turning_radius:
+                # Truck trailer is longer then its turning radius: the rear of the trailer will not move and the turning radius is therefore 0
+                rear_turning_radius = 0
+            else:
+                rear_turning_radius = np.sqrt(center_turning_radius ** 2 - self.wheelbase_rear ** 2)
+
+            max_rear_turning_radius = rear_turning_radius + self.wheelbase_track
+
+            overhang_rear = np.sqrt(((self.dimensions_rear[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions_rear[1] - self.wheelbase_track) / 2) ** 2)
+            max_rear_turning_radius += overhang_rear
+
+            max_turning_radius = max(max_front_turning_radius, max_center_turning_radius, max_rear_turning_radius)
+        else:
+            # Can optionally also implement more axles on the rear of the trailer
+            max_turning_radius = 0
+
+        return max_turning_radius
 
 
 class Tractor(Vehicle):
@@ -143,3 +198,8 @@ class Pump(Tool):
 
     # UML: energy_source: diesel (default)
     energy_source: str = Input("diesel")
+
+if __name__ == "__main__":
+    from parapy.gui import display
+    app = Vehicle()
+    display(app)

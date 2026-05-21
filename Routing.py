@@ -4,7 +4,6 @@ from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 
 from routingpy import ORS
-
 maindir = os.path.dirname(__file__)
 
 
