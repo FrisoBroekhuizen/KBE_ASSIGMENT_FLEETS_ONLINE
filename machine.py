@@ -33,12 +33,12 @@ class Machine(Base):
         - CalculateIndividualCost()
     """
 
-    age: float = Input(0.0)
+    age: float = Input(0.0) # Years
     prediction_tool: str = Input("")
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
 
-    worth: float = Input(0.0)
-    energy_source: str = Input("")
+    worth: float = Input(0.0) # Million Euro's
+    energy_source: str = Input("") # Can be: Diesel, Gasoline, Electric, Hybrid
     mass: float = Input(0.0)
 
     # overall_dimensions: array[x, y, z]
@@ -47,6 +47,26 @@ class Machine(Base):
     # GPS location of the machine: (latitude [deg], longitude [deg])
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
     availability: bool = Input(True)
+
+    operating_fraction = 8  # Assumed data contains hours/day
+    idle_fraction = 2  # Assumed data contains hours/day
+
+    # Weights of wear caused by different ways of using the machine
+    w_operating = 1e-5
+    w_idle = 3e-6
+    w_stationary = 5e-7
+
+    energy_source_factors = {"Diesel": 1.2,
+                             "Gasoline": 1.1,
+                             "Electric": 0.8,
+                             "Hybrid": 1.3}
+
+    machine_type_factors = {"Crane": 1.6,
+                            "Tractor": 1.3,
+                            "Truck": 1.1,
+                            "Vehicle": 1,
+                            "Tool": 1.6,
+                            "Pump": 1.9}
 
     # UML operations – placeholders
     # look at comments in main
@@ -58,6 +78,24 @@ class Machine(Base):
 
     def CalculateIndividualCost(self) -> float:
         raise NotImplementedError
+
+    def CalculateIndividualMaintenance(self) -> float:
+        # Normalize hours spend by the machine as a base decay_factor
+        total_hours = self.age * 365 * 24
+        operating_hours = total_hours * self.operating_fraction / 24
+        idle_hours = total_hours * self.idle_fraction / 24
+        stationary_hours = total_hours - operating_hours - idle_hours
+
+        decay_factor = 8760 * (
+                    self.w_operating * operating_hours + self.w_idle * idle_hours + self.w_stationary * stationary_hours) / total_hours
+
+        # Alter the decay factor based on machine worth, energy_source and machine_type
+        decay_factor *= (1 + 0.01 * self.worth)
+        decay_factor *= self.energy_source_factors[self.energy_source]
+        decay_factor *= self.machine_type_factors[type(self).__name__]
+
+        productivity = np.exp(-decay_factor * self.age)
+        return productivity
 
 
 class Vehicle(Machine):

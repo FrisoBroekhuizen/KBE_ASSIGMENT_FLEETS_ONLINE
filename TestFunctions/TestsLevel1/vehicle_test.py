@@ -20,18 +20,18 @@ class Vehicle():
     dimensions_rear = [6, 1.5, 2]
 
     # TEST 1 - Test case from P. 11 of VME exercises
-    # wheelbase = 1.5
-    # wheelbase_rear = 5
-    # wheelbase_track = 1
-    # number_of_axles = 3
-    # max_steering_angle = 25
+    wheelbase = 1.5
+    wheelbase_rear = 5
+    wheelbase_track = 1
+    number_of_axles = 2
+    max_steering_angle = 25
 
     # TEST 2 - Test case from P. 33 of VME exercises
-    wheelbase = 4
-    wheelbase_rear = 6
-    wheelbase_track = 0
-    number_of_axles = 3
-    max_steering_angle = 30
+    # wheelbase = 4
+    # wheelbase_rear = 6
+    # wheelbase_track = 0
+    # number_of_axles = 3
+    # max_steering_angle = 30
 
     def TurnRadius(self):
         max_steering_angle = self.max_steering_angle * np.pi / 180
