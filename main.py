@@ -39,8 +39,8 @@ class MissionStrategyApp(Base):
     site_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
 
     # Aggregations / associations
-    mission_preferences: List[float] = Input([0.0, 0.0, 0.0])  # List of weights for the different optimalisation goals
-
+    mission_preferences: List[float] = Input([1.0, 1.0, 1.0])  # List of weights for the different optimalisation goals
+    strict_deadline: bool = Input(False)
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
     depots: List["Depot"] = Input([])
@@ -64,8 +64,32 @@ class MissionStrategyApp(Base):
         return TransportJob()
 
     # Define (normalized) preferences function
-    def NormalizePreferences(self):
-        raise NotImplementedError
+    @action()
+    def NormalizePreferences(self) -> List[float]:
+        """Normalize mission_preferences:
+        - Negative values => 0 (user really doesn't want that objective)
+        - Non-negative values are scaled so sum == 1
+        - If all are <= 0, fall back to equal weights.
+        """
+        prefs = [float(p) for p in self.mission_preferences]
+        if not prefs:
+            return []
+
+        # Clamp negatives to 0 (completely unwanted)
+        clamped = [p if p > 0.0 else 0.0 for p in prefs]
+
+        total = sum(clamped)
+
+        if total > 0.0:
+            normalized = [p / total for p in clamped]
+        else:
+            # all preferences <= 0 -> no clear preference,
+            # fall back to equal weights
+            n = len(prefs)
+            normalized = [1.0 / n] * n
+
+        self.mission_preferences = normalized
+        return normalized
 
     def MissionIterator(self) -> None:
         # Function that iterates over all the different possible strategies. In order to achieve a specific mission,
