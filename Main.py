@@ -275,7 +275,11 @@ class Depot(Base):
 
     def DepotMachineArrangement(self):
         """ This function is a Python file on its own, that uses an available algorithm to arrange the vehicle bounding
-            boxes using the path width and turning radius in a 2D clever arrangement. """
+            boxes using the path width and turning radius in a 2D clever arrangement.
+            TODO: Turn radius is already known per machine, the straight distance a vehicle needs to travel in a depot
+            is computed in a loop, where a vehicle makes the turn around this turn radius from 0 to 90 degrees.
+            If the block intersects with the neighbouring vehicle box, the amount the vehicle travels straight
+            is increased by a small delta x, which will be used for the final path width."""
         raise NotImplementedError
 
 if __name__ == "__main__":
