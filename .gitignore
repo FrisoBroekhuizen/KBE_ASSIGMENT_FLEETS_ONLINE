@@ -25,5 +25,7 @@ venv/
 uv.lock
 pyproject.toml
 ENV/
+**/__pycache__
+**/__pycache__/*
 env.bak/
 venv.bak/

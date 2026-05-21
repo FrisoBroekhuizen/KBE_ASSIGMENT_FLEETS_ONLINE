@@ -30,7 +30,8 @@ class MissionStrategyApp(Base):
                  - PDF summary of the chosen strategy
         To Do's: - make preference interface (action with standard preference with easy names such as greedy or hurry)
                  also the option to define own preferences and normalize within function.
-                 - If time: combine multiple work jobs into one mission. """
+                 - If time: combine multiple work jobs into one mission.
+                 - Maximum vehicles in worksite is area worksite divided by area vehicle times a factor"""
 
     # Mission attributes
     needed_tools: str = Input("")
@@ -46,6 +47,8 @@ class MissionStrategyApp(Base):
     depots: List["Depot"] = Input([])
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
+
+
     def JSONReader(self):
         """"TODO:IF NOT GPS location provided: print 'no locations of machine X provided,, machine will be ignored for future analysis' """
         raise NotImplementedError
