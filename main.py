@@ -91,6 +91,11 @@ class MissionStrategyApp(Base):
         self.mission_preferences = normalized
         return normalized
 
+    @action()
+    def Planner(self):
+        for work_job in self.work_jobs:
+            print(work_job)
+
     def MissionIterator(self) -> None:
         # Function that iterates over all the different possible strategies. In order to achieve a specific mission,
         # the possible combinations of transport and work jobs are generated here. These are then used in
@@ -164,10 +169,17 @@ class TransportJob(Base):
     begin_location_gps: Tuple[float, float] = Input((0.0, 0.0))
     end_location_gps: Tuple[float, float] = Input((0.0, 0.0))
 
-    routeDuration: float = 0
-    routeDistance: float = 0
+    routeDuration: float = Input(0.0)
+    routeDistance: float = Input(0.0)
 
-    needed_machinery: str = Input("")
+    needed_machinery: Machine = Input([])
+    transporting_vehicle: Machine = Input(needed_machinery) # Almost always the needed_machinery, unless the needed_machinery is being transported by a truck or tractor
+
+    max_speeds = {"Truck":80,
+                  "Tractor":40,
+                  "Crane":45,
+                  "Excavator":40,
+                  "Vehicle":100}
 
     # Dotted UML link “Get Fleet”: reference to the fleet used for this job
     fleet: Optional["Fleet"] = Input(None)
@@ -176,14 +188,22 @@ class TransportJob(Base):
     # using the computed routeDistance and an average speed for a tractor.
     @Attribute
     def Route(self) -> List[float]:
-        routeDuration, routeDistance = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps)
-        return[routeDuration, routeDistance]
+        self.routeDuration, self.routeDistance = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
+        return[self.routeDuration, self.routeDistance]
 
 
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
     # downtimes, maintenance, ..., which can be used later in the cost function evaluation
-    def TimeKeeper(self):
-        raise NotImplementedError
+    @Attribute
+    def TimeKeeper(self) -> float:
+        routeDistance = self.Route[1] / 1000 # Route distance in km
+
+        if str(type(self.needed_machinery).__name__) == "Truck" or str(type(self.needed_machinery).__name__) == "Vehicle":
+            routeDuration = self.Route[0]
+        else:
+            max_speed = self.max_speeds[str(type(self.needed_machinery).__name__)] * 0.8 # Factor for not always driving at the maximum speeds due to rural roads, traffic, etc.
+            routeDuration = routeDistance / max_speed * 3600
+        return routeDuration
 
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
     # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
@@ -223,8 +243,9 @@ class WorkJob(Base):
     needed_vehicles: str = Input("")
 
     # Resources actually assigned to this work job - Not in UML yet, maybe in extended UML?
+    # TODO: Think about if it makes sense to have different tools and vehicles for a single job, important for workhour calculations
     assigned_tools: List["Tool"] = Input([])
-    assigned_vehicles: List["Machine"] = Input([])
+    assigned_vehicles: List["Vehicle"] = Input([])
 
     # Dotted UML link “Get Fleet”, the work job gets the individual machine attributes (its age, location, etc.) for each
     # instance of the assigned machines from the fleet to determine the individual contributions to the overall cost
@@ -233,8 +254,11 @@ class WorkJob(Base):
 
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
     # downtimes, maintenance, ..., which can be used later in the cost function evaluation
+    @Attribute
     def TimeKeeper(self):
-        raise NotImplementedError
+        job_duration = self.man_hours / (len(self.assigned_tools) + len(self.assigned_vehicles))
+
+        return job_duration
 
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
     # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
@@ -362,5 +386,6 @@ if __name__ == "__main__":
     #     fleet=fleet,
     #     show_in_tree=True,  # optional Input if you add it later
     # )
+
     app = MissionStrategyApp()
     display(app)

@@ -7,12 +7,15 @@ from routingpy import ORS
 maindir = os.path.dirname(__file__)
 
 
-def ComputeRoute(start, end):
+def ComputeRoute(start, end, machine_type):
     coordinates = [start, end]
 
     client = ORS(api_key='eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImY0OThhNGEyMGQwYjRmZjE5MDdmOGU2NjQzMDY0ZGVjIiwiaCI6Im11cm11cjY0In0=')
 
-    route = client.directions(locations=coordinates, profile='driving-hgv')
+    if machine_type == "Vehicle":
+        route = client.directions(locations=coordinates, profile='driving-car')
+    else:
+        route = client.directions(locations=coordinates, profile='driving-hgv')
 
     routeDuration = route.duration
     routeDistance = route.distance

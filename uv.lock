@@ -29,11 +29,11 @@ wheels = [
 
 [[package]]
 name = "certifi"
-version = "2026.5.20"
+version = "2026.4.22"
 source = { registry = "https://pypi.parapy.nl/simple/" }
-sdist = { url = "https://files.pythonhosted.org/packages/f3/ce/ee2ecad540810a79593028e88299baeae54d346cc7a0d94b6199988b89b1/certifi-2026.5.20.tar.gz", hash = "sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d", size = 135422, upload-time = "2026-05-20T11:46:50.073Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/ee/6caf7a40c36a1220410afe15a1cc64993a1f864871f698c0f93acb72842a/certifi-2026.4.22.tar.gz", hash = "sha256:8d455352a37b71bf76a79caa83a3d6c25afee4a385d632127b6afb3963f1c580", size = 137077, upload-time = "2026-04-22T11:26:11.191Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/59/8c/57e832b7af6d7c5abe66eb3fbe3a3a32f4d11ea23a1aa7131371035be991/certifi-2026.5.20-py3-none-any.whl", hash = "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897", size = 134134, upload-time = "2026-05-20T11:46:48.578Z" },
+    { url = "https://files.pythonhosted.org/packages/22/30/7cd8fdcdfbc5b869528b079bfb76dcdf6056b1a2097a662e5e8c04f42965/certifi-2026.4.22-py3-none-any.whl", hash = "sha256:3cb2210c8f88ba2318d29b0388d1023c8492ff72ecdde4ebdaddbb13a31b1c4a", size = 135707, upload-time = "2026-04-22T11:26:09.372Z" },
 ]
 
 [[package]]
@@ -294,6 +294,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "parapy" },
     { name = "pyqt6" },
+    { name = "pyvalhalla" },
     { name = "routingpy" },
     { name = "wxpython", version = "4.2.3", source = { registry = "https://pypi.parapy.nl/simple/" }, marker = "sys_platform == 'win32'" },
     { name = "wxpython", version = "4.2.3+sc1", source = { registry = "https://pypi.parapy.nl/simple/" }, marker = "sys_platform != 'win32'" },
@@ -306,7 +307,8 @@ requires-dist = [
     { name = "matplotlib" },
     { name = "parapy", specifier = ">=1.15,<1.16", index = "https://pypi.parapy.nl/simple/" },
     { name = "pyqt6" },
-    { name = "routingpy", specifier = "==1.3.0" },
+    { name = "pyvalhalla", specifier = ">=3.7.0" },
+    { name = "routingpy", specifier = ">=1.3.0" },
     { name = "wxpython" },
 ]
 
@@ -423,6 +425,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+]
+
+[[package]]
+name = "pyvalhalla"
+version = "3.7.0"
+source = { registry = "https://pypi.parapy.nl/simple/" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/98/8b51e57ed6f6258298f45b4dc6ddca533180aebe853649429edfb941b3f2/pyvalhalla-3.7.0.tar.gz", hash = "sha256:46c6d2ea0961573e2535c8d13617f267f34dc1d4848a5d9e576881a056f9068f", size = 35796202, upload-time = "2026-04-29T07:53:57.864Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/66/bcfd21404a8027eb21167566d5c07ab32e2a8e14f5ebf6d0b4162139c3ce/pyvalhalla-3.7.0-cp312-abi3-macosx_14_0_arm64.whl", hash = "sha256:08eeb10e013da1a0ffdec76e42346495fce8d612790a656a46b64f96becbad17", size = 23793302, upload-time = "2026-04-29T07:53:40.643Z" },
+    { url = "https://files.pythonhosted.org/packages/82/24/4d79420fd84412b67ded1ef68dc47d0104993e410cde94e46483432d19e6/pyvalhalla-3.7.0-cp312-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:b0e9c766d9e860e3d2c0bc7013785b8bb0ef514351964bc45f50401faf267a61", size = 32758156, upload-time = "2026-04-29T07:53:44.53Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/a9/ba084343cd33b1c5edc8349811499000e781f88828665c09b1f953bef3f1/pyvalhalla-3.7.0-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:34a74b35d82cfb7a18ecbd277d152cb2423602c67b6d94d8ce56f5d326a2836a", size = 35306487, upload-time = "2026-04-29T07:53:49.132Z" },
+    { url = "https://files.pythonhosted.org/packages/49/bd/509b71c3e0bf20d9a98d41c75a30771cc3c6242cfdc574e68edb1258682a/pyvalhalla-3.7.0-cp312-abi3-win_amd64.whl", hash = "sha256:edfc7ae3dbff0ba2de7f555a8c6e2e1e736d2cd08ff1c5781026622f2ad7b4ef", size = 24298623, upload-time = "2026-04-29T07:53:53.245Z" },
 ]
 
 [[package]]
