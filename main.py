@@ -1,5 +1,5 @@
 # from _future_ import annotations
-
+import math
 import os
 from typing import List, Tuple, Optional
 
@@ -46,7 +46,9 @@ class MissionStrategyApp(Base):
     depots: List["Depot"] = Input([])
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
-
+    def JSONReader(self):
+        """"TODO:IF NOT GPS location provided: print 'no locations of machine X provided,, machine will be ignored for future analysis' """
+        raise NotImplementedError
     @Attribute
     def all_jobs(self) -> List[Base]:
         # Later done to put jobs next to each other for time planning and mission generation
@@ -251,27 +253,70 @@ class Fleet(Base):
     trucks: List["Truck"] = Input([])
     vehicles: List["Vehicle"] = Input([])
 
+    class Depot(Base):
+        """Depot with spatial dimensions and arranged machines.
+        Center provided of rectangle, rotation of long side where 0 deg is horizontal """
+        # Center of the depot in GPS coordinates (lat, lon)
+        location: Tuple[float, float] = Input((0.0, 0.0))
+        rotation: float = Input(0.0)  # 0 deg is long side horizontal
+        # overall_dimensions: (long side, short side, height) in meters
+        overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+        # Machines currently relevant for this depot (you can fill this from Fleet)
+        machines: List["Machine"] = Input([])
+        # ------------------------------------------------------------------ #
+        # Helper: distance in meters between two GPS points
+        # ------------------------------------------------------------------ #
+        def HaversineDistance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+            """Great-circle distance between two GPS points in meters."""
+            R = 6371000.0  # Earth radius [m]
+            phi1 = math.radians(lat1)
+            phi2 = math.radians(lat2)
+            dphi = math.radians(lat2 - lat1)
+            dlambda = math.radians(lon2 - lon1)
+            a = (math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2) # https://en.wikipedia.org/wiki/Great-circle_distance
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a)) # Angle at the center of the Earth between both
+            return R * c
+        # ------------------------------------------------------------------ #
+        # Main function you need to implement
+        # ------------------------------------------------------------------ #
+        def DepotMachineAllocation(self, range_m: float = 500.0) -> Tuple[List["Machine"], List["Machine"]]:
+            """Function looks at the depot location and any machine with a gps
+            location within a certain radius (defined as 'range_m') gets
+            assigned to within this depot. The remaining machines are 'road_parked'.
 
-class Depot(Base):
-    """Depot with spatial dimensions and arranged machines."""
+            range_m : Distance (m) outside the depot footprint at which machines still belong to this depot."""
+            depot_lat, depot_lon = self.location
+            # depot_radius = sqrt(L^2 + W^2) / 2  (from center to corner)
+            long_side, short_side, _ = self.overall_dimensions
+            depot_radius = 0.5 * math.sqrt(long_side**2 + short_side**2)
+            critical_proximity = range_m + depot_radius
 
-    location: str = Input("")
-    # overall_dimensions: array[x, y, z]
-    overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+            depot_machines: List[Machine] = []
+            road_parked_machines: List[Machine] = []
 
-    # Machines currently stored in this depot (not shown in UML, but natural)
-    # Get locations (which depots) and dimensions of the machines
-    machines: List["Machine"] = Input([])
+            for machine in self.machines:
+                # Assume gps_location = (lat, lon)
+                mach_lat, mach_lon = machine.gps_location
 
-    def DepotMachineAllocation(self):
-        """ Function looks at the depot location and any machine with a gps location within a certain
-            radius (couple hundred meters...) gets assigned to within this depot. The remaining machines
-            are road parked."""
-        raise NotImplementedError
+                distance = self.HaversineDistance(mach_lat, mach_lon, depot_lat, depot_lon)
+                # if Machine - Depot location < critical_proximity: MachineLocation = depotLocation
+                if distance <= critical_proximity:
+                    machine.gps_location = (depot_lat, depot_lon)
+                    depot_machines.append(machine)
+                else:
+                    road_parked_machines.append(machine)
 
-    def MachineTurningRadius(self):
-        """ Function that computes the turning radius of a given machine, to be used in the DepotMachineArrangement function"""
-        raise NotImplementedError
+            # keep only assigned machines in the depot list
+            self.machines = depot_machines
+
+            # depot_machines: Depot list/array with their machines
+            # road_parked_machines: machines not assigned to depots
+            return depot_machines, road_parked_machines
+
+        @Attribute
+        def contents(self) -> List["Machine"]:
+            """Machines currently stored in this depot."""
+            return self.machines
 
     def DepotMachineArrangement(self):
         """ This function is a Python file on its own, that uses an available algorithm to arrange the vehicle bounding
