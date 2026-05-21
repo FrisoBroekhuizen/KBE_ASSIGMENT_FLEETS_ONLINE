@@ -77,7 +77,7 @@ class Vehicle(Machine):
     wheelbase: float = Input(0.0)
     wheelbase_rear: float = Input(0.0)
     wheelbase_track: float = Input(0.0)
-    number_of_axles: float = Input(0.0)
+    number_of_axles: int = Input(2)
     max_steering_angle: float = Input(30.0)
 
     dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
@@ -94,9 +94,6 @@ class Vehicle(Machine):
             outer_steering_angle = np.arctan(self.wheelbase / (rear_turning_radius + self.wheelbase_track))
             max_turning_radius = (rear_turning_radius + self.wheelbase_track) / np.cos(outer_steering_angle)
 
-            # P. 11 of VME exercises
-            assert round(max_turning_radius, 3) == 4.476
-
             overhang = np.sqrt(((self.dimensions[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions[1] - self.wheelbase_track) / 2) ** 2)
 
             max_turning_radius += overhang
@@ -107,13 +104,11 @@ class Vehicle(Machine):
             center_turning_radius = self.wheelbase / np.tan(max_steering_angle)
             outer_front_steering_angle = np.arctan(self.wheelbase / (center_turning_radius + self.wheelbase_track))
             max_front_turning_radius = (center_turning_radius + self.wheelbase_track) / np.cos(outer_front_steering_angle)
-            assert round(max_front_turning_radius, 2) == 8
 
             overhang_front = np.sqrt(((self.dimensions[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions[1] - self.wheelbase_track) / 2) ** 2)
             max_front_turning_radius += overhang_front
 
             max_center_turning_radius = (center_turning_radius + self.wheelbase_track)
-            assert round(max_center_turning_radius, 2) == 6.93
 
             overhang_center = (self.dimensions[1] - self.wheelbase_track) / 2
             max_center_turning_radius += overhang_center
@@ -125,13 +120,9 @@ class Vehicle(Machine):
                 rear_turning_radius = np.sqrt(center_turning_radius ** 2 - self.wheelbase_rear ** 2)
 
             max_rear_turning_radius = rear_turning_radius + self.wheelbase_track
-            # P. 33 of VME exercises
-            assert round(max_rear_turning_radius, 2) == 3.46
 
             overhang_rear = np.sqrt(((self.dimensions_rear[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions_rear[1] - self.wheelbase_track) / 2) ** 2)
             max_rear_turning_radius += overhang_rear
-
-            print(max_front_turning_radius, max_center_turning_radius, max_rear_turning_radius)
 
             max_turning_radius = max(max_front_turning_radius, max_center_turning_radius, max_rear_turning_radius)
         else:
@@ -206,3 +197,8 @@ class Pump(Tool):
 
     # UML: energy_source: diesel (default)
     energy_source: str = Input("diesel")
+
+if __name__ == "__main__":
+    from parapy.gui import display
+    app = Vehicle()
+    display(app)
