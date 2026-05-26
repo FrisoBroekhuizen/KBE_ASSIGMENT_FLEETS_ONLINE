@@ -224,18 +224,8 @@ class Tool(Machine):
     """
 
     tool_id: str = Input("")
-<<<<<<< HEAD
-<<<<<<< HEAD
-    vehicle_attachable: bool = Input(True)
-
-=======
     vehicle_attachable: bool = Input(False)
     upright_only: bool = Input(False)
->>>>>>> 3c912882e3319083f20e7a5cbe051ac5fb31b619
-=======
-    vehicle_attachable: bool = Input(False)
-    upright_only: bool = Input(False)
->>>>>>> 3c912882e3319083f20e7a5cbe051ac5fb31b619
 
 class Pump(Tool):
     """
