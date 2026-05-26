@@ -9,7 +9,7 @@ from parapy.exchange import STEPWriter
 from machine import *
 
 import Routing
-
+from TrailerArrangement import Item, TrailerPackingVisualization
 maindir = os.path.dirname(__file__)
 
 # ---------------------------------------------------------------------------
@@ -125,9 +125,19 @@ class MissionStrategyApp(Base):
         # This acts as our robust optimizer
 
         raise NotImplementedError
+    # write function that choses minimum /optimal option
 
-    def ContainerVisualization(self):
-        raise NotImplementedError
+    def PackagedVisualization(self):
+        """Return the ParaPy model to visualize the packing. It visualizes the trailers, together with the packed tools, and vehicles
+        * attachable + upright_only: solid purple .
+        * if only upright_only (nonturnable): very light/baby blue
+        * if only vehicle_attachable: pink
+        * other tools: random blue shades
+        * if vehicles: shades of yellow."""
+        return TrailerPackingVisualization(
+            items=self.items_to_pack,
+            trailers=self.trailers,
+        )
 
     # -- Export geometry function --
 
@@ -414,7 +424,7 @@ class Trailer(Base):
     max_loading_weight: float = Input(0.0)
 
     # True if fully covered (box), False if flatbed / open
-    has_ceiling: bool = Input(False)
+    has_ceiling: bool = Input(True)
 
     # Simple location if you still want to park them in depots / on sites
     # (you could also omit this if you only care about capacity)

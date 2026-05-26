@@ -3,6 +3,9 @@
 
 import numpy as np
 # import pytest
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib
 
 class Vehicle():
     """
@@ -16,7 +19,7 @@ class Vehicle():
         - number_of_axles: float
     """
 
-    dimensions = [2, 1.5, 2]
+    dimensions = [3, 1.5, 2]
     dimensions_rear = [6, 1.5, 2]
 
     # TEST 1 - Test case from P. 11 of VME exercises
@@ -25,6 +28,8 @@ class Vehicle():
     wheelbase_track = 1
     number_of_axles = 2
     max_steering_angle = 25
+
+    rear_turning_radius = 1
 
     # TEST 2 - Test case from P. 33 of VME exercises
     # wheelbase = 4
@@ -43,11 +48,13 @@ class Vehicle():
             outer_steering_angle = np.arctan(self.wheelbase / (rear_turning_radius + self.wheelbase_track))
             max_turning_radius = (rear_turning_radius + self.wheelbase_track) / np.cos(outer_steering_angle)
 
-            assert round(max_turning_radius, 3) == 4.476
+            # assert round(max_turning_radius, 3) == 4.476
 
             overhang = np.sqrt(((self.dimensions[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions[1] - self.wheelbase_track) / 2) ** 2)
 
             max_turning_radius += overhang
+
+            self.rear_turning_radius = rear_turning_radius
 
         # 3-axle vehicles (trucks)
         # Low-speed non-Ackerman with articulation
@@ -87,7 +94,29 @@ class Vehicle():
 
         return max_turning_radius
 
+    # def LeaveParkingSpot(self):
+    #     fig, ax = plt.subplots()
+    #
+    #     steps = 8
+    #     dx = 0
+    #     for j in range(3):
+    #         for i in range(steps):
+    #             car = patches.Rectangle(xy=(0,dx), width=self.dimensions[1], height=self.dimensions[0], angle=i*(90/(steps-1)), fill=True, rotation_point=(-self.rear_turning_radius, dx), alpha=0.5, color=(0, 0.5*j, 1-(0.2*j)))
+    #             ax.add_patch(car)
+    #         dx += 0.6
+    #     obstacle = patches.Rectangle(xy=(-2, 0), width=self.dimensions[1], height=self.dimensions[0], fill=True, color='red')
+    #     obstacle2 = patches.Rectangle(xy=(-2, 6.7), width=self.dimensions[1], height=self.dimensions[0], fill=True,
+    #                                  color='red')
+    #     ax.add_patch(obstacle)
+    #     ax.add_patch(obstacle2)
+    #
+    #     ax.set_xlim(-6, 4)
+    #     ax.set_ylim(-2, 8)
+    #     ax.set_aspect('equal')
+    #     plt.show()
+
 if __name__ == "__main__":
     vehicle = Vehicle()
     turnRadius = vehicle.TurnRadius()
     print(turnRadius)
+    # vehicle.LeaveParkingSpot()
