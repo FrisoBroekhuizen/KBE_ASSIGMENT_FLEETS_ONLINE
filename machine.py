@@ -196,9 +196,10 @@ class Truck(Vehicle):
         - contents: object (default: empty)
     """
 
-    carrying_bounding_box: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+    bounding_box: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
     max_loading_weight: float = Input(0.0)
-    contents: object = Input(None)  # default: empty
+    contents: object = Input(None)
+
 
 
 class Crane(Vehicle):
