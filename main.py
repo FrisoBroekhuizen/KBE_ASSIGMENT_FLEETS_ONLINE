@@ -303,81 +303,125 @@ class Fleet(Base):
     cranes: List["Crane"] = Input([])
     trucks: List["Truck"] = Input([])
     vehicles: List["Vehicle"] = Input([])
+    trailers: List["Trailer"] = Input([])
 
     class Depot(Base):
         """Depot with spatial dimensions and arranged machines.
-        Center provided of rectangle, rotation of long side where 0 deg is horizontal """
+        Center provided of rectangle, rotation of long side where 0 deg is horizontal.
+        """
+
         # Center of the depot in GPS coordinates (lat, lon)
         location: Tuple[float, float] = Input((0.0, 0.0))
         rotation: float = Input(0.0)  # 0 deg is long side horizontal
         # overall_dimensions: (long side, short side, height) in meters
         overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
-        # Machines currently relevant for this depot (you can fill this from Fleet)
+
+        # Machines and trailers currently relevant for this depot
         machines: List["Machine"] = Input([])
+        trailers: List["Trailer"] = Input([])
+
         # ------------------------------------------------------------------ #
         # Helper: distance in meters between two GPS points
         # ------------------------------------------------------------------ #
-        def HaversineDistance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        def HaversineDistance(
+            self,
+            lat1: float, lon1: float,
+            lat2: float, lon2: float
+        ) -> float:
             """Great-circle distance between two GPS points in meters."""
             R = 6371000.0  # Earth radius [m]
             phi1 = math.radians(lat1)
             phi2 = math.radians(lat2)
             dphi = math.radians(lat2 - lat1)
             dlambda = math.radians(lon2 - lon1)
-            a = (math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2) # https://en.wikipedia.org/wiki/Great-circle_distance
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a)) # Angle at the center of the Earth between both
+            a = (math.sin(dphi / 2) ** 2
+                 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
             return R * c
-        # ------------------------------------------------------------------ #
-        # Main function you need to implement
-        # ------------------------------------------------------------------ #
-        def DepotMachineAllocation(self, range_m: float = 500.0) -> Tuple[List["Machine"], List["Machine"]]:
-            """Function looks at the depot location and any machine with a gps
-            location within a certain radius (defined as 'range_m') gets
-            assigned to within this depot. The remaining machines are 'road_parked'.
 
-            range_m : Distance (m) outside the depot footprint at which machines still belong to this depot."""
+        # ------------------------------------------------------------------ #
+        # Generic allocation helper (no generics, just duck-typing on gps_location)
+        # ------------------------------------------------------------------ #
+        def _allocate_assets(self, assets, range_m: float):
+            """Snap nearby assets (with gps_location) to depot; return (in_depot, street)."""
             depot_lat, depot_lon = self.location
-            # depot_radius = sqrt(L^2 + W^2) / 2  (from center to corner)
             long_side, short_side, _ = self.overall_dimensions
-            depot_radius = 0.5 * math.sqrt(long_side**2 + short_side**2)
+            depot_radius = 0.5 * math.sqrt(long_side ** 2 + short_side ** 2)
             critical_proximity = range_m + depot_radius
 
-            depot_machines: List[Machine] = []
-            road_parked_machines: List[Machine] = []
+            in_depot = []
+            street = []
 
-            for machine in self.machines:
-                # Assume gps_location = (lat, lon)
-                mach_lat, mach_lon = machine.gps_location
+            for asset in assets:
+                a_lat, a_lon = asset.gps_location
+                distance = self.HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
 
-                distance = self.HaversineDistance(mach_lat, mach_lon, depot_lat, depot_lon)
-                # if Machine - Depot location < critical_proximity: MachineLocation = depotLocation
                 if distance <= critical_proximity:
-                    machine.gps_location = (depot_lat, depot_lon)
-                    depot_machines.append(machine)
+                    asset.gps_location = (depot_lat, depot_lon)
+                    in_depot.append(asset)
                 else:
-                    road_parked_machines.append(machine)
+                    street.append(asset)
 
-            # keep only assigned machines in the depot list
+            return in_depot, street
+
+        # ------------------------------------------------------------------ #
+        # Public API: machines
+        # ------------------------------------------------------------------ #
+        def DepotMachineAllocation(
+            self,
+            range_m: float = 500.0
+        ) -> Tuple[List["Machine"], List["Machine"]]:
+            """Assign nearby machines to this depot; return (in_depot, road_parked)."""
+            depot_machines, road_parked = self._allocate_assets(self.machines, range_m)
             self.machines = depot_machines
+            return depot_machines, road_parked
 
-            # depot_machines: Depot list/array with their machines
-            # road_parked_machines: machines not assigned to depots
-            return depot_machines, road_parked_machines
+        # ------------------------------------------------------------------ #
+        # Public API: trailers
+        # ------------------------------------------------------------------ #
+        def DepotTrailerAllocation(
+            self,
+            range_m: float = 500.0
+        ) -> Tuple[List["Trailer"], List["Trailer"]]:
+            """Assign nearby trailers to this depot; return (in_depot, street_parked)."""
+            depot_trailers, street_trailers = self._allocate_assets(self.trailers, range_m)
+            self.trailers = depot_trailers
+            return depot_trailers, street_trailers
 
         @Attribute
-        def contents(self) -> List["Machine"]:
-            """Machines currently stored in this depot."""
-            return self.machines
+        def contents(self):
+            """Machines and trailers currently stored in this depot."""
+            return [*self.machines, *self.trailers]
 
-    def DepotMachineArrangement(self):
-        """ This function is a Python file on its own, that uses an available algorithm to arrange the vehicle bounding
-            boxes using the path width and turning radius in a 2D clever arrangement.
-            TODO: Turn radius is already known per machine, the straight distance a vehicle needs to travel in a depot
-            is computed in a loop, where a vehicle makes the turn around this turn radius from 0 to 90 degrees.
-            If the block intersects with the neighbouring vehicle box, the amount the vehicle travels straight
-            is increased by a small delta x, which will be used for the final path width."""
-        raise NotImplementedError
 
+class Trailer(Base):
+    """
+    Description:
+        Non‑powered trailer asset.
+
+    Notes:
+        - NOT a Machine: no individual emissions, NOX, cost, maintenance.
+        - Only used as capacity / geometry in transport & packing.
+    """
+
+    # Identifier for reporting / debug
+    trailer_id: str = Input("")
+
+    # Internal usable cargo volume [L, W, H] in meters
+    carrying_bounding_box: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+
+    # Maximum additional load [kg] it may carry (excluding its own structural mass)
+    max_loading_weight: float = Input(0.0)
+
+    # True if fully covered (box), False if flatbed / open
+    has_ceiling: bool = Input(False)
+
+    # Simple location if you still want to park them in depots / on sites
+    # (you could also omit this if you only care about capacity)
+    gps_location: Tuple[float, float] = Input((0.0, 0.0))
+
+    # Logical content (IDs, Machine references, or your packing Items)
+    contents: object = Input(None)
 if __name__ == "__main__":
     from parapy.gui import display
 
