@@ -224,7 +224,8 @@ class Tool(Machine):
     """
 
     tool_id: str = Input("")
-
+    vehicle_attachable: bool = Input(False)
+    upright_only: bool = Input(False)
 
 class Pump(Tool):
     """
