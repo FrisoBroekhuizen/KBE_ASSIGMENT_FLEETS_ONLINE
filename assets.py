@@ -37,8 +37,8 @@ class Machine(Base):
     prediction_tool: str = Input("")
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
 
-    worth: float = Input(0.0) # Million Euro's
-    energy_source: str = Input("") # Can be: Diesel, Gasoline, Electric, Hybrid
+    worth: float = Input(1.0) # Million Euro's
+    energy_source: str = Input("Diesel") # Can be: Diesel, Gasoline, Electric, Hybrid
     mass: float = Input(0.0)
 
     # overall_dimensions: array[x, y, z]
@@ -71,17 +71,18 @@ class Machine(Base):
     # UML operations – placeholders
     # look at comments in main
     def CalculateIndividualCO2(self) -> float:
-        raise NotImplementedError
+        return 1
 
     def CalculateIndividualNOX(self) -> float:
-        raise NotImplementedError
+        return 1
 
     def CalculateIndividualCost(self) -> float:
-        raise NotImplementedError
+        return 1
 
     def CalculateIndividualMaintenance(self) -> float:
         # Normalize hours spend by the machine as a base decay_factor
         total_hours = self.age * 365 * 24
+        if total_hours == 0: total_hours = 1 # Fail-safe, difference is negligible
         operating_hours = total_hours * self.operating_fraction / 24
         idle_hours = total_hours * self.idle_fraction / 24
         stationary_hours = total_hours - operating_hours - idle_hours
