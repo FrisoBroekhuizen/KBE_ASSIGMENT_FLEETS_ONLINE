@@ -117,7 +117,7 @@ class Vehicle(Machine):
     wheelbase_rear: float = Input(5)
     wheelbase_track: float = Input(2)
     number_of_axles: int = Input(2)
-    max_steering_angle: float = Input(30.0)
+    max_steering_angle: float = Input(20.0)
 
     dimensions: Tuple[float, float, float] = Input((1, 2, 2))
     dimensions_rear: Tuple[float, float, float] = Input((5, 2, 2))
@@ -163,6 +163,7 @@ class Vehicle(Machine):
             overhang_rear = np.sqrt(((self.dimensions_rear[0] - self.wheelbase) / 2) ** 2 + ((self.dimensions_rear[1] - self.wheelbase_track) / 2) ** 2)
             max_rear_turning_radius += overhang_rear
 
+            # print(max_front_turning_radius, max_center_turning_radius, max_rear_turning_radius)
             max_turning_radius = max(max_front_turning_radius, max_center_turning_radius, max_rear_turning_radius)
         else:
             # Can optionally also implement more axles on the rear of the trailer

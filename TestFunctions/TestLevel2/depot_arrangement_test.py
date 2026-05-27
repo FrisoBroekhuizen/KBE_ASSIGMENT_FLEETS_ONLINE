@@ -6,6 +6,9 @@ from typing import List, Tuple, Optional
 
 import numpy as np
 
+from main import Trailer
+import math
+
 import machine
 
 class Depot(GeomBase):
@@ -16,7 +19,8 @@ class Depot(GeomBase):
 
     parking_gap = 0.6
 
-    machines: List[machine.Machine] = Input([machine.Tool(vehicle_attachable=True, overall_dimensions=[1, 2, 2]),machine.Tool(vehicle_attachable=True, overall_dimensions=[0.5, 2, 2]), machine.Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), machine.Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), machine.Tool(vehicle_attachable=False, overall_dimensions=[2, 2, 2]), machine.Truck(overall_dimensions=[3, 2.5, 2]), machine.Truck(overall_dimensions=[2, 1.5, 2]), machine.Truck(overall_dimensions=[4, 2, 2]), machine.Truck(overall_dimensions=[5, 2, 2]), machine.Truck(overall_dimensions=[6, 2.5, 2.5]), machine.Truck(overall_dimensions=[3, 2, 2]), machine.Truck(overall_dimensions=[4, 2, 2]), machine.Truck(overall_dimensions=[7, 1.5, 1.5]), machine.Truck(overall_dimensions=[7, 2, 2])])
+    machines: List[machine.Machine] = Input([machine.Tool(vehicle_attachable=True, overall_dimensions=[1, 2, 2]),machine.Tool(vehicle_attachable=True, overall_dimensions=[0.5, 2, 2]), machine.Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), machine.Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), machine.Tool(vehicle_attachable=False, overall_dimensions=[2, 2, 2]), machine.Truck(overall_dimensions=[4, 2, 2], contents=Trailer(overall_dimensions=[12, 2, 2])), machine.Truck(overall_dimensions=[2, 1.5, 2]), machine.Truck(overall_dimensions=[4, 2, 2]), machine.Truck(overall_dimensions=[3, 2, 2]), machine.Truck(overall_dimensions=[3, 2.5, 2.5]), machine.Truck(overall_dimensions=[3, 2, 2]), machine.Truck(overall_dimensions=[2, 2, 2]), machine.Truck(overall_dimensions=[3, 1.5, 1.5]), machine.Truck(overall_dimensions=[4, 2, 2])])
+    # trailers: List[Trailer] = Input([Trailer()])
 
     non_attachable_tools: List[machine.Machine] = Input([])
     attachable_tools: List = Input([])
@@ -51,6 +55,8 @@ class Depot(GeomBase):
         row_height = max_vehicle_length
         longest_vehicle = None
         attachable_tool_index = 0
+        trailers = []
+        longest_vehicle_length = 0
         for i, vehicle in enumerate(self.sorted_machines):
             if row_width + vehicle.overall_dimensions[1] + self.parking_gap < self.overall_dimensions[1]:
                 # If the machine is a tool, it should be added to the attachable_tools list to create the ghost vehicle
@@ -59,43 +65,83 @@ class Depot(GeomBase):
                     self.attachable_tools[attachable_tool_index].append(row_height - (max_vehicle_length - vehicle.overall_dimensions[0]))
                     self.attachable_tools[attachable_tool_index].append(row_width)
                     attachable_tool_index += 1
-                    row_width += vehicle.overall_dimensions[1] + self.parking_gap
-                    continue
+                elif type(vehicle).__name__ == "Truck":
+                    if vehicle.contents != None:
+                        positions.append([row_height - vehicle.overall_dimensions[0] - vehicle.contents.overall_dimensions[0], row_width]) # Trailer
+                        positions.append([row_height - vehicle.overall_dimensions[0], row_width])  # Truck
+                        trailers.append([i, vehicle.contents])
+                    else:
+                        positions.append([row_height - vehicle.overall_dimensions[0], row_width])
                 else:
                     positions.append([row_height - vehicle.overall_dimensions[0], row_width])
                 row_width += vehicle.overall_dimensions[1] + self.parking_gap
                 # The longest vehicle is kept track of which is to be used to determine the path width
-                if longest_vehicle == None:
-                    longest_vehicle = vehicle
-                elif longest_vehicle.overall_dimensions[0] < vehicle.overall_dimensions[0]:
-                    longest_vehicle = vehicle
+                if type(vehicle).__name__ != "Trailer" and type(vehicle).__name__ != "Tool" and type(vehicle).__bases__[0].__name__ != "Tool":
+                    if longest_vehicle == None:
+                        longest_vehicle_length = vehicle.overall_dimensions[0]
+                        if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
+                        longest_vehicle = vehicle
+                    elif longest_vehicle_length < vehicle.overall_dimensions[0]:
+                        longest_vehicle = vehicle
+                        longest_vehicle_length = vehicle.overall_dimensions[0]
+                        if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
+                    elif vehicle.contents != None:
+                        if longest_vehicle_length < vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]:
+                            longest_vehicle_length = vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]
+                            longest_vehicle = vehicle
             else:
                 row_width = 0
                 path_width = self.DeterminePathWidth(longest_vehicle)
                 row_height += path_width + max_vehicle_length
                 positions.append([row_height - vehicle.overall_dimensions[0], row_width])
                 row_width += vehicle.overall_dimensions[1] + self.parking_gap
+        for trailer in trailers:
+            self.sorted_machines.insert(trailer[0], trailer[1])
         return positions
 
     # Determine the width between two rows of vehicles based on collision detection of a vehicle making a turn with its corresponding turning radius
     def DeterminePathWidth(self, longest_vehicle):
+        longest_vehicle.wheelbase = longest_vehicle.overall_dimensions[0]
+        longest_vehicle.dimensions = longest_vehicle.overall_dimensions
         turn_radius = longest_vehicle.TurnRadius
         offset = [0, turn_radius, 0]
+        offset_trailer = [0, 0, 0]
+        has_trailer = False
+        if longest_vehicle.contents != None: has_trailer = True
+        if has_trailer:
+            trailer = longest_vehicle.contents
+            longest_vehicle.wheelbase = longest_vehicle.overall_dimensions[0] # TODO: Remove once this information is read from JSON
+            longest_vehicle.wheelbase_rear = trailer.overall_dimensions[0]
+            longest_vehicle.wheelbase_track = trailer.overall_dimensions[1]
+            longest_vehicle.number_of_axles = 3
+            longest_vehicle.dimensions = longest_vehicle.overall_dimensions # TODO: Remove once this information is read from JSON
+            longest_vehicle.dimensions_rear = trailer.overall_dimensions
+            turn_radius = longest_vehicle.TurnRadius
+            R_tractor = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2)
+            R_trailer = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2 - trailer.overall_dimensions[0] ** 2)
+            offset = [0, R_tractor, R_trailer - R_tractor]
+            offset_trailer = [-longest_vehicle.contents.overall_dimensions[0] / 2, np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2), 0] # - longest_vehicle.contents.overall_dimensions[0] ** 2), 0]
         dx = 0.1 # [m]
         common_volume = 1 # Just a number
 
         # Start the turn slightly later until the rotating vehicle no longer collides with the parked neighbouring vehicle
-        while common_volume > 0:
-            obstacle = self.MakeStationaryVehicle(turn_radius, longest_vehicle)
+        while common_volume > 0 or common_volume_trailer > 0:
             for dt in range(5):
                 candidate_position = self.MakeTurningVehicle(offset, longest_vehicle, dt)
+                if has_trailer:
+                    candidate_position_trailer = self.MakeTurningVehicle(offset_trailer, longest_vehicle, dt)
+                    obstacle = self.MakeStationaryVehicle(np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2 - trailer.overall_dimensions[0] ** 2), longest_vehicle)
+                else:
+                    obstacle = self.MakeStationaryVehicle(turn_radius, longest_vehicle)
                 try: common_volume = self.CommonVolume(obstacle, candidate_position)
                 except: common_volume = 0
-                if common_volume > 0:
+                try: common_volume_trailer = self.CommonVolume(obstacle, candidate_position_trailer)
+                except: common_volume_trailer = 0
+                if common_volume > 0 or common_volume_trailer > 0:
                     offset[0] += dx
+                    offset_trailer[0] += dx
                     break
-
-        return (turn_radius + offset[0])
+        return (turn_radius + offset[0] - offset_trailer[0])
 
     # Make the 'obstacle' box representing the vehicle parked next to the turning vehicle
     def MakeStationaryVehicle(self, turn_radius, vehicle):
@@ -105,28 +151,39 @@ class Depot(GeomBase):
                    position=translate(self.position, 'x', 0, 'y', turn_radius - self.parking_gap - 2))
 
     # -- Debugging Part --
-    # @Part
-    # def MakeObstacle(self):
-    #     return Box(width=5,
-    #                length = 2,
-    #                height = 2,
-    #                position=translate(self.position, 'x', 0, 'y', 7 - self.parking_gap - 2))
+    @Part
+    def MakeObstacle(self):
+        return Box(width=4,
+                   length = 2,
+                   height = 2,
+                   position=translate(self.position, 'x', 0, 'y', np.sqrt(13.6 ** 2 - 4 ** 2 - 12 ** 2) - self.parking_gap - 2))
 
     # Make the 'candidate position' box representing the turning vehicle at a specific point in time dt during the turn
     def MakeTurningVehicle(self, offset, vehicle, dt):
         return Box(width = vehicle.overall_dimensions[0],
                    length = vehicle.overall_dimensions[1],
                    height = vehicle.overall_dimensions[2],
-                   position=translate(rotate(self.position, (0, 0, -1), np.pi/8*dt), 'x', offset[0], 'y', offset[1]))
+                   position=translate(rotate(translate(self.position, 'z', offset[2]), (0, 0, -1), np.pi/8*dt), 'x', offset[0], 'y', offset[1]))
 
     # -- Debugging Part --
+    # R_trailer = sqrt (R^2 - L1^2 - L2^2)
+    # Heading_lag = arcsin(L2 / R)
     # @Part
     # def MakeCandidatePosition(self):
-    #     return Box(quantify=5, width=5,
+    #     return Box(quantify=5, width=4,
     #                length=2,
     #                height=2,
-    #                position=translate(rotate(self.position, (0, 0, -1), np.pi / 8 * child.index), 'x', 0, 'y',
-    #                                   7))
+    #                position=rotate(translate(rotate(translate(self.position, 'y', np.sqrt(13.6 ** 2 - 4 ** 2 - 12 ** 2) - np.sqrt(13.6 ** 2 - 4 ** 2)), (0, 0, -1), np.pi / 8 * child.index), 'x', 0, 'y',
+    #                                   np.sqrt(13.6**2 - 4 ** 2)), 'z', 0),
+    #                color="blue")
+
+    # @Part
+    # def MakeTrailer(self):
+    #     return Box(quantify=5, width=12,
+    #                length=2,
+    #                height=2,
+    #                position=translate(rotate(translate(self.position, 'y', 0), (0, 0, -1), np.pi / 8 * (child.index + 1) - math.asin(12 / 13.6)), 'x', -6, 'y',
+    #                                   np.sqrt(13.6**2 - 4 ** 2 - 12 ** 2)))
 
     # Returns the common shape between the parked and turning vehicles, if its volume is non-zero a collision happens
     def CommonVolume(self, stationary_vehicle, turning_vehicle):
@@ -134,7 +191,7 @@ class Depot(GeomBase):
 
     # @Part
     # def Common(self):
-    #     return CommonSolid(shape_in = self.MakeObstacle, tool = self.MakeCandidatePosition)
+    #     return CommonSolid(shape_in = self.MakeObstacle, tool = self.MakeTrailer)
 
     @Part
     def Floor(self):
