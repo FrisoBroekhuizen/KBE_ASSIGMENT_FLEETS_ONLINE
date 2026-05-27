@@ -8,6 +8,7 @@ from parapy.exchange import STEPWriter
 
 from machine import *
 from DepotArrangement import *
+import Depot
 
 import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization
@@ -43,9 +44,10 @@ class MissionStrategyApp(Base):
     # Aggregations / associations
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0])  # List of weights for the different optimalisation goals
     strict_deadline: bool = Input(False)
+
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
-    depots: List["Depot"] = Input([])
+    depots: List[Depot] = Input([])
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
 
@@ -62,10 +64,6 @@ class MissionStrategyApp(Base):
     def number_of_machines_in_fleet(self) -> int:
         # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
-
-    @Part
-    def TransportJob(self):
-        return TransportJob()
 
     # Define (normalized) preferences function
     @action()
@@ -316,98 +314,7 @@ class Fleet(Base):
     vehicles: List["Vehicle"] = Input([])
     trailers: List["Trailer"] = Input([])
 
-    class Depot(Base):
-        """Depot with spatial dimensions and arranged machines.
-        Center provided of rectangle, rotation of long side where 0 deg is horizontal.
-        """
 
-        # Center of the depot in GPS coordinates (lat, lon)
-        location: Tuple[float, float] = Input((0.0, 0.0))
-        rotation: float = Input(0.0)  # 0 deg is long side horizontal
-        # overall_dimensions: (long side, short side, height) in meters
-        overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
-
-        # Machines and trailers currently relevant for this depot
-        machines: List["Machine"] = Input([])
-        trailers: List["Trailer"] = Input([])
-
-        parking_gap = 0.6
-
-        non_attachable_tools: List[Machine] = Input([])
-        attachable_tools: List = Input([])
-
-        # ------------------------------------------------------------------ #
-        # Helper: distance in meters between two GPS points
-        # ------------------------------------------------------------------ #
-        def HaversineDistance(
-            self,
-            lat1: float, lon1: float,
-            lat2: float, lon2: float
-        ) -> float:
-            """Great-circle distance between two GPS points in meters."""
-            R = 6371000.0  # Earth radius [m]
-            phi1 = math.radians(lat1)
-            phi2 = math.radians(lat2)
-            dphi = math.radians(lat2 - lat1)
-            dlambda = math.radians(lon2 - lon1)
-            a = (math.sin(dphi / 2) ** 2
-                 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
-            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-            return R * c
-
-        # ------------------------------------------------------------------ #
-        # Generic allocation helper (no generics, just duck-typing on gps_location)
-        # ------------------------------------------------------------------ #
-        def _allocate_assets(self, assets, range_m: float):
-            """Snap nearby assets (with gps_location) to depot; return (in_depot, street)."""
-            depot_lat, depot_lon = self.location
-            long_side, short_side, _ = self.overall_dimensions
-            depot_radius = 0.5 * math.sqrt(long_side ** 2 + short_side ** 2)
-            critical_proximity = range_m + depot_radius
-
-            in_depot = []
-            street = []
-
-            for asset in assets:
-                a_lat, a_lon = asset.gps_location
-                distance = self.HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
-
-                if distance <= critical_proximity:
-                    asset.gps_location = (depot_lat, depot_lon)
-                    in_depot.append(asset)
-                else:
-                    street.append(asset)
-
-            return in_depot, street
-
-        # ------------------------------------------------------------------ #
-        # Public API: machines
-        # ------------------------------------------------------------------ #
-        def DepotMachineAllocation(
-            self,
-            range_m: float = 500.0
-        ) -> Tuple[List["Machine"], List["Machine"]]:
-            """Assign nearby machines to this depot; return (in_depot, road_parked)."""
-            depot_machines, road_parked = self._allocate_assets(self.machines, range_m)
-            self.machines = depot_machines
-            return depot_machines, road_parked
-
-        # ------------------------------------------------------------------ #
-        # Public API: trailers
-        # ------------------------------------------------------------------ #
-        def DepotTrailerAllocation(
-            self,
-            range_m: float = 500.0
-        ) -> Tuple[List["Trailer"], List["Trailer"]]:
-            """Assign nearby trailers to this depot; return (in_depot, street_parked)."""
-            depot_trailers, street_trailers = self._allocate_assets(self.trailers, range_m)
-            self.trailers = depot_trailers
-            return depot_trailers, street_trailers
-
-        @Attribute
-        def contents(self):
-            """Machines and trailers currently stored in this depot."""
-            return [*self.machines, *self.trailers]
 
 class Trailer(Base):
     """
