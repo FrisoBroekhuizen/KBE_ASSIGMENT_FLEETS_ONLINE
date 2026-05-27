@@ -28,8 +28,8 @@ class RouteTest(Base):
     """Simple test model: visualize one ORS route as a Polyline."""
 
     # Inputs: (lat, lon)
-    start = Input((51.15, 5))
-    end = Input((51.547740, 5.5))
+    start = Input((48.762661, 2.317850))
+    end = Input((50.036003, 14.419264))
     machine_type = Input("Vehicle")
 
     @Attribute

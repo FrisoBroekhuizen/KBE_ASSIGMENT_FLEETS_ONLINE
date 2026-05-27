@@ -21,8 +21,8 @@ MAP1_CORNER_1: Tuple[float, float] = (51.084598, 4.216587)  # bottom-left (lat, 
 MAP1_CORNER_2: Tuple[float, float] = (51.95, 6.05)  # top-right (lat, lon) – adjust when you know it
 
 # Large MAP2:
-MAP2_CORNER_1: Tuple[float, float] = (44.238926, -0.888387)
-MAP2_CORNER_2: Tuple[float, float] = (53.727621, 19.859242)
+MAP2_CORNER_1: Tuple[float, float] = (43.312459, -1.987007)
+MAP2_CORNER_2: Tuple[float, float] = (54.65, 22.928525)
 
 
 def HaversineDistance(
@@ -271,6 +271,6 @@ def RouteVisualization(
         # Avoid empty polyline; could also raise
         return Polyline(points=[Point(0, 0, 0), Point(1, 0, 0)], color="red")
 
-    return Polyline(points=points, color="red", line_thickness=6)
+    return Polyline(points=points, color="red", line_thickness=8)
 
 
