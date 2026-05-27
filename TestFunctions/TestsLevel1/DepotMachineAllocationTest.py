@@ -19,7 +19,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
 from main import Fleet              # nested Depot lives here
-from machine import Machine
+from assets import Machine
 
 # Convenience alias so we can just write Depot(...)
 Depot = Fleet.Depot

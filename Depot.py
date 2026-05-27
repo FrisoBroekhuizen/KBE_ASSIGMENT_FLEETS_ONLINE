@@ -6,10 +6,10 @@ from typing import List, Tuple, Optional
 
 import numpy as np
 
-from main import Trailer
+from assets import *
 import math
 
-import machine
+import assets
 
 class Depot(GeomBase):
     location: Tuple[float, float] = Input((0.0, 0.0))
@@ -19,10 +19,10 @@ class Depot(GeomBase):
 
     parking_gap = 0.6
 
-    machines: List[machine.Machine] = Input([machine.Tool(vehicle_attachable=True, overall_dimensions=[1, 2, 2]),machine.Tool(vehicle_attachable=True, overall_dimensions=[0.5, 2, 2]), machine.Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), machine.Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), machine.Tool(vehicle_attachable=False, overall_dimensions=[2, 2, 2]), machine.Truck(overall_dimensions=[4, 2, 2], contents=Trailer(overall_dimensions=[12, 2, 2])), machine.Truck(overall_dimensions=[2, 1.5, 2]), machine.Truck(overall_dimensions=[4, 2, 2]), machine.Truck(overall_dimensions=[3, 2, 2]), machine.Truck(overall_dimensions=[3, 2.5, 2.5]), machine.Truck(overall_dimensions=[3, 2, 2]), machine.Truck(overall_dimensions=[2, 2, 2]), machine.Truck(overall_dimensions=[3, 1.5, 1.5]), machine.Truck(overall_dimensions=[4, 2, 2])])
+    machines: List[Machine] = Input([Tool(vehicle_attachable=True, overall_dimensions=[1, 2, 2]),Tool(vehicle_attachable=True, overall_dimensions=[0.5, 2, 2]), Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Tool(vehicle_attachable=False, overall_dimensions=[2, 2, 2]), Truck(overall_dimensions=[4, 2, 2], contents=Trailer(overall_dimensions=[12, 2, 2])), Truck(overall_dimensions=[2, 1.5, 2]), Truck(overall_dimensions=[4, 2, 2]), Truck(overall_dimensions=[3, 2, 2]),Truck(overall_dimensions=[3, 2.5, 2.5]), Truck(overall_dimensions=[3, 2, 2]), Truck(overall_dimensions=[2, 2, 2]), Truck(overall_dimensions=[3, 1.5, 1.5]), Truck(overall_dimensions=[4, 2, 2])])
     trailers: List[Trailer] = Input([])
 
-    non_attachable_tools: List[machine.Machine] = Input([])
+    non_attachable_tools: List[Machine] = Input([])
     attachable_tools: List = Input([])
 
     # --------------------------------

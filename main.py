@@ -6,9 +6,9 @@ from typing import List, Tuple, Optional
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 
-from machine import *
-from DepotArrangement import *
-import Depot
+from assets import *
+# from DepotArrangement import *
+from Depot import Depot
 
 import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization
@@ -315,36 +315,6 @@ class Fleet(Base):
     trailers: List["Trailer"] = Input([])
 
 
-
-class Trailer(Base):
-    """
-    Description:
-        Non‑powered trailer asset.
-
-    Notes:
-        - NOT a Machine: no individual emissions, NOX, cost, maintenance.
-        - Only used as capacity / geometry in transport & packing.
-    """
-
-    # Identifier for reporting / debug
-    trailer_id: str = Input("")
-
-    # Internal usable cargo volume [L, W, H] in meters
-    carrying_bounding_box: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
-    overall_dimensions = carrying_bounding_box
-
-    # Maximum additional load [kg] it may carry (excluding its own structural mass)
-    max_loading_weight: float = Input(0.0)
-
-    # True if fully covered (box), False if flatbed / open
-    has_ceiling: bool = Input(True)
-
-    # Simple location if you still want to park them in depots / on sites
-    # (you could also omit this if you only care about capacity)
-    gps_location: Tuple[float, float] = Input((0.0, 0.0))
-
-    # Logical content (IDs, Machine references, or your packing Items)
-    contents: object = Input(None)
 if __name__ == "__main__":
     from parapy.gui import display
 

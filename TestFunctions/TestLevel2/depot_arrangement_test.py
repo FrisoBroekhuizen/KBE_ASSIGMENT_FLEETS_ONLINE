@@ -9,7 +9,7 @@ import numpy as np
 from main import Trailer
 import math
 
-import machine
+import assets
 
 class Depot(GeomBase):
     location: Tuple[float, float] = Input((0.0, 0.0))
