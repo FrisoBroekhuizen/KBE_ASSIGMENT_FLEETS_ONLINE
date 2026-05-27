@@ -2,6 +2,7 @@
 import math
 import os
 from typing import List, Tuple, Optional
+import datetime
 
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
@@ -40,6 +41,8 @@ class MissionStrategyApp(Base):
     needed_machinery: str = Input("")
     site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
     site_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
+    start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
+
 
     # Aggregations / associations
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0])  # List of weights for the different optimalisation goals
@@ -98,10 +101,38 @@ class MissionStrategyApp(Base):
         self.mission_preferences = normalized
         return normalized
 
+    # Function that builds the final mission planning
     @action()
     def Planner(self):
+        timelines = []
         for work_job in self.work_jobs:
-            print(work_job)
+            for vehicle in work_job.assigned_vehicles:
+                timelines.append([vehicle.machine_id, self.start_time])
+        timelines = np.array(timelines)
+        # print("Starting point timeline:")
+        # print(timelines)
+        for transport_job in self.transport_jobs:
+            vehicle = transport_job.transporting_vehicle
+            try: index = np.where(timelines[:,0] == vehicle.machine_id)[0][0]
+            except: print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+            if type(vehicle).__name__ == "Truck":
+                trailer = vehicle.contents
+                for item in trailer.contents:
+                    try:
+                        index_content = np.where(timelines[:,0] == item.machine_id)[0][0]
+                        timelines[index_content][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
+                    except: print("No index could be found for the vehicle " + str(item.machine_id) + " inside trailer " + str(trailer.machine_id))
+            timelines[index][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
+        # print("Timeline after transport jobs:")
+        # print(timelines)
+        for work_job in self.work_jobs:
+            vehicles = work_job.assigned_vehicles
+            for vehicle in vehicles:
+                try: index = np.where(timelines[:,0] == vehicle.machine_id)[0][0]
+                except: print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+                timelines[index][1] += datetime.timedelta(hours=(work_job.man_hours / len(vehicles)))
+        # print("Timeline after work jobs:")
+        # print(timelines)
 
     @action
     def MissionIterator(self) -> None:
@@ -130,28 +161,16 @@ class MissionStrategyApp(Base):
         work_jobs = self.work_jobs
 
         # Sum the performance metrics of the different transport and work jobs. try/except statement for edge case of exactly 1 transport or work job
-        try:
-            for transport_job in transport_jobs:
-                total_mission_maintenance += transport_job.job_maintenance
-                total_mission_NOx += transport_job.job_NOx
-                total_mission_CO2 += transport_job.job_CO2
-                total_mission_cost += transport_job.job_cost
-        except:
-            total_mission_maintenance += transport_jobs.job_maintenance
-            total_mission_NOx += transport_jobs.job_NOx
-            total_mission_CO2 += transport_jobs.job_CO2
-            total_mission_cost += transport_jobs.job_cost
-        try:
-            for work_job in work_jobs:
-                total_mission_maintenance += sum(work_job.job_maintenance)
-                total_mission_NOx += sum(work_job.job_NOx)
-                total_mission_CO2 += sum(work_job.job_CO2)
-                total_mission_cost += sum(work_job.job_cost)
-        except:
-            total_mission_maintenance += sum(work_jobs.job_maintenance)
-            total_mission_NOx += sum(work_jobs.job_NOx)
-            total_mission_CO2 += sum(work_jobs.job_CO2)
-            total_mission_cost += sum(work_jobs.job_cost)
+        for transport_job in transport_jobs:
+            total_mission_maintenance += transport_job.job_maintenance
+            total_mission_NOx += transport_job.job_NOx
+            total_mission_CO2 += transport_job.job_CO2
+            total_mission_cost += transport_job.job_cost
+        for work_job in work_jobs:
+            total_mission_maintenance += sum(work_job.job_maintenance)
+            total_mission_NOx += sum(work_job.job_NOx)
+            total_mission_CO2 += sum(work_job.job_CO2)
+            total_mission_cost += sum(work_job.job_cost)
 
         self.mission_maintenance = total_mission_maintenance
         self.mission_NOx = total_mission_NOx
@@ -251,11 +270,12 @@ class TransportJob(Base):
     def TimeKeeper(self) -> float:
         routeDistance = self.Route[1] / 1000 # Route distance in km
 
-        if str(type(self.needed_machinery).__name__) == "Truck" or str(type(self.needed_machinery).__name__) == "Vehicle":
+        if str(type(self.transporting_vehicle).__name__) == "Truck" or str(type(self.transporting_vehicle).__name__) == "Vehicle":
             routeDuration = self.Route[0]
         else:
-            max_speed = self.max_speeds[str(type(self.needed_machinery).__name__)] * 0.8 # Factor for not always driving at the maximum speeds due to rural roads, traffic, etc.
+            max_speed = self.max_speeds[str(type(self.transporting_vehicle).__name__)] * 0.8 # Factor for not always driving at the maximum speeds due to rural roads, traffic, etc.
             routeDuration = routeDistance / max_speed * 3600
+        routeDuration = round(routeDuration/60)
         return routeDuration
 
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
@@ -410,5 +430,6 @@ if __name__ == "__main__":
     #     show_in_tree=True,  # optional Input if you add it later
     # )
 
-    app = MissionStrategyApp(transport_jobs = [TransportJob(transporting_vehicle = Truck(age=1)), TransportJob(transporting_vehicle = Tractor(age=30))], work_jobs = WorkJob(assigned_vehicles = [Truck(age=2), Truck(age=30)]))
+    app = MissionStrategyApp(transport_jobs = [TransportJob(transporting_vehicle = Truck(age=1, machine_id="Truck_1", contents=Trailer(contents=[Tractor(machine_id="Tractor_in_trailer")])), begin_location_gps=[4.390331, 51.993079], end_location_gps=[4.448566, 51.934693]), TransportJob(transporting_vehicle = Tractor(age=30, machine_id="Tractor_1"), begin_location_gps=[4.390331, 51.993079], end_location_gps=[4.448566, 51.934693])],
+                             work_jobs = [WorkJob(assigned_vehicles = [Truck(age=2, machine_id="Truck_1"), Tractor(age=30, machine_id="Tractor_1"), Tractor(age=30, machine_id="Tractor_in_trailer")], man_hours=4)])
     display(app)

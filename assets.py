@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Tuple, List
 
 from parapy.core import Base, Input, Attribute
 
@@ -32,6 +32,8 @@ class Machine(Base):
         - CalculateIndividualNOX()
         - CalculateIndividualCost()
     """
+
+    machine_id = Input("")
 
     age: float = Input(0.0) # Years
     prediction_tool: str = Input("")
@@ -200,7 +202,7 @@ class Truck(Vehicle):
 
     bounding_box: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
     max_loading_weight: float = Input(0.0)
-    contents: object = Input(None)
+    contents: object = Input(None) # Trailer
 
 
 
@@ -269,7 +271,7 @@ class Trailer(Base):
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
 
     # Logical content (IDs, Machine references, or your packing Items)
-    contents: object = Input(None)
+    contents: List[object] = Input([None])
 
 if __name__ == "__main__":
     from parapy.gui import display
