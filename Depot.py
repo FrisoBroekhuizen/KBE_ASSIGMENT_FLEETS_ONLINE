@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional
 import numpy as np
 
 from assets import *
+from Routing import HaversineDistance
 import math
 
 import assets
@@ -28,26 +29,6 @@ class Depot(GeomBase):
     # --------------------------------
     #  FUNCTION 1: Allocating assets to specific depots
     # --------------------------------
-
-    # -------
-    # Helper: distance in meters between two GPS points
-    # -------
-    def HaversineDistance(
-            self,
-            lat1: float, lon1: float,
-            lat2: float, lon2: float
-    ) -> float:
-        """Great-circle distance between two GPS points in meters."""
-        R = 6371000.0  # Earth radius [m]
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        dphi = math.radians(lat2 - lat1)
-        dlambda = math.radians(lon2 - lon1)
-        a = (math.sin(dphi / 2) ** 2
-             + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-        return R * c
-
     # -------
     # Generic allocation helper (no generics, just duck-typing on gps_location)
     # -------
@@ -63,7 +44,7 @@ class Depot(GeomBase):
 
         for asset in assets:
             a_lat, a_lon = asset.gps_location
-            distance = self.HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
+            distance = Routing.HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
 
             if distance <= critical_proximity:
                 asset.gps_location = (depot_lat, depot_lon)
