@@ -73,6 +73,141 @@ class MissionStrategyApp(Base):
         # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
 
+    # Optional: declare these as Inputs so you can inspect them in the GUI
+    mission_time: float = Input(0.0)
+    mission_scalar: float = Input(0.0)
+
+    normalized_cost: float = Input(0.0)
+    normalized_time: float = Input(0.0)
+    normalized_emissions: float = Input(0.0)
+
+    winning_mission: Optional["MissionStrategyApp"] = Input(None)
+
+    # --- existing methods like NormalizePreferences(), etc. ---
+
+    @action
+    def MissionIterator(self) -> "MissionStrategyApp":
+        """Top-level mission loop:
+        1) Generate candidate missions
+        2) Evaluate raw metrics per mission
+        3) Normalize & pick mission with lowest scalar cost
+        """
+        # 0) Ensure preferences are normalized before evaluation
+        self.NormalizePreferences()
+
+        # 1) MissionGenerator: generate all candidate missions
+        all_generated_missions = self._mission_generator()
+
+        if not all_generated_missions:
+            raise RuntimeError("MissionGenerator produced no missions to evaluate.")
+
+        # 2) MissionEvaluator: compute raw totals per mission
+        self._mission_evaluator(all_generated_missions)
+
+        # 3) MissionPicker: normalize, compute scalar, pick best
+        winning_mission = self._mission_picker(all_generated_missions)
+
+        # Store and return for convenience
+        self.winning_mission = winning_mission
+        return winning_mission
+
+    # ------------------------------------------------------------------
+    # 1) MissionGenerator
+    # ------------------------------------------------------------------
+    def _mission_generator(self) -> List["MissionStrategyApp"]:
+        """Generate candidate missions (combinations of vehicles, transport
+        jobs and work jobs).
+
+        TODO:
+        - Implement combinatorial search over fleet / jobs:
+          * choose which trucks/tractors/etc. to assign
+          * build different sequences of transport_jobs and work_jobs
+          * apply feasibility filters (distance, deadlines, availability)
+        - For now, we just evaluate the current mission as a single candidate.
+        """
+        # Placeholder: evaluate only the current configuration as 1 mission
+        return [self]
+
+    # ------------------------------------------------------------------
+    # 2) MissionEvaluator
+    # ------------------------------------------------------------------
+    def _mission_evaluator(self, missions: List["MissionStrategyApp"]) -> None:
+        """For each mission, sum maintenance, NOx, CO2, cost and time over all
+        its transport and work jobs."""
+        for m in missions:
+            total_mission_maintenance = 0.0
+            total_mission_NOx = 0.0
+            total_mission_CO2 = 0.0
+            total_mission_cost = 0.0
+            total_mission_time = 0.0
+
+            transport_jobs = m.transport_jobs
+            work_jobs = m.work_jobs
+
+            # Transport jobs: assume TimeKeeper is mission time contribution
+            for transport_job in transport_jobs:
+                total_mission_maintenance += transport_job.job_maintenance
+                total_mission_NOx += transport_job.job_NOx
+                total_mission_CO2 += transport_job.job_CO2
+                total_mission_cost += transport_job.job_cost
+                total_mission_time += transport_job.TimeKeeper  # assume consistent unit
+
+            # Work jobs: job_* are per tool/vehicle lists, TimeKeeper is duration
+            for work_job in work_jobs:
+                total_mission_maintenance += sum(work_job.job_maintenance)
+                total_mission_NOx += sum(work_job.job_NOx)
+                total_mission_CO2 += sum(work_job.job_CO2)
+                total_mission_cost += sum(work_job.job_cost)
+                total_mission_time += work_job.TimeKeeper
+
+            m.mission_maintenance = total_mission_maintenance
+            m.mission_NOx = total_mission_NOx
+            m.mission_CO2 = total_mission_CO2
+            m.mission_cost = total_mission_cost
+            m.mission_time = total_mission_time
+
+    # ------------------------------------------------------------------
+    # 3) MissionPicker
+    # ------------------------------------------------------------------
+    def _mission_picker(self, missions: List["MissionStrategyApp"]) -> "MissionStrategyApp":
+        """Normalize cost/time/emissions across missions, evaluate scalar
+        score for each mission and return the best one."""
+        # Collect raw values across all missions
+        costs = [m.mission_cost for m in missions]
+        times = [m.mission_time for m in missions]
+        CO2s = [m.mission_CO2 for m in missions]
+        NOxs = [m.mission_NOx for m in missions]
+
+        min_cost, max_cost = min(costs), max(costs)
+        min_time, max_time = min(times), max(times)
+        min_CO2, max_CO2 = min(CO2s), max(CO2s)
+        min_NOx, max_NOx = min(NOXs), max(NOXs)
+
+        alpha = 0.25  # weight CO2 vs NOx inside "emissions" metric
+
+        for m in missions:
+            # Normalized cost
+            m.normalized_cost = ((m.mission_cost - min_cost) / (max_cost - min_cost)
+                if (max_cost - min_cost) != 0 else 0.0)
+
+            # Normalized time
+            m.normalized_time = ((m.mission_time - min_time) / (max_time - min_time)
+                if (max_time - min_time) != 0 else 0.0)
+
+            # Normalized emissions (CO2 + NOx combined)
+            norm_CO2 = ((m.mission_CO2 - min_CO2) / (max_CO2 - min_CO2)
+                if (max_CO2 - min_CO2) != 0 else 0.0)
+            norm_NOx = ((m.mission_NOx - min_NOx) / (max_NOx - min_NOx)
+                if (max_NOx - min_NOx) != 0 else 0.0)
+            m.normalized_emissions = alpha * norm_CO2 + (1.0 - alpha) * norm_NOx
+
+            # Scalar cost function for this mission
+            m.mission_scalar = m.EvaluateCostFunction()
+
+        # Pick the mission with the lowest scalar score
+        winning_mission = min(missions, key=lambda mm: mm.mission_scalar)
+        return winning_mission
+
     # Define (normalized) preferences function
     @action()
     def NormalizePreferences(self) -> List[float]:
@@ -80,6 +215,7 @@ class MissionStrategyApp(Base):
         - Negative values => 0 (user really doesn't want that objective)
         - Non-negative values are scaled so sum == 1
         - If all are <= 0, fall back to equal weights.
+        - Cost, Emmisions , Time
         """
         prefs = [float(p) for p in self.mission_preferences]
         if not prefs:
@@ -113,79 +249,39 @@ class MissionStrategyApp(Base):
         # print(timelines)
         for transport_job in self.transport_jobs:
             vehicle = transport_job.transporting_vehicle
-            try: index = np.where(timelines[:,0] == vehicle.machine_id)[0][0]
-            except: print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+            try:
+                index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
+            except:
+                print("No index could be found for this vehicle: " + str(vehicle.machine_id))
             if type(vehicle).__name__ == "Truck":
                 trailer = vehicle.contents
                 for item in trailer.contents:
                     try:
-                        index_content = np.where(timelines[:,0] == item.machine_id)[0][0]
+                        index_content = np.where(timelines[:, 0] == item.machine_id)[0][0]
                         timelines[index_content][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
-                    except: print("No index could be found for the vehicle " + str(item.machine_id) + " inside trailer " + str(trailer.machine_id))
+                    except:
+                        print("No index could be found for the vehicle " + str(
+                            item.machine_id) + " inside trailer " + str(trailer.machine_id))
             timelines[index][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
         # print("Timeline after transport jobs:")
         # print(timelines)
         for work_job in self.work_jobs:
             vehicles = work_job.assigned_vehicles
             for vehicle in vehicles:
-                try: index = np.where(timelines[:,0] == vehicle.machine_id)[0][0]
-                except: print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+                try:
+                    index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
+                except:
+                    print("No index could be found for this vehicle: " + str(vehicle.machine_id))
                 timelines[index][1] += datetime.timedelta(hours=(work_job.man_hours / len(vehicles)))
-        # print("Timeline after work jobs:")
-        # print(timelines)
-
-    @action
-    def MissionIterator(self) -> None:
-        # Function that iterates over all the different possible strategies. In order to achieve a specific mission,
-        # the possible combinations of transport and work jobs are generated here. These are then used in
-        # EvaluateCostFunction, which uses the MissionIterator with the normalized mission preferences.
-        # A viability check is also performed. (Such as cancelling machines that are too far anyway)
-
-        # To do: think about how to apply this.
-        # Idea: Can maybe use nearest-neighbour method to start searching from the most close-by truck
-        # Include deadline logic to skip useless vehicles
-        # If strict deadlines boolean true, only strategies that can manage this deadline are considered.
-
-        # To do: Also tries to do the arranging of vehicles and containers, if this turns out to be too computationally
-        # expensive, a rough estimate can be made with maximal dimensions and volume logic, and the actual arranging is
-        # done in a final visualization function, in order to get the most efficient loading.
-        # Idea: start with one container (with the max volume check), and keep adding trucks until it fits, to ensure
-        # minimal truck usage.
-
-        # total_mission_maintenance = 0
-        total_mission_NOx = 0
-        total_mission_CO2 = 0
-        total_mission_cost = 0
-
-        transport_jobs = self.transport_jobs
-        work_jobs = self.work_jobs
-
-        # Sum the performance metrics of the different transport and work jobs. try/except statement for edge case of exactly 1 transport or work job
-        for transport_job in transport_jobs:
-            # total_mission_maintenance += transport_job.job_maintenance
-            total_mission_NOx += transport_job.job_NOx
-            total_mission_CO2 += transport_job.job_CO2
-            total_mission_cost += transport_job.job_cost
-        for work_job in work_jobs:
-            # total_mission_maintenance += sum(work_job.job_maintenance)
-            total_mission_NOx += sum(work_job.job_NOx)
-            total_mission_CO2 += sum(work_job.job_CO2)
-            total_mission_cost += sum(work_job.job_cost)
-
-        # self.mission_maintenance = total_mission_maintenance
-        self.mission_NOx = total_mission_NOx
-        self.mission_CO2 = total_mission_CO2
-        self.mission_cost = total_mission_cost
-
-    # UML operation – placeholder
+            # print("Timeline after work jobs:")
+            # print(timelines)
+    # ------------------------------------------------------------------
+    # Cost function
+    # ------------------------------------------------------------------
     def EvaluateCostFunction(self) -> float:
-        # Function that evaluates the cost function for each viable generated strategy, together with the normalized
-        # mission preferences. This function evaluates the cost function for each mission 'block' (matrix multiplication?)
-        # which results in a single scalar value. The lowest value and corresponding strategy is picked.
-        # This acts as our robust optimizer
-
-        raise NotImplementedError
-    # write function that choses minimum /optimal option
+        """Dot product of normalized preferences and normalized objectives."""
+        w_cost, w_time, w_emissions = self.mission_preferences
+        return (w_cost * self.normalized_cost + w_time * self.normalized_time + w_emissions * self.normalized_emissions)
 
     def PackagedVisualization(self):
         """Return the ParaPy model to visualize the packing. It visualizes the trailers, together with the packed tools, and vehicles
