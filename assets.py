@@ -43,6 +43,8 @@ class Machine(Base):
     energy_source: str = Input("Diesel") # Can be: Diesel, Gasoline, Electric, Hybrid
     mass: float = Input(0.0)
 
+    consumption_per_hour = Input(1.0) # (kg, L or kW)/h
+
     # overall_dimensions: array[x, y, z]
     overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
 
@@ -54,9 +56,15 @@ class Machine(Base):
     idle_fraction = 2  # Assumed data contains hours/day
 
     # Weights of wear caused by different ways of using the machine
-    w_operating = 1e-5
-    w_idle = 3e-6
-    w_stationary = 5e-7
+    w_operating = 4e-6
+    w_idle = 2e-6
+    w_stationary = 1e-8
+
+    # Current energy prices in eur per kg, L or kW
+    energy_source_cost = {"Diesel": 2.19, # /L
+                             "Gasoline": 2.31, # /L
+                             "Electric": 0.8, # /kWh
+                             "Hybrid": 1.4} # /Combo
 
     energy_source_factors = {"Diesel": 1.2,
                              "Gasoline": 1.1,
@@ -72,16 +80,33 @@ class Machine(Base):
 
     # UML operations – placeholders
     # look at comments in main
-    def CalculateIndividualCO2(self) -> float:
+    def individualCO2(self) -> float:
         return 1
 
-    def CalculateIndividualNOX(self) -> float:
+    def individualNOX(self) -> float:
         return 1
 
-    def CalculateIndividualCost(self) -> float:
-        return 1
+    def individualCost(self, hours_used) -> float:
+        wearFactor = self.individualDepreciation() # A factor to account for extra maintenance, inefficiency, extra emissions, reliability, etc...
+        print("-- " + str(self.machine_id) + " --")
+        try: # Check if vehicle is carrying any additional mass
+            content_mass = self.contents.mass
+            try: # Check if vehicle was carrying a trailer that is carrying additional mass
+                trailer_content_mass = self.contents.contents[0].mass
+            except:
+                trailer_content_mass = 0
+            loading_factor = (self.mass + content_mass + trailer_content_mass) / self.mass
+        except:
+            loading_factor = 1
+        print("Loading factor: " + str(loading_factor))
+        print("Wear factor: " + str(wearFactor))
+        operatingCost = self.consumption_per_hour * hours_used * self.energy_source_cost[self.energy_source] * loading_factor * wearFactor
+        print("Operating cost: " + str(operatingCost))
 
-    def CalculateIndividualMaintenance(self) -> float:
+        return operatingCost
+
+
+    def individualDepreciation(self) -> float:
         # Normalize hours spend by the machine as a base decay_factor
         total_hours = self.age * 365 * 24
         if total_hours == 0: total_hours = 1 # Fail-safe, difference is negligible
@@ -93,12 +118,12 @@ class Machine(Base):
                     self.w_operating * operating_hours + self.w_idle * idle_hours + self.w_stationary * stationary_hours) / total_hours
 
         # Alter the decay factor based on machine worth, energy_source and machine_type
-        decay_factor *= (1 + 0.01 * self.worth)
+        decay_factor *= (1 + 0.01 * self.worth / 1000000)
         decay_factor *= self.energy_source_factors[self.energy_source]
         decay_factor *= self.machine_type_factors[type(self).__name__]
 
-        productivity = np.exp(-decay_factor * self.age)
-        return productivity
+        wearFactor = np.exp(decay_factor * self.age)
+        return wearFactor
 
 
 class Vehicle(Machine):
@@ -265,6 +290,8 @@ class Trailer(Base):
 
     # True if fully covered (box), False if flatbed / open
     has_ceiling: bool = Input(True)
+
+    mass = Input(0.0)
 
     # Simple location if you still want to park them in depots / on sites
     # (you could also omit this if you only care about capacity)

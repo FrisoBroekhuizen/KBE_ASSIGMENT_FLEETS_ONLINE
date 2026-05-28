@@ -152,7 +152,7 @@ class MissionStrategyApp(Base):
         # Idea: start with one container (with the max volume check), and keep adding trucks until it fits, to ensure
         # minimal truck usage.
 
-        total_mission_maintenance = 0
+        # total_mission_maintenance = 0
         total_mission_NOx = 0
         total_mission_CO2 = 0
         total_mission_cost = 0
@@ -162,17 +162,17 @@ class MissionStrategyApp(Base):
 
         # Sum the performance metrics of the different transport and work jobs. try/except statement for edge case of exactly 1 transport or work job
         for transport_job in transport_jobs:
-            total_mission_maintenance += transport_job.job_maintenance
+            # total_mission_maintenance += transport_job.job_maintenance
             total_mission_NOx += transport_job.job_NOx
             total_mission_CO2 += transport_job.job_CO2
             total_mission_cost += transport_job.job_cost
         for work_job in work_jobs:
-            total_mission_maintenance += sum(work_job.job_maintenance)
+            # total_mission_maintenance += sum(work_job.job_maintenance)
             total_mission_NOx += sum(work_job.job_NOx)
             total_mission_CO2 += sum(work_job.job_CO2)
             total_mission_cost += sum(work_job.job_cost)
 
-        self.mission_maintenance = total_mission_maintenance
+        # self.mission_maintenance = total_mission_maintenance
         self.mission_NOx = total_mission_NOx
         self.mission_CO2 = total_mission_CO2
         self.mission_cost = total_mission_cost
@@ -261,7 +261,7 @@ class TransportJob(Base):
     # using the computed routeDistance and an average speed for a tractor.
     @Attribute
     def Route(self) -> List[float]:
-        self.routeDuration, self.routeDistance = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
+        self.routeDuration, self.routeDistance, _ = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
         return[self.routeDuration, self.routeDistance]
 
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
@@ -281,27 +281,27 @@ class TransportJob(Base):
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
     # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
     # Maintenance threshold is placed in the Pareto distribution for maintenance
-    @Attribute
-    def job_maintenance(self):
-        maintenance = self.transporting_vehicle.CalculateIndividualMaintenance()
-        return maintenance
+    # @Attribute
+    # def job_maintenance(self):
+    #     maintenance = self.transporting_vehicle.CalculateIndividualMaintenance()
+    #     return maintenance
 
     # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
-        NOx = self.transporting_vehicle.CalculateIndividualNOX()
+        NOx = self.transporting_vehicle.individualNOX()
         return NOx
 
     # Talk to Arjan -> External tool
     @Attribute
     def job_CO2(self) -> float:
-        CO2 = self.transporting_vehicle.CalculateIndividualCO2()
+        CO2 = self.transporting_vehicle.individualCO2()
         return CO2
 
     # Talk to Arjan, depends on work hours, employees, machinery, historical data
     @Attribute
     def job_cost(self) -> float:
-        cost = self.transporting_vehicle.CalculateIndividualCost()
+        cost = self.transporting_vehicle.individualCost(self.TimeKeeper / 60)
         return cost
 
 class WorkJob(Base):
@@ -343,27 +343,27 @@ class WorkJob(Base):
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
     # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
     # Maintenance threshold is placed in the Pareto distribution for maintenance
-    @Attribute
-    def job_maintenance(self):
-        maintenance_list = []
-        for tool in self.assigned_tools:
-            maintenance = tool.CalculateIndividualMaintenance()
-            maintenance_list.append(maintenance)
-        for vehicle in self.assigned_vehicles:
-            maintenance = vehicle.CalculateIndividualMaintenance()
-            maintenance_list.append(maintenance)
-
-        return maintenance_list
+    # @Attribute
+    # def job_maintenance(self):
+    #     maintenance_list = []
+    #     for tool in self.assigned_tools:
+    #         maintenance = tool.CalculateIndividualMaintenance()
+    #         maintenance_list.append(maintenance)
+    #     for vehicle in self.assigned_vehicles:
+    #         maintenance = vehicle.CalculateIndividualMaintenance()
+    #         maintenance_list.append(maintenance)
+    #
+    #     return maintenance_list
 
     # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
         NOx_list = []
         for tool in self.assigned_tools:
-            NOx = tool.CalculateIndividualNOX()
+            NOx = tool.individualNOX()
             NOx_list.append(NOx)
         for vehicle in self.assigned_vehicles:
-            NOx = vehicle.CalculateIndividualNOX()
+            NOx = vehicle.individualNOX()
             NOx_list.append(NOx)
 
         return NOx_list
@@ -373,10 +373,10 @@ class WorkJob(Base):
     def job_CO2(self) -> float:
         CO2_list = []
         for tool in self.assigned_tools:
-            CO2 = tool.CalculateIndividualCO2()
+            CO2 = tool.individualCO2()
             CO2_list.append(CO2)
         for vehicle in self.assigned_vehicles:
-            CO2 = vehicle.CalculateIndividualCO2()
+            CO2 = vehicle.individualCO2()
             CO2_list.append(CO2)
 
         return CO2_list
@@ -386,10 +386,10 @@ class WorkJob(Base):
     def job_cost(self) -> float:
         cost_list = []
         for tool in self.assigned_tools:
-            cost = tool.CalculateIndividualCost()
+            cost = tool.individualCost(self.man_hours / len(self.assigned_tools))
             cost_list.append(cost)
         for vehicle in self.assigned_vehicles:
-            cost = vehicle.CalculateIndividualCost()
+            cost = vehicle.individualCost(self.man_hours / len(self.assigned_vehicles))
             cost_list.append(cost)
 
         return cost_list
@@ -430,6 +430,8 @@ if __name__ == "__main__":
     #     show_in_tree=True,  # optional Input if you add it later
     # )
 
-    app = MissionStrategyApp(transport_jobs = [TransportJob(transporting_vehicle = Truck(age=1, machine_id="Truck_1", contents=Trailer(contents=[Tractor(machine_id="Tractor_in_trailer")])), begin_location_gps=[4.390331, 51.993079], end_location_gps=[4.448566, 51.934693]), TransportJob(transporting_vehicle = Tractor(age=30, machine_id="Tractor_1"), begin_location_gps=[4.390331, 51.993079], end_location_gps=[4.448566, 51.934693])],
-                             work_jobs = [WorkJob(assigned_vehicles = [Truck(age=2, machine_id="Truck_1"), Tractor(age=30, machine_id="Tractor_1"), Tractor(age=30, machine_id="Tractor_in_trailer")], man_hours=4)])
+    app = MissionStrategyApp(transport_jobs = [TransportJob(transporting_vehicle = Truck(consumption_per_hour = 30, mass = 10000, worth=500000, age=1, machine_id="Truck_1", contents=Trailer(mass=2000, contents=[Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, machine_id="Tractor_in_trailer")])), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566]),
+                                               TransportJob(transporting_vehicle = Tractor(consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566]),
+                                               TransportJob(transporting_vehicle = Truck(consumption_per_hour = 30, mass = 10000, worth=500000, age=10, machine_id="Truck_2"), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566])],
+                             work_jobs = [WorkJob(assigned_vehicles = [Truck(mass = 10000, consumption_per_hour = 30, worth=500000, age=2, machine_id="Truck_1"), Tractor(mass=10000, consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, age=30, machine_id="Tractor_in_trailer")], man_hours=20)])
     display(app)
