@@ -69,6 +69,13 @@ class MissionStrategyApp(Base):
         return [*self.transport_jobs, *self.work_jobs]
 
     @Attribute
+    def all_machines(self):
+        machines = []
+        for job in self.transport_jobs:
+            machines.append(job.transporting_vehicle)
+        return machines
+
+    @Attribute
     def number_of_machines_in_fleet(self) -> int:
         # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
@@ -96,7 +103,8 @@ class MissionStrategyApp(Base):
         self.NormalizePreferences()
 
         # 1) MissionGenerator: generate all candidate missions
-        all_generated_missions = self._mission_generator()
+        # all_generated_missions = self._mission_generator()
+        all_generated_missions = [self]
 
         if not all_generated_missions:
             raise RuntimeError("MissionGenerator produced no missions to evaluate.")
@@ -135,7 +143,6 @@ class MissionStrategyApp(Base):
         """For each mission, sum maintenance, NOx, CO2, cost and time over all
         its transport and work jobs."""
         for m in missions:
-            total_mission_maintenance = 0.0
             total_mission_NOx = 0.0
             total_mission_CO2 = 0.0
             total_mission_cost = 0.0
@@ -146,7 +153,6 @@ class MissionStrategyApp(Base):
 
             # Transport jobs: assume TimeKeeper is mission time contribution
             for transport_job in transport_jobs:
-                total_mission_maintenance += transport_job.job_maintenance
                 total_mission_NOx += transport_job.job_NOx
                 total_mission_CO2 += transport_job.job_CO2
                 total_mission_cost += transport_job.job_cost
@@ -154,13 +160,11 @@ class MissionStrategyApp(Base):
 
             # Work jobs: job_* are per tool/vehicle lists, TimeKeeper is duration
             for work_job in work_jobs:
-                total_mission_maintenance += sum(work_job.job_maintenance)
                 total_mission_NOx += sum(work_job.job_NOx)
                 total_mission_CO2 += sum(work_job.job_CO2)
                 total_mission_cost += sum(work_job.job_cost)
                 total_mission_time += work_job.TimeKeeper
 
-            m.mission_maintenance = total_mission_maintenance
             m.mission_NOx = total_mission_NOx
             m.mission_CO2 = total_mission_CO2
             m.mission_cost = total_mission_cost
@@ -178,10 +182,15 @@ class MissionStrategyApp(Base):
         CO2s = [m.mission_CO2 for m in missions]
         NOxs = [m.mission_NOx for m in missions]
 
-        min_cost, max_cost = min(costs), max(costs)
-        min_time, max_time = min(times), max(times)
-        min_CO2, max_CO2 = min(CO2s), max(CO2s)
-        min_NOx, max_NOx = min(NOXs), max(NOXs)
+        # min_cost, max_cost = min(costs), max(costs)
+        # min_time, max_time = min(times), max(times)
+        # min_CO2, max_CO2 = min(CO2s), max(CO2s)
+        # min_NOx, max_NOx = min(NOxs), max(NOxs)
+
+        min_cost, max_cost = 0, 10000
+        min_time, max_time = 0, 10000
+        min_CO2, max_CO2 = 0, 10000
+        min_NOx, max_NOx = 0, 10000
 
         alpha = 0.25  # weight CO2 vs NOx inside "emissions" metric
 
@@ -252,9 +261,10 @@ class MissionStrategyApp(Base):
             try:
                 index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
             except:
-                print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+                print("No transport job index could be found for this vehicle: " + str(vehicle.machine_id))
             if type(vehicle).__name__ == "Truck":
-                trailer = vehicle.contents
+                if vehicle.contents != None: trailer = vehicle.contents
+                else: trailer.contents = []
                 for item in trailer.contents:
                     try:
                         index_content = np.where(timelines[:, 0] == item.machine_id)[0][0]
@@ -271,7 +281,7 @@ class MissionStrategyApp(Base):
                 try:
                     index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
                 except:
-                    print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+                    print("No wor job index could be found for this vehicle: " + str(vehicle.machine_id))
                 timelines[index][1] += datetime.timedelta(hours=(work_job.man_hours / len(vehicles)))
             # print("Timeline after work jobs:")
             # print(timelines)
@@ -314,6 +324,13 @@ class MissionStrategyApp(Base):
     def export_results(self):
         # Export JSON results
         raise NotImplementedError
+
+    @Part
+    def depot(self):
+        return Depot(
+            quantify=len(self.depots),
+            machines=self.all_machines
+        )
 
     # Define (normalized) preferences function
 
@@ -377,11 +394,6 @@ class TransportJob(Base):
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
     # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
     # Maintenance threshold is placed in the Pareto distribution for maintenance
-    # @Attribute
-    # def job_maintenance(self):
-    #     maintenance = self.transporting_vehicle.CalculateIndividualMaintenance()
-    #     return maintenance
-
     # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
@@ -411,7 +423,6 @@ class WorkJob(Base):
 
     # Can be a list if needed_machinery is also a list (when multiple machine types are used for a specific job)
     man_hours: float = Input(0.0)
-
     deadline: str = Input("")
 
     # List specifying which type of machinery is required, order is not important
@@ -439,18 +450,6 @@ class WorkJob(Base):
     # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
     # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
     # Maintenance threshold is placed in the Pareto distribution for maintenance
-    # @Attribute
-    # def job_maintenance(self):
-    #     maintenance_list = []
-    #     for tool in self.assigned_tools:
-    #         maintenance = tool.CalculateIndividualMaintenance()
-    #         maintenance_list.append(maintenance)
-    #     for vehicle in self.assigned_vehicles:
-    #         maintenance = vehicle.CalculateIndividualMaintenance()
-    #         maintenance_list.append(maintenance)
-    #
-    #     return maintenance_list
-
     # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
@@ -526,8 +525,21 @@ if __name__ == "__main__":
     #     show_in_tree=True,  # optional Input if you add it later
     # )
 
-    app = MissionStrategyApp(transport_jobs = [TransportJob(transporting_vehicle = Truck(consumption_per_hour = 30, mass = 10000, worth=500000, age=1, machine_id="Truck_1", contents=Trailer(mass=2000, contents=[Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, machine_id="Tractor_in_trailer")])), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566]),
-                                               TransportJob(transporting_vehicle = Tractor(consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566]),
-                                               TransportJob(transporting_vehicle = Truck(consumption_per_hour = 30, mass = 10000, worth=500000, age=10, machine_id="Truck_2"), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566])],
-                             work_jobs = [WorkJob(assigned_vehicles = [Truck(mass = 10000, consumption_per_hour = 30, worth=500000, age=2, machine_id="Truck_1"), Tractor(mass=10000, consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, age=30, machine_id="Tractor_in_trailer")], man_hours=20)])
+    # worksite (EIN) 51.416232, 5.507185
+    # Depot (TIL) 51.586911, 5.101759
+
+    # app = MissionStrategyApp(transport_jobs = [TransportJob(transporting_vehicle = Truck(consumption_per_hour = 30, mass = 10000, worth=500000, age=1, machine_id="Truck_1", contents=Trailer(mass=2000, contents=[Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, machine_id="Tractor_in_trailer")])), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566]),
+    #                                            TransportJob(transporting_vehicle = Tractor(consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566]),
+    #                                            TransportJob(transporting_vehicle = Truck(consumption_per_hour = 30, mass = 10000, worth=500000, age=10, machine_id="Truck_2"), begin_location_gps=[51.993079, 4.390331], end_location_gps=[51.934693, 4.448566])],
+    #                          work_jobs = [WorkJob(assigned_vehicles = [Truck(mass = 10000, consumption_per_hour = 30, worth=500000, age=2, machine_id="Truck_1"), Tractor(mass=10000, consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, age=30, machine_id="Tractor_in_trailer")], man_hours=20)])
+
+    app = MissionStrategyApp(site_location = (51.416232, 5.507185, 0), transport_jobs = [TransportJob(transporting_vehicle = Truck(overall_dimensions=[4, 2, 2], consumption_per_hour = 30, mass = 10000, worth=500000, age=1, machine_id="Truck_1", contents=Trailer(overall_dimensions=[12, 2, 2], mass=2000, contents=[Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, machine_id="Tractor_in_trailer")])), begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
+                                               TransportJob(transporting_vehicle = Tractor(overall_dimensions=[4, 3, 3], consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"), begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
+                                               TransportJob(transporting_vehicle = Truck(overall_dimensions=[4, 2, 2], consumption_per_hour = 30, mass = 10000, worth=500000, age=10, machine_id="Truck_2"), begin_location_gps=[51.587863, 5.099568], end_location_gps=[51.416232, 5.507185])],
+                             work_jobs = [WorkJob(assigned_vehicles = [Truck(mass = 10000, consumption_per_hour = 30, worth=500000, age=2, machine_id="Truck_1"),
+                                                                       Truck(mass=10000, consumption_per_hour=30, worth=500000, age=2, machine_id="Truck_2"),
+                                                                       Tractor(mass=10000, consumption_per_hour = 15, worth=1000000, age=30, machine_id="Tractor_1"),
+                                                                       Tractor(mass=15000, consumption_per_hour = 15, worth=2000000, age=30, machine_id="Tractor_in_trailer")], man_hours=20)],
+                             depots = [Depot(location=(51.586911, 5.101759))])
+
     display(app)
