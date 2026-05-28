@@ -193,6 +193,61 @@ def choose_map(start: Tuple[float, float],
 
     return bottom_lat, top_lat, left_lon, right_lon, filename
 
+def choose_map_for_points(points: List[Tuple[float, float]]
+                          ) -> Tuple[float, float, float, float, str]:
+    """
+    Decide which map to use based on a list of (lat, lon) points.
+
+    - If ALL points are inside MAP1, use MAP1.
+    - Otherwise, fall back to MAP2.
+
+    Returns
+    -------
+    bottom_lat, top_lat, left_lon, right_lon, filename
+    """
+    # unpack map bounds
+    map1_bottom, map1_top, map1_left, map1_right = _normalize_bounds(
+        MAP1_CORNER_1, MAP1_CORNER_2
+    )
+    map2_bottom, map2_top, map2_left, map2_right = _normalize_bounds(
+        MAP2_CORNER_1, MAP2_CORNER_2
+    )
+
+    # if no points are given, just use MAP2 by default
+    if not points:
+        bottom_lat = map2_bottom
+        top_lat = map2_top
+        left_lon = map2_left
+        right_lon = map2_right
+        filename = os.path.join(maindir, "MAPS", "MAP2.png")
+        return bottom_lat, top_lat, left_lon, right_lon, filename
+
+    # check if all points lie in MAP1
+    all_in_map1 = True
+    for lat, lon in points:
+        if not _point_in_bounds(lat, lon,
+                                map1_bottom, map1_top,
+                                map1_left, map1_right):
+            all_in_map1 = False
+            break
+
+    if all_in_map1:
+        # small MAP1
+        bottom_lat = map1_bottom
+        top_lat = map1_top
+        left_lon = map1_left
+        right_lon = map1_right
+        filename = os.path.join(maindir, "MAPS", "MAP1.png")
+    else:
+        # large MAP2
+        bottom_lat = map2_bottom
+        top_lat = map2_top
+        left_lon = map2_left
+        right_lon = map2_right
+        filename = os.path.join(maindir, "MAPS", "MAP2.png")
+
+    return bottom_lat, top_lat, left_lon, right_lon, filename
+
 # ---------------------------------------------------------------------
 # Core: map‑aware route visualization
 # ---------------------------------------------------------------------
