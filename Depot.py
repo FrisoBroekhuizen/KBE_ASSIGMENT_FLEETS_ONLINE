@@ -20,7 +20,8 @@ class Depot(GeomBase):
 
     parking_gap = 0.6
 
-    machines: List[Machine] = Input([Tool(vehicle_attachable=True, overall_dimensions=[1, 2, 2]),Tool(vehicle_attachable=True, overall_dimensions=[0.5, 2, 2]), Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Tool(vehicle_attachable=False, overall_dimensions=[2, 2, 2]), Truck(overall_dimensions=[4, 2, 2], contents=Trailer(overall_dimensions=[12, 2, 2])), Truck(overall_dimensions=[2, 1.5, 2]), Truck(overall_dimensions=[4, 2, 2]), Truck(overall_dimensions=[3, 2, 2]),Truck(overall_dimensions=[3, 2.5, 2.5]), Truck(overall_dimensions=[3, 2, 2]), Truck(overall_dimensions=[2, 2, 2]), Truck(overall_dimensions=[3, 1.5, 1.5]), Truck(overall_dimensions=[4, 2, 2])])
+    # machines: List[Machine] = Input([Tool(vehicle_attachable=True, overall_dimensions=[1, 2, 2]),Tool(vehicle_attachable=True, overall_dimensions=[0.5, 2, 2]), Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Tool(vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Tool(vehicle_attachable=False, overall_dimensions=[2, 2, 2]), Truck(overall_dimensions=[4, 2, 2], contents=Trailer(overall_dimensions=[12, 2, 2])), Truck(overall_dimensions=[2, 1.5, 2]), Truck(overall_dimensions=[4, 2, 2]), Truck(overall_dimensions=[3, 2, 2]),Truck(overall_dimensions=[3, 2.5, 2.5]), Truck(overall_dimensions=[3, 2, 2]), Truck(overall_dimensions=[2, 2, 2]), Truck(overall_dimensions=[3, 1.5, 1.5]), Truck(overall_dimensions=[4, 2, 2])])
+    machines: List[Machine] = Input([])
     trailers: List[Trailer] = Input([])
 
     non_attachable_tools: List[Machine] = Input([])
@@ -97,7 +98,7 @@ class Depot(GeomBase):
 
     @Attribute
     def non_attachable_tools_storage(self):
-        area = 0
+        area = 0.001 # Arbitrary small value
         for tool in self.non_attachable_tools:
             area += tool.overall_dimensions[0] * tool.overall_dimensions[1]
 
@@ -235,7 +236,7 @@ class Depot(GeomBase):
 
     @Part
     def PlaceMachines(self):
-        return Box(quantify=len(self.sorted_machines),
+        return Box(quantify=len(self.machine_positions),
                    width=self.sorted_machines[child.index].overall_dimensions[0],
                    length=self.sorted_machines[child.index].overall_dimensions[1],
                    height=self.sorted_machines[child.index].overall_dimensions[2],
