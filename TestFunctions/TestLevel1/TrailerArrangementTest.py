@@ -37,12 +37,12 @@ import sys
 import random
 from typing import List, Tuple
 
-from parapy.core import Base, Part, Attribute, Input, child
+from parapy.core import Base, Part, Attribute, Input, child, action
 from parapy.geom import Box, XOY
 from parapy.gui import display
 
 # -----------------------------------------------------------------------------
-# Put project root on sys.path so we can import GeomArrangement
+# Put project root on sys.path so we can import TrailerArrangement
 # -----------------------------------------------------------------------------
 
 THIS_DIR = os.path.dirname(__file__)
@@ -52,6 +52,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
 from TrailerArrangement import Item, pack_items_into_trailers
+
+
 # -----------------------------------------------------------------------------
 # Simple trailer config class used by this test
 # -----------------------------------------------------------------------------
@@ -67,6 +69,8 @@ class SimpleTrailer:
         self.trailer_id = trailer_id
         self.carrying_bounding_box = carrying_bounding_box
         self.has_ceiling = has_ceiling
+
+
 # -----------------------------------------------------------------------------
 # CONFIG: edit these lists to define your test scenario
 # -----------------------------------------------------------------------------
@@ -80,7 +84,6 @@ VEHICLES: List[Tuple[float, float, float]] = [
 # Upright-only, non-attachable tools (behave like vehicles regarding packing)
 UPRIGHT_TOOLS: List[Tuple[float, float, float]] = [
     (2.0, 1.5, 1.5),
-
 ]
 
 # Large attachable, upright-only tool (allowed on open trailers)
@@ -92,15 +95,15 @@ ATTACHABLE_UPRIGHT_TOOLS: List[Tuple[float, float, float]] = [
 STACKABLE_TOOLS: List[Tuple[float, float, float]] = [
     (2.0, 1.0, 1.0),
     (1.2, 1.0, 1.5),
-    (1.8, 1.2, 1.3)
+    (1.8, 1.2, 1.3),
 ]
 
 # Trailer configurations:
 # - 1 open (no ceiling), 2 closed (one smaller than the other).
 TRAILERS: List[SimpleTrailer] = [
     SimpleTrailer("T1_open",  (26.0, 2.5, 2.5), False),  # open flatbed
-    SimpleTrailer("T2_small", (7.0, 2.5, 3.0), True),   # small closed
-    SimpleTrailer("T3_large", (9.0, 2.8, 3.5), True),   # large closed
+    SimpleTrailer("T2_small", (7.0, 2.5, 3.0), True),    # small closed
+    SimpleTrailer("T3_large", (9.0, 2.8, 3.5), True),    # large closed
 ]
 
 
@@ -250,15 +253,7 @@ class PackingTest(Base):
 
     @Attribute
     def trailer_top_heights(self) -> List[float]:
-        """For each used trailer, height of the open 'envelope' box.
-
-        For trailer i, we take:
-            max_top_z = max(p.z + p.wz for p in items on that trailer)
-            envelope_height = max_top_z * 1.1
-
-        If a trailer is empty (shouldn't really happen for used ones),
-        we fall back to its carrying_bounding_box height.
-        """
+        """For each used trailer, height of the open 'envelope' box."""
         heights: List[float] = []
         for i in range(self.nb_trailers):
             items_i = [p for p in self.flat_placed if p.trailer_index == i]
@@ -266,7 +261,6 @@ class PackingTest(Base):
                 max_top_z = max(p.z + p.wz for p in items_i)
                 heights.append(max_top_z * 1.1)
             else:
-                # fall back to nominal trailer height
                 heights.append(self.trailers[i].carrying_bounding_box[2])
         return heights
 
@@ -279,7 +273,6 @@ class PackingTest(Base):
         vs = [p for p in self.flat_placed if p.item.item_type == "vehicle"]
         colors = {}
         for p in vs:
-            # Yellowish: high R and G, low B
             r = 200 + random.randint(0, 55)
             g = 200 + random.randint(0, 55)
             b = random.randint(0, 70)
@@ -288,37 +281,28 @@ class PackingTest(Base):
 
     @Attribute
     def tool_colors(self):
-        """Colors for tools:
-        - only attachable (vehicle_attachable == True, upright_only == False): pink
-        - only upright_only (upright_only == True, vehicle_attachable == False): very light/baby blue
-        - both attachable and upright_only: purple
-        - neither: bluish random (fallback)
-        """
+        """Colors for tools by flag combination."""
         random.seed(2)
         ts = [p for p in self.flat_placed if p.item.item_type == "tool"]
         colors = {}
         for p in ts:
             it = p.item
             if it.vehicle_attachable and not it.upright_only:
-                # Only attachable: pink
-                colors[it.id] = [255, 105, 180]  # hot pink
+                colors[it.id] = [255, 105, 180]  # pink
             elif it.upright_only and not it.vehicle_attachable:
-                # Only upright_only: very light / baby blue
-                colors[it.id] = [173, 216, 230]
+                colors[it.id] = [173, 216, 230]  # baby blue
             elif it.vehicle_attachable and it.upright_only:
-                # Both: purple
-                colors[it.id] = [160, 32, 240]
+                colors[it.id] = [160, 32, 240]   # purple
             else:
-                # Neither: bluish random fallback
                 r = random.randint(0, 60)
                 g = random.randint(0, 140)
                 b = 180 + random.randint(0, 70)
-                colors[it.id] = [r, g, b]
+                colors[it.id] = [r, g, b]       # bluish random
         return colors
 
     @Attribute
     def cargo_colors(self):
-        """Color per placed item index (already flattened)."""
+        """Color per placed item index (flattened list)."""
         colors: List[List[int]] = []
         for p in self.flat_placed:
             if p.item.item_type == "vehicle":
@@ -347,7 +331,7 @@ class PackingTest(Base):
 
     @Part
     def closed_trailer_floors(self):
-        """Closed trailer floor 'material': darker grey, 0.3 m thick, extending downward."""
+        """Closed trailer floors: grey, 0.3 m thick."""
         return Box(
             quantify=len(self.closed_trailer_indices),
             width=self.trailer_Ls[self.closed_trailer_indices[child.index]],
@@ -365,10 +349,7 @@ class PackingTest(Base):
 
     @Part
     def open_trailer_tops(self):
-        """Open trailer 'envelope' volumes: very light grey, highly transparent.
-
-        Height computed as 1.1 * max cargo top (z + wz) for that trailer.
-        """
+        """Open trailer 'envelope' volumes: very light grey, transparent."""
         return Box(
             quantify=len(self.open_trailer_indices),
             width=self.trailer_Ls[self.open_trailer_indices[child.index]],
@@ -386,7 +367,7 @@ class PackingTest(Base):
 
     @Part
     def open_trailer_floors(self):
-        """Open trailer floor 'material': darker grey, 0.3 m thick, extending downward."""
+        """Open trailer floors: grey, 0.3 m thick."""
         return Box(
             quantify=len(self.open_trailer_indices),
             width=self.trailer_Ls[self.open_trailer_indices[child.index]],
@@ -425,6 +406,12 @@ class PackingTest(Base):
             color=self.cargo_colors[child.index],
         )
 
+    # --- ACTION: open packing test viewer ------------------------------------
+
+    @action(button_label="Open PackingTest Viewer")
+    def open_viewer(self):
+        """Action button to open a new ParaPy viewer window for this PackingTest."""
+        display(self)
 
 
 # -----------------------------------------------------------------------------

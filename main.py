@@ -2,8 +2,11 @@
 import math
 import os
 from typing import List, Tuple, Optional
+import os
+import sys
+import subprocess
 import datetime
-
+from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 
@@ -12,7 +15,8 @@ from assets import *
 from Depot import Depot
 from MapMaker import MapMaker
 import Routing
-from TrailerArrangement import Item, TrailerPackingVisualization
+from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
+
 maindir = os.path.dirname(__file__)
 
 # ---------------------------------------------------------------------------
@@ -181,7 +185,7 @@ class MissionStrategyApp(Base):
         min_cost, max_cost = min(costs), max(costs)
         min_time, max_time = min(times), max(times)
         min_CO2, max_CO2 = min(CO2s), max(CO2s)
-        min_NOx, max_NOx = min(NOXs), max(NOXs)
+        min_NOx, max_NOx = min(NOxs), max(NOxs)
 
         alpha = 0.25  # weight CO2 vs NOx inside "emissions" metric
 
@@ -295,6 +299,7 @@ class MissionStrategyApp(Base):
             trailers=self.trailers,
         )
 
+
     # -- Export geometry function --
 
     # With the final chosen strategy, arrangement is conducted for the depots and containers. Vehicles are only
@@ -302,10 +307,9 @@ class MissionStrategyApp(Base):
     # 3D arrangement logic.
     # To do: work out, also include arrangement logic and rules (turn radius, path widths, stacking logic, ...)
 
-    # ------------------------------
-
-    # -- Actions / Buttons --
-
+    # ---------------------------------------------------------------------------------------------------------------------------
+    # --- ACTIONS / BUTTONS --
+    # --------------------------------------------------------------------------------------------------------------------------
     @action(button_label="Generate Strategies")
     def generate_strategies(self):
         raise NotImplementedError
@@ -314,6 +318,30 @@ class MissionStrategyApp(Base):
     def export_results(self):
         # Export JSON results
         raise NotImplementedError
+
+    @action(button_label="Trailer Arrangements")
+    def trailer_arrangement(self):
+        """Open a ParaPy viewer window with the trailer packing visualization
+        for this mission.
+
+        Relies on:
+            - self.items_to_pack: List[Item]
+            - self.trailers: list of trailer-like objects
+              (each with carrying_bounding_box and has_ceiling).
+        """
+        # Basic sanity checks, helpful during development
+        if not hasattr(self, "items_to_pack"):
+            raise RuntimeError(
+                "MissionStrategyApp has no 'items_to_pack' attribute. "
+                "Define it as an Input or Attribute that returns List[Item].")
+        if not hasattr(self, "trailers"):
+            raise RuntimeError(
+                "MissionStrategyApp has no 'trailers' attribute. "
+                "Define it as an Input or Attribute that returns a list of trailers.")
+        # Build the visualization model using your helper
+        viz_model = self.PackagedVisualization()
+        # Open in a new ParaPy window
+        display(viz_model)
 
     @action(button_label="MapMaker")
     def MapMaker(self):
@@ -356,6 +384,29 @@ class MissionStrategyApp(Base):
         from parapy.gui import display
         display(map_obj)
     # Define (normalized) preferences function
+    @Attribute
+    def trailers(self) -> List[object]:
+        job_trailers: List[object] = []
+        for job in self.transport_jobs:
+            veh = job.transporting_vehicle
+            trailer_obj = getattr(veh, "contents", None)
+            if trailer_obj is not None:
+                name = f"{veh.machine_id}_trailer"
+                job_trailers.append(TrailerAdapter(trailer_obj, name))
+        return job_trailers
+
+    @Attribute
+    def items_to_pack(self) -> List[Item]:
+        items: List[Item] = []
+        for job in self.transport_jobs:
+            veh = job.transporting_vehicle
+            trailer_obj = getattr(veh, "contents", None)
+            if trailer_obj is None:
+                continue
+            for machine in getattr(trailer_obj, "contents", []):
+                items.append(item_from_machine(machine))
+        return items
+
 
 # ---------------------------------------------------------------------------
 # Jobs
@@ -557,51 +608,190 @@ class Fleet(Base):
 if __name__ == "__main__":
     from parapy.gui import display
 
-    # fleet = Fleet(location="NL", budget=1_000_000, machines=[])
-    # app = MissionStrategyApp(
-    #     needed_tools="shovels, pumps",
-    #     needed_machinery="tractors, trucks",
-    #     site_location="Some worksite",
-    #     fleet=fleet,
-    #     show_in_tree=True,  # optional Input if you add it later
-    # )
+    # Trailer 1: shorter but higher; mixed cargo
+    trailer1 = Trailer(
+        overall_dimensions=[10, 2.5, 3.5],  # L, W, H
+        mass=2500,
+        contents=[
+            # Big tractor, floor-only, will behave as vehicle
+            Tractor(
+                overall_dimensions=[4.5, 2.4, 3.0],
+                mass=16000,
+                consumption_per_hour=18,
+                worth=2500000,
+                age=5,
+                machine_id="Tractor_A",
+            ),
+            # Medium tractor
+            Tractor(
+                overall_dimensions=[4.0, 2.2, 2.8],
+                mass=14000,
+                consumption_per_hour=16,
+                worth=2200000,
+                age=8,
+                machine_id="Tractor_B",
+            ),
+            # Generic tool as cargo, more cubic
+            Tool(
+                overall_dimensions=[2.0, 1.8, 1.6],
+                mass=3000,
+                consumption_per_hour=5,
+                worth=80000,
+                age=3,
+                machine_id="Tool_A",
+            ),
+        ],
+    )
 
-    app = MissionStrategyApp(site_location=(51.416232, 5.507185, 0), transport_jobs=[TransportJob(
-        transporting_vehicle=Truck(overall_dimensions=[4, 2, 2], consumption_per_hour=30, mass=10000, worth=500000,
-                                   age=1, machine_id="Truck_1",
-                                   contents=Trailer(overall_dimensions=[12, 2, 2], mass=2000, contents=[
-                                       Tractor(mass=15000, consumption_per_hour=15, worth=2000000,
-                                               machine_id="Tractor_in_trailer")])),
-        begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-                                                                                     TransportJob(
-                                                                                         transporting_vehicle=Tractor(
-                                                                                             overall_dimensions=[4, 3,
-                                                                                                                 3],
-                                                                                             consumption_per_hour=15,
-                                                                                             worth=1000000, age=30,
-                                                                                             machine_id="Tractor_1"),
-                                                                                         begin_location_gps=[51.584217,
-                                                                                                             5.101924],
-                                                                                         end_location_gps=[51.416232,
-                                                                                                           5.507185]),
-                                                                                     TransportJob(
-                                                                                         transporting_vehicle=Truck(
-                                                                                             overall_dimensions=[4, 2,
-                                                                                                                 2],
-                                                                                             consumption_per_hour=30,
-                                                                                             mass=10000, worth=500000,
-                                                                                             age=10,
-                                                                                             machine_id="Truck_2"),
-                                                                                         begin_location_gps=[51.587863,
-                                                                                                             5.099568],
-                                                                                         end_location_gps=[51.416232,
-                                                                                                           5.507185])],
-                             work_jobs=[WorkJob(site_location_gps=(51.416232, 5.507185), assigned_vehicles=[
-                                 Truck(mass=10000, consumption_per_hour=30, worth=500000, age=2, machine_id="Truck_1"),
-                                 Truck(mass=10000, consumption_per_hour=30, worth=500000, age=2, machine_id="Truck_2"),
-                                 Tractor(mass=10000, consumption_per_hour=15, worth=1000000, age=30,
-                                         machine_id="Tractor_1"),
-                                 Tractor(mass=15000, consumption_per_hour=15, worth=2000000, age=30,
-                                         machine_id="Tractor_in_trailer")], man_hours=20)],
-                             depots=[Depot(location=(51.586911, 5.101759))])
+    # Trailer 2: longer but a bit lower; several smaller tools & a compact tractor
+    trailer2 = Trailer(
+        overall_dimensions=[14, 2.6, 3.0],
+        mass=2800,
+        contents=[
+            # Compact tractor
+            Tractor(
+                overall_dimensions=[3.5, 2.1, 2.6],
+                mass=12000,
+                consumption_per_hour=14,
+                worth=1800000,
+                age=4,
+                machine_id="Tractor_C",
+            ),
+            # Three tools with different proportions so rotations matter
+            Tool(
+                overall_dimensions=[3.0, 1.5, 1.2],  # long & flat
+                mass=2500,
+                consumption_per_hour=4,
+                worth=60000,
+                age=6,
+                machine_id="Tool_B",
+            ),
+            Tool(
+                overall_dimensions=[1.8, 1.8, 2.0],  # more cube-like
+                mass=2200,
+                consumption_per_hour=3,
+                worth=55000,
+                age=2,
+                machine_id="Tool_C",
+            ),
+            Tool(
+                overall_dimensions=[2.2, 1.0, 1.8],  # tall & narrow
+                mass=2000,
+                consumption_per_hour=3,
+                worth=50000,
+                age=1,
+                machine_id="Tool_D",
+            ),
+        ],
+    )
+
+    app = MissionStrategyApp(
+        site_location=(51.416232, 5.507185, 0),
+
+        transport_jobs=[
+            # Job 1: Truck 1 pulling trailer1 with mixed cargo
+            TransportJob(
+                transporting_vehicle=Truck(
+                    overall_dimensions=[4, 2.5, 3.2],
+                    consumption_per_hour=30,
+                    mass=10000,
+                    worth=500000,
+                    age=1,
+                    machine_id="Truck_1",
+                    contents=trailer1,
+                ),
+                begin_location_gps=[51.584217, 5.101924],
+                end_location_gps=[51.416232, 5.507185],
+            ),
+
+            # Job 2: Tractor driving itself (no trailer)
+            TransportJob(
+                transporting_vehicle=Tractor(
+                    overall_dimensions=[4, 3, 3],
+                    consumption_per_hour=15,
+                    worth=1000000,
+                    age=30,
+                    machine_id="Tractor_Standalone",
+                ),
+                begin_location_gps=[51.584217, 5.101924],
+                end_location_gps=[51.416232, 5.507185],
+            ),
+
+            # Job 3: Truck 2 pulling trailer2 with different cargo
+            TransportJob(
+                transporting_vehicle=Truck(
+                    overall_dimensions=[4, 2.5, 3.0],
+                    consumption_per_hour=28,
+                    mass=9500,
+                    worth=450000,
+                    age=7,
+                    machine_id="Truck_2",
+                    contents=trailer2,
+                ),
+                begin_location_gps=[51.587863, 5.099568],
+                end_location_gps=[51.416232, 5.507185],
+            ),
+        ],
+
+        # Leave your work_jobs & depots largely as they are, maybe update IDs to match above:
+        work_jobs=[
+            WorkJob(
+                site_location_gps=(51.416232, 5.507185),
+                assigned_vehicles=[
+                    Truck(
+                        overall_dimensions=[4, 2.5, 3.2],
+                        mass=10000,
+                        consumption_per_hour=30,
+                        worth=500000,
+                        age=2,
+                        machine_id="Truck_1",
+                    ),
+                    Truck(
+                        overall_dimensions=[4, 2.5, 3.0],
+                        mass=9500,
+                        consumption_per_hour=28,
+                        worth=450000,
+                        age=2,
+                        machine_id="Truck_2",
+                    ),
+                    Tractor(
+                        overall_dimensions=[4, 3, 3],
+                        mass=10000,
+                        consumption_per_hour=15,
+                        worth=1000000,
+                        age=30,
+                        machine_id="Tractor_Standalone",
+                    ),
+                    Tractor(
+                        overall_dimensions=[4.5, 2.4, 3.0],
+                        mass=16000,
+                        consumption_per_hour=18,
+                        worth=2500000,
+                        age=5,
+                        machine_id="Tractor_A",
+                    ),
+                    Tractor(
+                        overall_dimensions=[4.0, 2.2, 2.8],
+                        mass=14000,
+                        consumption_per_hour=16,
+                        worth=2200000,
+                        age=8,
+                        machine_id="Tractor_B",
+                    ),
+                    Tractor(
+                        overall_dimensions=[3.5, 2.1, 2.6],
+                        mass=12000,
+                        consumption_per_hour=14,
+                        worth=1800000,
+                        age=4,
+                        machine_id="Tractor_C",
+                    ),
+                ],
+                man_hours=20,
+            )
+        ],
+
+        depots=[Depot(location=(51.586911, 5.101759))],
+    )
+
     display(app)

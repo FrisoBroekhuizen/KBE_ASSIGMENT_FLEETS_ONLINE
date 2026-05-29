@@ -1,8 +1,34 @@
+# TrailerArrangement.py
+# ---------------------------------------------------------------------------
+# 3D packing logic + ParaPy visualization for trailer loading
+#
+# Public API:
+#   - Item, ItemType
+#   - PlacedItem
+#   - pack_single_trailer
+#   - pack_items_into_trailers
+#   - TrailerPackingVisualization (ParaPy model for visualization)
+#
+# Usage from main application (example):
+#
+#   from TrailerArrangement import Item, TrailerPackingVisualization
+#
+#   class MissionStrategyApp(Base):
+#       ...
+#       def PackagedVisualization(self):
+#           return TrailerPackingVisualization(
+#               items=self.items_to_pack,   # List[Item]
+#               trailers=self.trailers,     # list of trailer-like objects
+#           )
+# ---------------------------------------------------------------------------
+
 from __future__ import annotations
+
 import random
+from typing import List, Tuple, Literal, Any
+
 from parapy.core import Base, Input, Attribute, Part, child
 from parapy.geom import Box, XOY
-from typing import List, Tuple, Literal, Any
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 3D PACKING CORE TYPES
@@ -588,15 +614,33 @@ __all__ = [
     "FreeBox",
     "pack_single_trailer",
     "pack_items_into_trailers",
+    "TrailerPackingVisualization",
+    "item_from_machine",
+    "TrailerAdapter",
 ]
 
-# --------------------------------------------
-# Visualization Part
-# --------------------------------------------
-class TrailerPackingVisualization(Base):
-    """ParaPy model that runs the packing algorithm and visualizes it."""
 
-    # Inputs: you pass these from your main application
+
+# --------------------------------------------
+# Visualization model
+# --------------------------------------------
+
+class TrailerPackingVisualization(Base):
+    """ParaPy model that runs the packing algorithm and visualizes it.
+
+    Inputs:
+        items   : List[Item] to pack.
+        trailers: list of trailer-like objects, each with
+                  - carrying_bounding_box: (L, W, H)
+                  - has_ceiling: bool
+
+    Geometry:
+        - Closed trailers: purple semi-transparent boxes + grey floors.
+        - Open trailers: very light grey transparent envelope + grey floors.
+        - Cargo: colored boxes using color rules based on item flags.
+    """
+
+    # Inputs: passed from main application
     items: List[Item] = Input()
     trailers: List[Any] = Input()
 
@@ -842,3 +886,58 @@ class TrailerPackingVisualization(Base):
             ),
             color=self.cargo_colors[child.index],
         )
+
+
+# ---------------------------------------------------------------------------
+# Helpers to integrate “machine-like” and “trailer-like” objects
+# ---------------------------------------------------------------------------
+
+def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
+    """Convert a machine-like object into an Item.
+
+    Expects:
+        machine.overall_dimensions -> [L, W, H]
+        machine.machine_id -> str
+    """
+    L, W, H = machine.overall_dimensions
+    cls_name = type(machine).__name__
+    item_id = machine.machine_id
+
+    if item_type_hint is not None:
+        item_type = item_type_hint
+    else:
+        # Default: tractors / vehicles / trucks are 'vehicle', rest is 'tool'
+        item_type = "vehicle" if cls_name in ("Truck", "Tractor", "Vehicle") else "tool"
+
+    if item_type == "vehicle":
+        upright_only = True
+        vehicle_attachable = False
+    else:
+        upright_only = False
+        vehicle_attachable = False
+
+    return Item(
+        id=item_id,
+        lx=L,
+        ly=W,
+        lz=H,
+        item_type=item_type,
+        upright_only=upright_only,
+        vehicle_attachable=vehicle_attachable,
+    )
+
+
+class TrailerAdapter:
+    """Adapter to make an arbitrary Trailer-like object usable by the packer.
+
+    Expects:
+        trailer.overall_dimensions -> [L, W, H]
+    """
+
+    def __init__(self, src_trailer, trailer_id: str = ""):
+        self.src = src_trailer
+        L, W, H = src_trailer.overall_dimensions
+        self.carrying_bounding_box = (L, W, H)
+        self.has_ceiling = True  # later you can infer from src_trailer
+        self.trailer_id = trailer_id or getattr(src_trailer, "machine_id", "")
+

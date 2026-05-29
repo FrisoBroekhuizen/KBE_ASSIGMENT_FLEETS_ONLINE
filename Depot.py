@@ -2,7 +2,7 @@ from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.geom import GeomBase, Box, Plane, translate, rotate, CommonSolid
 from parapy.exchange import STEPWriter
 
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 import numpy as np
 
@@ -45,7 +45,7 @@ class Depot(GeomBase):
 
         for asset in assets:
             a_lat, a_lon = asset.gps_location
-            distance = Routing.HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
+            distance = HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
 
             if distance <= critical_proximity:
                 asset.gps_location = (depot_lat, depot_lon)
