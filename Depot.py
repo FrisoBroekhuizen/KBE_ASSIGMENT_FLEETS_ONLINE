@@ -2,7 +2,7 @@ from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.geom import GeomBase, Box, Plane, translate, rotate, CommonSolid
 from parapy.exchange import STEPWriter
 
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 import numpy as np
 

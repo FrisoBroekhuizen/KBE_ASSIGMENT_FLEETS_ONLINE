@@ -1,11 +1,10 @@
 from __future__ import annotations
-import random
-
 import os
 import sys
+import random
 from typing import List, Tuple
-
-from parapy.core import Base, Input, Attribute, Part, child
+import subprocess, sys, os
+from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.gui import display
 from parapy.geom import Point, Position, Polyline, Cube
 from parapy.geom.occ.visual import Image
@@ -23,19 +22,27 @@ if PROJECT_ROOT not in sys.path:
 import Routing  # now resolves via PROJECT_ROOT
 
 
+def random_red_color(idx: int):
+    """Deterministic 'random' shade of red per route index."""
+    rng = random.Random(idx)  # same idx -> same color every time
+    g = rng.randint(0, 120)   # green component (darker red if low)
+    b = rng.randint(0, 120)   # blue component
+    return (255, g, b)        # bright red channel, varying GB
+
+
 class RouteTest(Base):
-    """Visualize multiple ORS routes as Polylines on a single map."""
+    """Visualize multiple routes as polylines on a single map."""
 
     # List of (start, end) pairs. Each start/end is (lat, lon).
     routes: List[Tuple[Tuple[float, float], Tuple[float, float]]] = Input([
         ((51.586911, 5.101759), (51.416232, 5.507185)),
         ((51.685523, 5.310957), (51.416232, 5.507185)),
-        # ((lat3, lon3), (lat4, lon4)),
     ])
 
     # Same machine type for all routes for now
     machine_type: str = Input("Vehicle")
-    # Depot locations (lat, lon)
+
+    # Work site and depot locations (lat, lon)
     work_sites: List[Tuple[float, float]] = Input([
         (51.416232, 5.507185),
     ])
@@ -44,7 +51,7 @@ class RouteTest(Base):
         (51.685523, 5.310957),
     ])
 
-    # Size of depot cubes in map units (meters)
+    # Size of depot/worksite cubes in map units (meters)
     depot_cube_size: float = Input(2000.0)
 
     # ------------------------------------------------------------------
@@ -58,7 +65,10 @@ class RouteTest(Base):
             duration, distance, geometry = Routing.ComputeRoute(
                 start, end, self.machine_type
             )
-            print(f"Route {start} -> {end}: duration [s]: {duration}, distance [m]: {distance}")
+            print(
+                f"[RouteTest] Route {start} -> {end}: "
+                f"duration [s]: {duration}, distance [m]: {distance}"
+            )
             results.append((start, end, duration, distance, geometry))
         return results
 
@@ -69,13 +79,13 @@ class RouteTest(Base):
 
     @Attribute
     def all_points(self):
-        """Flat list of all (lat, lon) points from all routes, depots and work sites."""
+        """All (lat, lon) points from all routes, depots and work sites."""
         pts: List[Tuple[float, float]] = []
         for start, end in self.routes:
             pts.append(start)
             pts.append(end)
         pts.extend(self.depots)
-        pts.extend(self.work_sites)  # NEW
+        pts.extend(self.work_sites)
         return pts
 
     # ------------------------------------------------------------------
@@ -133,9 +143,6 @@ class RouteTest(Base):
     def route_polylines(self):
         """
         One Polyline per route, all projected in the same XY coordinate system.
-
-        This returns a plain Python list of Polyline objects.
-        ParaPy will treat each Polyline as a separate child.
         """
         origin_lat, origin_lon = self.map_origin_lat_lon
 
@@ -151,7 +158,7 @@ class RouteTest(Base):
                         ),
                         0.0,
                     )
-                    for lon, lat in geometry
+                    for lon, lat in geometry  # ORS-style [lon, lat]
                 ],
                 color=random_red_color(idx),
                 line_thickness=8,
@@ -216,12 +223,20 @@ class RouteTest(Base):
             )
             for (lat, lon) in self.work_sites
         ]
-def random_red_color(idx: int):
-    """Deterministic 'random' shade of red per route index."""
-    rng = random.Random(idx)  # same idx -> same color every time
-    g = rng.randint(0, 120)   # green component (darker red if low)
-    b = rng.randint(0, 120)   # blue component
-    return (255, g, b)        # bright red channel, varying GB
+
+    # ------------------------------------------------------------------
+    # ACTION: open this RouteTest in a new window
+    # ------------------------------------------------------------------
+    @action(button_label="Open RouteTest (external)")
+    def open_route_test(self):
+        # launch new Python process running route_test.py
+        script = os.path.join(os.path.dirname(__file__), "routing_test.py")
+        subprocess.Popen([sys.executable, script])
+
+
 if __name__ == "__main__":
+    # When running this file directly:
+    # - a RouteTest root will appear
+    # - in the inspector you’ll see the "Open RouteTest Viewer" action button
     obj = RouteTest()
     display(obj)
