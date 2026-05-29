@@ -6,6 +6,8 @@ from parapy.core import Base, Input, Attribute
 
 import numpy as np
 
+import copy
+
 
 # ---------------------------------------------------------------------------
 # Superclass: Machine and its specializations
@@ -47,6 +49,7 @@ class Machine(Base):
 
     # overall_dimensions: array[x, y, z]
     overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
+    total_length = Input(0) # Only used for truck + tractor combinations
 
     # GPS location of the machine: (latitude [deg], longitude [deg])
     gps_location: Tuple[float, float] = Input((0.0, 0.0))

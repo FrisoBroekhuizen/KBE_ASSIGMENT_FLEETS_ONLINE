@@ -6,6 +6,8 @@ from typing import List, Tuple, Optional
 
 import numpy as np
 
+import time
+
 from assets import *
 from Routing import HaversineDistance
 import math
@@ -16,7 +18,7 @@ class Depot(GeomBase):
     location: Tuple[float, float] = Input((0.0, 0.0))
     rotation: float = Input(0.0)  # 0 deg is long side horizontal
     # overall_dimensions: (long side, short side, height) in meters
-    overall_dimensions: Tuple[float, float, float] = Input((30, 30, 0.0))
+    overall_dimensions: Tuple[float, float, float] = Input((60, 30, 15))
 
     parking_gap = 0.6
 
@@ -45,7 +47,7 @@ class Depot(GeomBase):
 
         for asset in assets:
             a_lat, a_lon = asset.gps_location
-            distance = Routing.HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
+            distance = HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
 
             if distance <= critical_proximity:
                 asset.gps_location = (depot_lat, depot_lon)
@@ -93,8 +95,13 @@ class Depot(GeomBase):
                     self.non_attachable_tools.append(machine)
                 else:
                     self.attachable_tools.append([machine])
+            else:
+                try:
+                    machine.total_length = machine.overall_dimensions[0] + machine.contents.overall_dimensions[0]
+                except:
+                    machine.total_length = machine.overall_dimensions[0]
         self.attachable_tools = sorted(self.attachable_tools, key=lambda m: m[0].overall_dimensions[0])
-        return sorted(self.machines, key=lambda m: m.overall_dimensions[0])
+        return sorted(self.machines, key=lambda m: -m.total_length)
 
     @Attribute
     def non_attachable_tools_storage(self):
@@ -109,7 +116,7 @@ class Depot(GeomBase):
     def machine_positions(self):
         row_width = 0
         positions = []
-        max_vehicle_length = max(m.overall_dimensions[0] for m in self.machines)
+        max_vehicle_length = max(m.total_length for m in self.sorted_machines)
         row_height = max_vehicle_length
         longest_vehicle = None
         attachable_tool_index = 0
@@ -119,19 +126,19 @@ class Depot(GeomBase):
             if row_width + vehicle.overall_dimensions[1] + self.parking_gap < self.overall_dimensions[1]:
                 # If the machine is a tool, it should be added to the attachable_tools list to create the ghost vehicle
                 if type(vehicle).__bases__[0].__name__ == "Tool" or type(vehicle).__name__ == "Tool":
-                    positions.append([row_height - max_vehicle_length, row_width])
+                    positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
                     self.attachable_tools[attachable_tool_index].append(row_height - (max_vehicle_length - vehicle.overall_dimensions[0]))
                     self.attachable_tools[attachable_tool_index].append(row_width)
                     attachable_tool_index += 1
                 elif type(vehicle).__name__ == "Truck":
                     if vehicle.contents != None:
-                        positions.append([row_height - vehicle.overall_dimensions[0] - vehicle.contents.overall_dimensions[0], row_width]) # Trailer
-                        positions.append([row_height - vehicle.overall_dimensions[0], row_width])  # Truck
-                        trailers.append([i, vehicle.contents])
+                        positions.append([row_height - vehicle.overall_dimensions[0] - vehicle.contents.overall_dimensions[0], row_width + self.location[1]]) # Trailer
+                        positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])  # Truck
+                        trailers.append([i + len(trailers), vehicle.contents])
                     else:
-                        positions.append([row_height - vehicle.overall_dimensions[0], row_width])
+                        positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
                 else:
-                    positions.append([row_height - vehicle.overall_dimensions[0], row_width])
+                    positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
                 row_width += vehicle.overall_dimensions[1] + self.parking_gap
                 # The longest vehicle is kept track of which is to be used to determine the path width
                 if type(vehicle).__name__ != "Trailer" and type(vehicle).__name__ != "Tool" and type(vehicle).__bases__[0].__name__ != "Tool":
@@ -143,15 +150,17 @@ class Depot(GeomBase):
                         longest_vehicle = vehicle
                         longest_vehicle_length = vehicle.overall_dimensions[0]
                         if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
-                    elif vehicle.contents != None:
-                        if longest_vehicle_length < vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]:
-                            longest_vehicle_length = vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]
-                            longest_vehicle = vehicle
+                    else:
+                        try:
+                            if longest_vehicle_length < vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]:
+                                longest_vehicle_length = vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]
+                                longest_vehicle = vehicle
+                        except: continue
             else:
                 row_width = 0
                 path_width = self.DeterminePathWidth(longest_vehicle)
                 row_height += path_width + max_vehicle_length
-                positions.append([row_height - vehicle.overall_dimensions[0], row_width])
+                positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
                 row_width += vehicle.overall_dimensions[1] + self.parking_gap
         for trailer in trailers:
             self.sorted_machines.insert(trailer[0], trailer[1])
@@ -176,7 +185,7 @@ class Depot(GeomBase):
             longest_vehicle.dimensions_rear = trailer.overall_dimensions
             turn_radius = longest_vehicle.TurnRadius
             R_tractor = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2)
-            R_trailer = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2 - trailer.overall_dimensions[0] ** 2)
+            R_trailer = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2) # - trailer.overall_dimensions[0] ** 2)
             offset = [0, R_tractor, R_trailer - R_tractor]
             offset_trailer = [-longest_vehicle.contents.overall_dimensions[0] / 2, np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2), 0] # - longest_vehicle.contents.overall_dimensions[0] ** 2), 0]
         dx = 0.1 # [m]
@@ -188,7 +197,7 @@ class Depot(GeomBase):
                 candidate_position = self.MakeTurningVehicle(offset, longest_vehicle, dt)
                 if has_trailer:
                     candidate_position_trailer = self.MakeTurningVehicle(offset_trailer, longest_vehicle, dt)
-                    obstacle = self.MakeStationaryVehicle(np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2 - trailer.overall_dimensions[0] ** 2), longest_vehicle)
+                    obstacle = self.MakeStationaryVehicle(np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2), longest_vehicle) # - trailer.overall_dimensions[0] ** 2), longest_vehicle)
                 else:
                     obstacle = self.MakeStationaryVehicle(turn_radius, longest_vehicle)
                 try: common_volume = self.CommonVolume(obstacle, candidate_position)
@@ -198,7 +207,7 @@ class Depot(GeomBase):
                 if common_volume > 0 or common_volume_trailer > 0:
                     offset[0] += dx
                     offset_trailer[0] += dx
-        return (turn_radius + offset[0] - offset_trailer[0])
+        return (turn_radius) # + offset[0] - offset_trailer[0])
 
     # Make the 'obstacle' box representing the vehicle parked next to the turning vehicle
     def MakeStationaryVehicle(self, turn_radius, vehicle):
@@ -223,15 +232,24 @@ class Depot(GeomBase):
         return Box(width=self.overall_dimensions[0],
                    length=self.overall_dimensions[1],
                    height=0.1,
-                   position=translate(self.position, 'z', -0.1),
-                   color="Black")
+                   position=translate(self.position, 'z', -0.1, 'y',  self.location[1]),
+                   color=(143, 144, 150))
+
+    @Part
+    def Roof(self):
+        return Box(width=self.overall_dimensions[0],
+                   length=self.overall_dimensions[1],
+                   height=self.overall_dimensions[2],
+                   position=translate(self.position, 'y', self.location[1]),
+                   color=(247, 247, 250),
+                   transparency=0.95)
 
     @Part
     def NonAttachableToolStorage(self):
         return Box(width=np.sqrt(self.non_attachable_tools_storage),
                    length=np.sqrt(self.non_attachable_tools_storage),
                    height=0.1,
-                   position=translate(self.position, 'x', self.overall_dimensions[0] - np.sqrt(self.non_attachable_tools_storage), 'y', self.overall_dimensions[1] - np.sqrt(self.non_attachable_tools_storage)),
+                   position=translate(self.position, 'x', self.overall_dimensions[0] - np.sqrt(self.non_attachable_tools_storage), 'y', self.overall_dimensions[1] - np.sqrt(self.non_attachable_tools_storage)  + self.location[1]),
                    color="Green")
 
     @Part
