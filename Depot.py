@@ -88,7 +88,10 @@ class Depot(GeomBase):
     # Returns the machines list sorted based on the length of the vehicles
     @Attribute
     def sorted_machines(self):
-        for machine in self.machines:
+        trailer_vehicles = []
+        trailer_attachable_tools = []
+        trailer_nonattachable_tools = []
+        for machine in list(self.machines):
             if type(machine).__bases__[0].__name__ == "Tool" or type(machine).__name__ == "Tool":
                 if machine.vehicle_attachable == False:
                     self.machines.remove(machine)
@@ -98,8 +101,20 @@ class Depot(GeomBase):
             else:
                 try:
                     machine.total_length = machine.overall_dimensions[0] + machine.contents.overall_dimensions[0]
+                    for v in machine.contents.contents:
+                        if type(v).__bases__[0].__name__ == "Tool" or type(v).__name__ == "Tool":
+                            if v.vehicle_attachable == False:
+                                trailer_nonattachable_tools.append(v)
+                            else:
+                                trailer_attachable_tools.append(v)
+                        else:
+                            v.total_length = v.overall_dimensions[0]
+                            trailer_vehicles.append(v)
                 except:
                     machine.total_length = machine.overall_dimensions[0]
+        self.machines.extend(trailer_vehicles)
+        self.attachable_tools.extend(trailer_attachable_tools)
+        self.non_attachable_tools.extend(trailer_nonattachable_tools)
         self.attachable_tools = sorted(self.attachable_tools, key=lambda m: m[0].overall_dimensions[0])
         return sorted(self.machines, key=lambda m: -m.total_length)
 

@@ -55,6 +55,10 @@ class Machine(Base):
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
     availability: bool = Input(True)
 
+    total_hours_used = Input(0.0)
+
+    hours_used = Input(0.0)
+
     operating_fraction = 8  # Assumed data contains hours/day
     idle_fraction = 2  # Assumed data contains hours/day
 
@@ -81,17 +85,23 @@ class Machine(Base):
                             "Tool": 1.6,
                             "Pump": 1.9}
 
+    wage = Input(20)
+
     # UML operations – placeholders
     # look at comments in main
+    @Attribute
     def individualCO2(self) -> float:
         return 1
 
+    @Attribute
     def individualNOX(self) -> float:
         return 1
 
-    def individualCost(self, hours_used) -> float:
-        wearFactor = self.individualDepreciation() # A factor to account for extra maintenance, inefficiency, extra emissions, reliability, etc...
-        print("-- " + str(self.machine_id) + " --")
+    @Attribute
+    def individualCost(self) -> float:
+        hours_used = self.hours_used
+        wearFactor = self.individualDepreciation # A factor to account for extra maintenance, inefficiency, extra emissions, reliability, etc...
+        # print("-- " + str(self.machine_id) + " --")
         try: # Check if vehicle is carrying any additional mass
             content_mass = self.contents.mass
             try: # Check if vehicle was carrying a trailer that is carrying additional mass
@@ -101,14 +111,14 @@ class Machine(Base):
             loading_factor = (self.mass + content_mass + trailer_content_mass) / self.mass
         except:
             loading_factor = 1
-        print("Loading factor: " + str(loading_factor))
-        print("Wear factor: " + str(wearFactor))
+        # print("Loading factor: " + str(loading_factor))
+        # print("Wear factor: " + str(wearFactor))
         operatingCost = self.consumption_per_hour * hours_used * self.energy_source_cost[self.energy_source] * loading_factor * wearFactor
-        print("Operating cost: " + str(operatingCost))
-
+        # print("Operating cost: " + str(operatingCost))
+        operatingCost += self.wage * self.hours_used
         return operatingCost
 
-
+    @Attribute
     def individualDepreciation(self) -> float:
         # Normalize hours spend by the machine as a base decay_factor
         total_hours = self.age * 365 * 24

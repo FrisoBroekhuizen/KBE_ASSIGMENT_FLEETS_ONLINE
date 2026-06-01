@@ -6,6 +6,7 @@ import os
 import sys
 import subprocess
 import datetime
+import time
 from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
@@ -90,6 +91,7 @@ class MissionStrategyApp(Base):
 
     @action
     def MissionIterator(self) -> "MissionStrategyApp":
+        tic = time.perf_counter()
         """Top-level mission loop:
         1) Generate candidate missions
         2) Evaluate raw metrics per mission
@@ -112,6 +114,9 @@ class MissionStrategyApp(Base):
 
         # Store and return for convenience
         self.winning_mission = winning_mission
+
+        toc = time.perf_counter()
+        print(f"Took {toc - tic:0.4f} seconds")
         return winning_mission
 
     # ------------------------------------------------------------------
@@ -251,17 +256,22 @@ class MissionStrategyApp(Base):
             try:
                 index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
             except:
-                print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+                continue
+                # print("No index could be found for this vehicle: " + str(vehicle.machine_id))
             if type(vehicle).__name__ == "Truck":
                 trailer = vehicle.contents
-                for item in trailer.contents:
-                    try:
-                        index_content = np.where(timelines[:, 0] == item.machine_id)[0][0]
-                        timelines[index_content][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
-                    except:
-                        print("No index could be found for the vehicle " + str(
-                            item.machine_id) + " inside trailer " + str(trailer.machine_id))
+                if trailer != None:
+                    for item in trailer.contents:
+                        if item != None:
+                            try:
+                                index_content = np.where(timelines[:, 0] == item.machine_id)[0][0]
+                                timelines[index_content][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
+                            except:
+                                continue
+                                # print("No index could be found for the vehicle " + str(
+                            #     item.machine_id) + " inside trailer " + str(trailer.trailer_id))
             timelines[index][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
+            vehicle.total_hours_used += transport_job.TimeKeeper / 60
         # print("Timeline after transport jobs:")
         # print(timelines)
         for work_job in self.work_jobs:
@@ -270,10 +280,12 @@ class MissionStrategyApp(Base):
                 try:
                     index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
                 except:
-                    print("No index could be found for this vehicle: " + str(vehicle.machine_id))
+                    continue
+                    # print("No index could be found for this vehicle: " + str(vehicle.machine_id))
                 timelines[index][1] += datetime.timedelta(hours=(work_job.man_hours / len(vehicles)))
+                vehicle.total_hours_used = work_job.man_hours / len(vehicles)
             # print("Timeline after work jobs:")
-            # print(timelines)
+            print(timelines)
     # ------------------------------------------------------------------
     # Cost function
     # ------------------------------------------------------------------
@@ -422,7 +434,8 @@ class MissionStrategyApp(Base):
             if trailer_obj is None:
                 continue
             for machine in getattr(trailer_obj, "contents", []):
-                items.append(item_from_machine(machine))
+                if machine != None:
+                    items.append(item_from_machine(machine))
         return items
 
 
@@ -494,19 +507,20 @@ class TransportJob(Base):
     # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
-        NOx = self.transporting_vehicle.individualNOX()
+        NOx = self.transporting_vehicle.individualNOX
         return NOx
 
     # Talk to Arjan -> External tool
     @Attribute
     def job_CO2(self) -> float:
-        CO2 = self.transporting_vehicle.individualCO2()
+        CO2 = self.transporting_vehicle.individualCO2
         return CO2
 
     # Talk to Arjan, depends on work hours, employees, machinery, historical data
     @Attribute
     def job_cost(self) -> float:
-        cost = self.transporting_vehicle.individualCost(self.TimeKeeper / 60)
+        self.transporting_vehicle.hours_used = self.TimeKeeper / 60
+        cost = self.transporting_vehicle.individualCost
         return cost
 
 class WorkJob(Base):
@@ -565,10 +579,10 @@ class WorkJob(Base):
     def job_NOx(self) -> float:
         NOx_list = []
         for tool in self.assigned_tools:
-            NOx = tool.individualNOX()
+            NOx = tool.individualNOX
             NOx_list.append(NOx)
         for vehicle in self.assigned_vehicles:
-            NOx = vehicle.individualNOX()
+            NOx = vehicle.individualNOX
             NOx_list.append(NOx)
 
         return NOx_list
@@ -578,10 +592,10 @@ class WorkJob(Base):
     def job_CO2(self) -> float:
         CO2_list = []
         for tool in self.assigned_tools:
-            CO2 = tool.individualCO2()
+            CO2 = tool.individualCO2
             CO2_list.append(CO2)
         for vehicle in self.assigned_vehicles:
-            CO2 = vehicle.individualCO2()
+            CO2 = vehicle.individualCO2
             CO2_list.append(CO2)
 
         return CO2_list
@@ -591,10 +605,12 @@ class WorkJob(Base):
     def job_cost(self) -> float:
         cost_list = []
         for tool in self.assigned_tools:
-            cost = tool.individualCost(self.man_hours / len(self.assigned_tools))
+            tool.hours_used = self.man_hours / len(self.assigned_tools)
+            cost = tool.individualCost
             cost_list.append(cost)
         for vehicle in self.assigned_vehicles:
-            cost = vehicle.individualCost(self.man_hours / len(self.assigned_vehicles))
+            vehicle.hours_used = self.man_hours / len(self.assigned_vehicles)
+            cost = vehicle.individualCost
             cost_list.append(cost)
 
         return cost_list
@@ -628,12 +644,12 @@ if __name__ == "__main__":
 
     # Trailer 1: shorter but higher; mixed cargo
     trailer1 = Trailer(
-        overall_dimensions=[10, 2.5, 3.5],  # L, W, H
+        overall_dimensions=[4.5, 2.5, 3.5],  # L, W, H
         mass=2500,
         contents=[
             # Big tractor, floor-only, will behave as vehicle
             Tractor(
-                overall_dimensions=[4.5, 2.4, 3.0],
+                overall_dimensions=[4.5, 2.4, 3],
                 mass=16000,
                 consumption_per_hour=18,
                 worth=2500000,
@@ -708,60 +724,23 @@ if __name__ == "__main__":
                                                machine_id="Tractor_in_trailer")],
         transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000, worth=500000,
                                    age=1, machine_id="Truck_1",
-                                   contents=Trailer(overall_dimensions=[12, 2, 3], mass=2000, contents=[
-                                       Tractor(mass=15000, consumption_per_hour=15, worth=2000000,
-                                               machine_id="Tractor_in_trailer")])),
+                                   contents=trailer1),
         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-        # TransportJob(
-        #     transporting_vehicle=Pump(
-        #         gps_location=(51.584217, 5.101924),
-        #         vehicle_attachable=True,
-        #         overall_dimensions=[2,2,2],
-        #         consumption_per_hour=15,
-        #         worth=1000000, age=30,
-        #         machine_id="Pump_1"),
-        #     begin_location_gps=[51.584217,
-        #                         5.101924],
-        #     end_location_gps=[51.416232,
-        #                       5.507185]),
-        # TransportJob(
-        #     transporting_vehicle=Pump(
-        #         gps_location=(51.584217, 5.101924),
-        #         vehicle_attachable=True,
-        #         overall_dimensions=[1, 4, 2],
-        #         consumption_per_hour=15,
-        #         worth=1000000, age=30,
-        #         machine_id="Pump_1"),
-        #     begin_location_gps=[51.584217,
-        #                         5.101924],
-        #     end_location_gps=[51.416232,
-        #                       5.507185]),
-        # TransportJob(
-        #     transporting_vehicle=Tool(
-        #         gps_location=(51.584217, 5.101924),
-        #         vehicle_attachable=True,
-        #         overall_dimensions=[1, 2, 2],
-        #         consumption_per_hour=15,
-        #         worth=1000000, age=30,
-        #         machine_id="Pump_1"),
-        #     begin_location_gps=[51.584217,
-        #                         5.101924],
-        #     end_location_gps=[51.416232,
-        #                       5.507185]),
         TransportJob(
             needed_machinery=[Pump(machine_id="Pump_1", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Pump(machine_id="Pump_2", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[1.5, 1.5, 1.5]), Tool(machine_id="Tool_1", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[4,1.5,1.5]), Tool(machine_id="Tool_2", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[3,2,2]), Tool(machine_id="Tool_3", gps_location=(51.584217, 5.101924), vehicle_attachable=False, overall_dimensions=[5,5,2])],
             transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
                                        worth=500000,
                                        age=1, machine_id="Truck_1",
                                        contents=Trailer(overall_dimensions=[12, 2, 3], mass=2000, contents=[
-                                           Tractor(mass=15000, consumption_per_hour=15, worth=2000000,
-                                                   machine_id="Tractor_in_trailer")]))),
+                                           Tractor(overall_dimensions=[3,2,3], mass=15000, consumption_per_hour=15, worth=2000000,
+                                                   machine_id="Tractor_in_trailer")])),
+            begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
         TransportJob(
-            transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5],
+            transporting_vehicle=Truck(gps_location=(51.720407, 5.269097), overall_dimensions=[4, 2, 3.5],
                                        consumption_per_hour=30, mass=10000,
                                        worth=500000,
                                        age=1, machine_id="Truck_4",
-                                       contents=Trailer(overall_dimensions=[16, 2, 3], mass=2000)),
+                                       contents=trailer2),
             begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
         TransportJob(
             transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
@@ -769,6 +748,13 @@ if __name__ == "__main__":
                                        age=1, machine_id="Truck_5",
                                        contents=Trailer(overall_dimensions=[16, 2, 3], mass=2000)),
             begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
+        TransportJob(
+            transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5],
+                                       consumption_per_hour=30, mass=10000,
+                                       worth=500000,
+                                       age=1, machine_id="Truck_7",
+                                       contents=Trailer(overall_dimensions=[14, 2, 3], mass=2000)),
+            begin_location_gps=[51.625882, 4.768424], end_location_gps=[51.584217, 5.101924]),
         TransportJob(
             transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
                                        worth=500000,
@@ -780,7 +766,7 @@ if __name__ == "__main__":
                                        worth=500000,
                                        age=1, machine_id="Truck_8",
                                        contents=Trailer(overall_dimensions=[16, 2, 3], mass=2000)),
-            begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
+            begin_location_gps=[51.720407, 5.269097], end_location_gps=[51.416232, 5.507185]),
         TransportJob(
             transporting_vehicle=Truck(gps_location=(51.720407, 5.269097), overall_dimensions=[4, 2, 3.5],
                                        consumption_per_hour=30, mass=10000,
@@ -808,8 +794,8 @@ if __name__ == "__main__":
                                                                                          end_location_gps=[51.416232,
                                                                                                            5.507185]),
         TransportJob(
-            transporting_vehicle=Crane(
-                gps_location=(51.584217, 5.101924),
+            transporting_vehicle=Tractor(
+                gps_location=(51.519917, 4.774090),
                 overall_dimensions=[6, 4,
                                     4],
                 consumption_per_hour=15,

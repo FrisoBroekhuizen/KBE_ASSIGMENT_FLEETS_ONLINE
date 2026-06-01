@@ -2,6 +2,7 @@
 from __future__ import annotations
 import math
 import os
+import time
 from typing import Tuple, List
 
 from parapy.geom import Point, Polyline
@@ -90,8 +91,8 @@ def ComputeRoute(start, end, machine_type):
     distance = route.distance
     geometry = route.geometry
 
-    print("Time taken: {} seconds".format(duration))
-    print("Route distance: {} meters".format(distance))
+    # print("Time taken: {} seconds".format(duration))
+    # print("Route distance: {} meters".format(distance))
 
     return duration, distance, geometry
 
