@@ -15,7 +15,7 @@ import math
 import assets
 
 class Depot(GeomBase):
-    location: Tuple[float, float] = Input((0.0, 0.0))
+    gps_location: Tuple[float, float] = Input((0.0, 0.0))
     rotation: float = Input(0.0)  # 0 deg is long side horizontal
     # overall_dimensions: (long side, short side, height) in meters
     overall_dimensions: Tuple[float, float, float] = Input((60, 30, 15))
@@ -29,6 +29,8 @@ class Depot(GeomBase):
     non_attachable_tools: List[Machine] = Input([])
     attachable_tools: List = Input([])
 
+    available_machine_types = Input([])
+
     # --------------------------------
     #  FUNCTION 1: Allocating assets to specific depots
     # --------------------------------
@@ -37,7 +39,8 @@ class Depot(GeomBase):
     # -------
     def _allocate_assets(self, assets, range_m: float):
         """Snap nearby assets (with gps_location) to depot; return (in_depot, street)."""
-        depot_lat, depot_lon = self.location
+        self.available_machine_types = []
+        depot_lat, depot_lon = self.gps_location
         long_side, short_side, _ = self.overall_dimensions
         depot_radius = 0.5 * math.sqrt(long_side ** 2 + short_side ** 2)
         critical_proximity = range_m + depot_radius
@@ -52,6 +55,12 @@ class Depot(GeomBase):
             if distance <= critical_proximity:
                 asset.gps_location = (depot_lat, depot_lon)
                 in_depot.append(asset)
+                if not type(asset).__name__ in self.available_machine_types:
+                    self.available_machine_types.append(type(asset).__name__)
+                    if type(asset).__name__ == "Truck":
+                        if asset.contents != None:
+                            for c in asset.contents.contents:
+                                self.available_machine_types.append(c.machine_type)
             else:
                 street.append(asset)
 
@@ -141,19 +150,19 @@ class Depot(GeomBase):
             if row_width + vehicle.overall_dimensions[1] + self.parking_gap < self.overall_dimensions[1]:
                 # If the machine is a tool, it should be added to the attachable_tools list to create the ghost vehicle
                 if type(vehicle).__bases__[0].__name__ == "Tool" or type(vehicle).__name__ == "Tool":
-                    positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
+                    positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.gps_location[1]])
                     self.attachable_tools[attachable_tool_index].append(row_height - (max_vehicle_length - vehicle.overall_dimensions[0]))
                     self.attachable_tools[attachable_tool_index].append(row_width)
                     attachable_tool_index += 1
                 elif type(vehicle).__name__ == "Truck":
                     if vehicle.contents != None:
-                        positions.append([row_height - vehicle.overall_dimensions[0] - vehicle.contents.overall_dimensions[0], row_width + self.location[1]]) # Trailer
-                        positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])  # Truck
+                        positions.append([row_height - vehicle.overall_dimensions[0] - vehicle.contents.overall_dimensions[0], row_width + self.gps_location[1]]) # Trailer
+                        positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.gps_location[1]])  # Truck
                         trailers.append([i + len(trailers), vehicle.contents])
                     else:
-                        positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
+                        positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.gps_location[1]])
                 else:
-                    positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
+                    positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.gps_location[1]])
                 row_width += vehicle.overall_dimensions[1] + self.parking_gap
                 # The longest vehicle is kept track of which is to be used to determine the path width
                 if type(vehicle).__name__ != "Trailer" and type(vehicle).__name__ != "Tool" and type(vehicle).__bases__[0].__name__ != "Tool":
@@ -175,7 +184,7 @@ class Depot(GeomBase):
                 row_width = 0
                 path_width = self.DeterminePathWidth(longest_vehicle)
                 row_height += path_width + max_vehicle_length
-                positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.location[1]])
+                positions.append([row_height - vehicle.overall_dimensions[0], row_width + self.gps_location[1]])
                 row_width += vehicle.overall_dimensions[1] + self.parking_gap
         for trailer in trailers:
             self.sorted_machines.insert(trailer[0], trailer[1])
@@ -247,7 +256,7 @@ class Depot(GeomBase):
         return Box(width=self.overall_dimensions[0],
                    length=self.overall_dimensions[1],
                    height=0.1,
-                   position=translate(self.position, 'z', -0.1, 'y',  self.location[1]),
+                   position=translate(self.position, 'z', -0.1, 'y',  self.gps_location[1]),
                    color=(143, 144, 150))
 
     @Part
@@ -255,7 +264,7 @@ class Depot(GeomBase):
         return Box(width=self.overall_dimensions[0],
                    length=self.overall_dimensions[1],
                    height=self.overall_dimensions[2],
-                   position=translate(self.position, 'y', self.location[1]),
+                   position=translate(self.position, 'y', self.gps_location[1]),
                    color=(247, 247, 250),
                    transparency=0.95)
 
@@ -264,7 +273,7 @@ class Depot(GeomBase):
         return Box(width=np.sqrt(self.non_attachable_tools_storage),
                    length=np.sqrt(self.non_attachable_tools_storage),
                    height=0.1,
-                   position=translate(self.position, 'x', self.overall_dimensions[0] - np.sqrt(self.non_attachable_tools_storage), 'y', self.overall_dimensions[1] - np.sqrt(self.non_attachable_tools_storage)  + self.location[1]),
+                   position=translate(self.position, 'x', self.overall_dimensions[0] - np.sqrt(self.non_attachable_tools_storage), 'y', self.overall_dimensions[1] - np.sqrt(self.non_attachable_tools_storage)  + self.gps_location[1]),
                    color="Green")
 
     @Part
