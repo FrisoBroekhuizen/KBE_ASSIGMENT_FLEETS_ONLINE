@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Tuple, List
 
 from parapy.core import Base, Input, Attribute
+from parapy.core.validate import OneOf, GreaterThan
 
 import numpy as np
 
@@ -36,6 +37,7 @@ class Machine(Base):
     """
 
     machine_id = Input("")
+    machine_type = Input("")
 
     age: float = Input(0.0) # Years
     prediction_tool: str = Input("")

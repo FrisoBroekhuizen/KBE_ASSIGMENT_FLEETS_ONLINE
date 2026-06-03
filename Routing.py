@@ -8,6 +8,7 @@ from typing import Tuple, List
 from parapy.geom import Point, Polyline
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
+from parapy.core.validate import OneOf
 
 from routingpy import ORS
 from routingpy.exceptions import RouterApiError  # <<< MISSING IMPORT
@@ -328,5 +329,45 @@ def RouteVisualization(
         return Polyline(points=[Point(0, 0, 0), Point(1, 0, 0)], color="red")
 
     return Polyline(points=points, color="red", line_thickness=8)
+
+def gps_checker(coord: Tuple[float, float]) -> int:
+    """Classify a GPS coordinate (lat, lon) w.r.t. MAP1 / MAP2.
+
+    Returns
+    -------
+    int code:
+        1 -> inside MAP1
+        2 -> outside MAP1 but inside MAP2   (MAP2 will be used)
+        3 -> outside MAP2                   (completely outside both maps)
+        4 -> (0.0, 0.0)                     (placeholder / invalid)
+    """
+    lat, lon = coord
+
+    # Case 4: placeholder
+    if lat == 0.0 and lon == 0.0:
+        return 4
+
+    # Unpack bounds once
+    map1_bottom, map1_top, map1_left, map1_right = _normalize_bounds(
+        MAP1_CORNER_1, MAP1_CORNER_2
+    )
+    map2_bottom, map2_top, map2_left, map2_right = _normalize_bounds(
+        MAP2_CORNER_1, MAP2_CORNER_2
+    )
+
+    # Case 1: inside small MAP1
+    if _point_in_bounds(lat, lon,
+                        map1_bottom, map1_top,
+                        map1_left, map1_right):
+        return 1
+
+    # Case 2: outside MAP1 but inside large MAP2
+    if _point_in_bounds(lat, lon,
+                        map2_bottom, map2_top,
+                        map2_left, map2_right):
+        return 2
+
+    # Case 3: completely outside MAP2
+    return 3
 
 

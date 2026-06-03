@@ -155,10 +155,11 @@ class MissionStrategyApp(Base):
         """
         # Placeholder: evaluate only the current configuration as 1 mission
 
-        PreliminaryMatrix = self.constructMatrix()
+        PreliminaryMatrix, objects = self.constructMatrix()
         filteredMatrix = self.filterMatrix(PreliminaryMatrix)
         routeMatrix = self.routeMatrix(filteredMatrix)
-        viableMissions = self.viableMissionGenerator(routeMatrix)
+        print(filteredMatrix)
+        viableMissions = self.viableMissionGenerator(routeMatrix, filteredMatrix, objects)
 
 
         mission_list = []
@@ -198,7 +199,7 @@ class MissionStrategyApp(Base):
         for i in range(matrix_size):
             for j in range(i):
                 matrix[i][j] = [objects[i], objects[j]]
-        return matrix
+        return matrix, objects
 
     def filterMatrix(self, matrix):
         # TODO: ADD LOGIC SUCH THAT ONLY ONE TYPE OF MACHINE IS REQUIRED FOR EACH WORK_JOB, AND THE USER DECIDES IF STUFF IS DONE IN PARALLEL OR SERIES
@@ -248,7 +249,7 @@ class MissionStrategyApp(Base):
                     routeMatrix[i][j] = [routeDuration, routeDistance]
         return
 
-    def viableMissionGenerator(self, routeMatrix):
+    def viableMissionGenerator(self, routeMatrix, filteredMatrix, objects):
         max_worksite_machines = self.jobAnalyzer()
         possibleMachines = []
         for m in self.machines:
@@ -257,16 +258,36 @@ class MissionStrategyApp(Base):
         max_number_of_machines = min(max_worksite_machines, len(possibleMachines))
         max_number_of_machines = 2
 
+        # Get truck locations
+        # truck_locations = []
+        # for object in objects:
+        #     if type(object).__name__ == "Depot":
+        #         if "Truck" in object.available_machine_types:
+        #             truck_locations.append(object)
+
         # Logic for now: only use 1 machine, or when deadline is set use the minimal amount of machines that will meet the deadlines
         # for n in range(2, max_number_of_machines + 1):
         possibleMissions = []
-        for m in possibleMachines:
-            if type(m).__bases__[0].__name__ == "Vehicle" or type(m).__name__ == "Vehicle":
-                possibleMissions.append([m, self.work_job])
+        needed_machine = self.work_job.needed_machines
+        possibleRoutes = []
+        for i in range(1, filteredMatrix.shape[0]):
+            for j in range(1, filteredMatrix.shape[0] - 1):
+                if filteredMatrix[i][j] != 0:
+                    # Needed machine directly to work site ('direct route')
+                    if type(filteredMatrix[i][j][0]).__name__ == "Depot":
+                        if needed_machine in filteredMatrix[i][j][0].available_machine_types:
+                             possibleRoutes.append([i, 1])
+                    elif type(filteredMatrix[i][j][1]).__name__ == "Depot":
+                        if needed_machine in filteredMatrix[i][j][1].available_machine_types:
+                             possibleRoutes.append([i, 1])
+                    elif filteredMatrix[i][j][0].machine_type == needed_machine:
+                        possibleRoutes.append([i, 1])
+                    elif filteredMatrix[i][j][1].machine_type == needed_machine:
+                        possibleRoutes.append([i, 1])
+        print(possibleRoutes)
 
         return possibleMissions
 
-    # Filter Matrix
 
     # ------------------------------------------------------------------
     # 2) MissionEvaluator
@@ -1012,6 +1033,16 @@ if __name__ == "__main__":
     #                           gps_location = (51.416232, 5.507185),
     #                           machines=[Tractor(gps_location=(51.624520, 4.769122), machine_type = "Tractor"), Truck(gps_location=(51.720407, 5.269097), machine_type = "Truck", contents=Trailer(contents=[Tractor(machine_type = "Tractor", gps_location=(51.720407, 5.269097))])), Crane(gps_location=(51.720407, 5.269097), machine_type="Crane"), Crane(gps_location=(51.586911, 5.101759), machine_type="Crane")])
 
-    app3 = MissionStrategyApp(work_job = WorkJob())
+    # app3 = MissionStrategyApp(work_job = WorkJob())
 
-    display(app3)
+    app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
+                              depots=[Depot(gps_location=(51.584217, 5.101924)), Depot(gps_location=(51.720407, 5.269097)), Depot(gps_location=(50, 4))],
+                              gps_location = (51.416232, 5.507185),
+                              machines=[Truck(gps_location=(50, 4.5), machine_type="Truck"),
+                                        Crane(gps_location=(51.584217, 5.101924), machine_type="Crane"),
+                                        Tractor(gps_location=(50, 3), machine_type="Tractor"),
+                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor"),
+                                        Tractor(gps_location=(50,4), machine_type="Tractor"),
+                                        Truck(gps_location=(49, 4), machine_type="Truck")])
+
+    display(app4)
