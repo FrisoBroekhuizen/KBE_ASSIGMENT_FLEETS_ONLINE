@@ -203,14 +203,21 @@ class MissionStrategyApp(Base):
         truckRoutes = self.viableMissionGenerator(
             routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes
         )
+        print(filteredMatrix)
+        print(routeMatrix)
         mission_list: List[Mission] = []
 
         # --- 1) direct routes: depot / machine straight to work site ---
         for direct_route in directRoutes:
             obj = filteredMatrix[direct_route[0]][direct_route[1]][0]
+
+            # CASE: depot directly has needed vehicle type -> vehicle drives itself
             if type(obj).__name__ == "Depot":
                 for machine in obj.machines:
-                    if machine.machine_type == self.work_job.needed_machines and isinstance(machine, Vehicle):
+                    if (
+                            machine.machine_type == self.work_job.needed_machines
+                            and isinstance(machine, Vehicle)  # <-- NEW: vehicles only
+                    ):
                         transport_job = TransportJob(
                             transporting_vehicle=machine,
                             routeDistance=routeMatrix[direct_route[0]][direct_route[1]][1],
@@ -226,7 +233,7 @@ class MissionStrategyApp(Base):
                         mission_list.append(mission)
             elif (
                     obj.machine_type == self.work_job.needed_machines
-                    and isinstance(obj, Vehicle)
+                    and isinstance(obj, Vehicle)  # <-- NEW: vehicles only
             ):
                 transport_job = TransportJob(
                     transporting_vehicle=obj,
@@ -235,29 +242,44 @@ class MissionStrategyApp(Base):
                     end_location_gps=self.gps_location,
                 )
                 work_job = self.work_job
-                work_job.assigned_vehicles = [obj]
+                work_job.assigned_vehicles = [obj]  # <-- BUGFIX: use obj, not machine
                 mission = Mission(
                     transport_jobs=[transport_job],
                     work_jobs=[work_job],
                 )
                 mission_list.append(mission)
 
-<<<<<<< HEAD
-        # --- 2) routes that require a truck to go via a depot (vehicles + tools) ---
-=======
         # --- 2) routes that require a truck to go via a depot ---
         print(truckRoutes)
->>>>>>> d94ee16e8ea044d7d7ea808a06e24c3a08927acf
         objects = [self.work_job]
         objects.extend(self.depots)
         objects.extend(self.road_parked)
 
         for truck_route in truckRoutes:
-            # truck_route is [[truck_origin_idx, depot_or_machine_idx], [depot_or_machine_idx, 0]]
-            origin_obj = objects[truck_route[0][0]]
+            # truck_route is [[truck_idx, depot_or_machine_idx], [depot_or_machine_idx, 0]]
+            object_with_truck = objects[truck_route[0][0]]
+
+            # pick best truck at its origin
+            if type(object_with_truck).__name__ == "Depot":
+                lowest_consumption_per_hour = 1e9
+                lowest_electricity_consumption_per_hour = 1e9
+                best_truck = None
+                for machine in object_with_truck.machines:
+                    if machine.machine_type == "Truck":
+                        if getattr(machine, "energy_source", "Diesel") == "Electric":
+                            if machine.consumption_per_hour < lowest_electricity_consumption_per_hour:
+                                best_truck = machine
+                                lowest_electricity_consumption_per_hour = machine.consumption_per_hour
+                        elif machine.consumption_per_hour < lowest_consumption_per_hour:
+                            best_truck = machine
+                            lowest_consumption_per_hour = machine.consumption_per_hour
+            else:
+                best_truck = object_with_truck
+
+            if best_truck is None:
+                raise RuntimeError("No truck for this route!")
 
             object_with_needed_machine = objects[truck_route[0][1]]
-            needed_type = self.work_job.needed_machines
 
             # indices used in routeMatrix
             idx_truck_origin = truck_route[0][0]
@@ -325,6 +347,7 @@ class MissionStrategyApp(Base):
                         end_location_gps=self.gps_location,
                     )
 
+                    # assign machine to work job (as vehicle or tool)
                     work_job = self.work_job
                     if isinstance(machine, Vehicle):
                         work_job.assigned_vehicles = [machine]
@@ -342,7 +365,7 @@ class MissionStrategyApp(Base):
             # ---- CASE B: needed machine is road‑parked (not in depot) ----
             else:
                 machine = object_with_needed_machine
-                if machine.machine_type != needed_type:
+                if machine.machine_type != self.work_job.needed_machines:
                     continue
 
                 # --- choose feasible trucks at origin that can carry THIS machine ---
