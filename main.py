@@ -155,6 +155,29 @@ class MissionStrategyApp(Base):
         - For now, we just evaluate the current mission as a single candidate.
         """
 
+        # --- helper: can this specific truck carry this specific machine? ---
+        def _can_truck_carry(truck: Machine, machine: Machine) -> bool:
+            """Return True if `truck` (possibly with Trailer in contents)
+            can carry `machine` based on simple bbox + weight checks."""
+
+            trailer = getattr(truck, "contents", None)
+
+            # If there is an attached Trailer, enforce capacity:
+            if isinstance(trailer, Trailer):
+                # geometric: allow any orientation -> compare sorted dims
+                m_dims = sorted(machine.overall_dimensions)
+                t_dims = sorted(trailer.overall_dimensions)
+                if any(md > td for md, td in zip(m_dims, t_dims)):
+                    return False
+
+                # weight: if max_loading_weight > 0, enforce it
+                if trailer.max_loading_weight and trailer.max_loading_weight > 0:
+                    if machine.mass > trailer.max_loading_weight:
+                        return False
+
+            # If no trailer, treat as flatbed that can always carry (adjust if needed)
+            return True
+
         # --- helper: create a fresh Truck instance for each leg ---
         def _clone_truck_for_leg(truck, *, contents=None, gps_location=None):
             """Create a new Truck instance with the same specs as `truck`,
@@ -183,17 +206,12 @@ class MissionStrategyApp(Base):
 
         mission_list: List[Mission] = []
 
-        # --- 1) direct routes: ONLY for self-moving vehicles (no tools) ---
+        # --- 1) direct routes: depot / machine straight to work site ---
         for direct_route in directRoutes:
             obj = filteredMatrix[direct_route[0]][direct_route[1]][0]
-
-            # CASE: depot directly has needed vehicle type -> vehicle drives itself
             if type(obj).__name__ == "Depot":
                 for machine in obj.machines:
-                    if (
-                            machine.machine_type == self.work_job.needed_machines
-                            and isinstance(machine, Vehicle)  # <-- NEW: vehicles only
-                    ):
+                    if machine.machine_type == self.work_job.needed_machines and isinstance(machine, Vehicle):
                         transport_job = TransportJob(
                             transporting_vehicle=machine,
                             routeDistance=routeMatrix[direct_route[0]][direct_route[1]][1],
@@ -207,11 +225,9 @@ class MissionStrategyApp(Base):
                             work_jobs=[work_job],
                         )
                         mission_list.append(mission)
-
-            # CASE: standalone machine (e.g. road‑parked tractor) drives itself
             elif (
                     obj.machine_type == self.work_job.needed_machines
-                    and isinstance(obj, Vehicle)  # <-- NEW: vehicles only
+                    and isinstance(obj, Vehicle)
             ):
                 transport_job = TransportJob(
                     transporting_vehicle=obj,
@@ -220,44 +236,25 @@ class MissionStrategyApp(Base):
                     end_location_gps=self.gps_location,
                 )
                 work_job = self.work_job
-                work_job.assigned_vehicles = [obj]  # <-- BUGFIX: use obj, not machine
+                work_job.assigned_vehicles = [obj]
                 mission = Mission(
                     transport_jobs=[transport_job],
                     work_jobs=[work_job],
                 )
                 mission_list.append(mission)
 
-        # --- 2) routes that require a truck to go via a depot (vehicles + tools) ---
+        # --- 2) routes that require a truck to go via a depot ---
         print(truckRoutes)
         objects = [self.work_job]
         objects.extend(self.depots)
         objects.extend(self.road_parked)
 
         for truck_route in truckRoutes:
-            # truck_route is [[truck_idx, depot_or_machine_idx], [depot_or_machine_idx, 0]]
-            object_with_truck = objects[truck_route[0][0]]
-
-            # pick best truck at its origin
-            if type(object_with_truck).__name__ == "Depot":
-                lowest_consumption_per_hour = 1e9
-                lowest_electricity_consumption_per_hour = 1e9
-                best_truck = None
-                for machine in object_with_truck.machines:
-                    if machine.machine_type == "Truck":
-                        if getattr(machine, "energy_source", "Diesel") == "Electric":
-                            if machine.consumption_per_hour < lowest_electricity_consumption_per_hour:
-                                best_truck = machine
-                                lowest_electricity_consumption_per_hour = machine.consumption_per_hour
-                        elif machine.consumption_per_hour < lowest_consumption_per_hour:
-                            best_truck = machine
-                            lowest_consumption_per_hour = machine.consumption_per_hour
-            else:
-                best_truck = object_with_truck
-
-            if best_truck is None:
-                raise RuntimeError("No truck for this route!")
+            # truck_route is [[truck_origin_idx, depot_or_machine_idx], [depot_or_machine_idx, 0]]
+            origin_obj = objects[truck_route[0][0]]
 
             object_with_needed_machine = objects[truck_route[0][1]]
+            needed_type = self.work_job.needed_machines
 
             # indices used in routeMatrix
             idx_truck_origin = truck_route[0][0]
@@ -266,15 +263,42 @@ class MissionStrategyApp(Base):
 
             # ---- CASE A: needed machine is in a depot ----
             if type(object_with_needed_machine).__name__ == "Depot":
-                for machine in object_with_needed_machine.machines:
-                    if machine.machine_type != self.work_job.needed_machines:
+                depot_with_machines = object_with_needed_machine
+
+                for machine in depot_with_machines.machines:
+                    if machine.machine_type != needed_type:
                         continue
+
+                    # --- choose feasible trucks at origin that can carry THIS machine ---
+                    feasible_trucks: List[Machine] = []
+
+                    if type(origin_obj).__name__ == "Depot":
+                        for cand in origin_obj.machines:
+                            if cand.machine_type == "Truck" and _can_truck_carry(cand, machine):
+                                feasible_trucks.append(cand)
+                    else:
+                        # origin is a single truck
+                        if origin_obj.machine_type == "Truck" and _can_truck_carry(origin_obj, machine):
+                            feasible_trucks.append(origin_obj)
+
+                    if not feasible_trucks:
+                        # no truck+trailer at this origin that can carry this machine -> skip
+                        continue
+
+                    # pick "best" truck among feasible ones (electric preferred, then lowest consumption)
+                    feasible_trucks.sort(
+                        key=lambda t: (
+                            getattr(t, "energy_source", "Diesel") != "Electric",
+                            t.consumption_per_hour,
+                        )
+                    )
+                    best_truck_for_machine = feasible_trucks[0]
 
                     # 1) leg: truck drives EMPTY from its origin to the depot
                     empty_truck = _clone_truck_for_leg(
-                        best_truck,
+                        best_truck_for_machine,
                         contents=None,
-                        gps_location=best_truck.gps_location,
+                        gps_location=best_truck_for_machine.gps_location,
                     )
                     transport_job_toDepot = TransportJob(
                         transporting_vehicle=empty_truck,
@@ -285,7 +309,7 @@ class MissionStrategyApp(Base):
 
                     # 2) leg: truck drives LOADED from depot to work site
                     loaded_truck = _clone_truck_for_leg(
-                        best_truck,
+                        best_truck_for_machine,
                         contents=Trailer(contents=[machine]),
                         gps_location=machine.gps_location,
                     )
@@ -296,12 +320,11 @@ class MissionStrategyApp(Base):
                         end_location_gps=self.gps_location,
                     )
 
-                    # assign machine to work job (as vehicle or tool)
                     work_job = self.work_job
                     if isinstance(machine, Vehicle):
                         work_job.assigned_vehicles = [machine]
                         work_job.assigned_tools = []
-                    else:  # Tool / Pump
+                    else:
                         work_job.assigned_tools = [machine]
                         work_job.assigned_vehicles = []
 
@@ -314,14 +337,36 @@ class MissionStrategyApp(Base):
             # ---- CASE B: needed machine is road‑parked (not in depot) ----
             else:
                 machine = object_with_needed_machine
-                if machine.machine_type != self.work_job.needed_machines:
+                if machine.machine_type != needed_type:
                     continue
+
+                # --- choose feasible trucks at origin that can carry THIS machine ---
+                feasible_trucks: List[Machine] = []
+
+                if type(origin_obj).__name__ == "Depot":
+                    for cand in origin_obj.machines:
+                        if cand.machine_type == "Truck" and _can_truck_carry(cand, machine):
+                            feasible_trucks.append(cand)
+                else:
+                    if origin_obj.machine_type == "Truck" and _can_truck_carry(origin_obj, machine):
+                        feasible_trucks.append(origin_obj)
+
+                if not feasible_trucks:
+                    continue
+
+                feasible_trucks.sort(
+                    key=lambda t: (
+                        getattr(t, "energy_source", "Diesel") != "Electric",
+                        t.consumption_per_hour,
+                    )
+                )
+                best_truck_for_machine = feasible_trucks[0]
 
                 # 1) leg: truck drives EMPTY from origin to machine
                 empty_truck = _clone_truck_for_leg(
-                    best_truck,
+                    best_truck_for_machine,
                     contents=None,
-                    gps_location=best_truck.gps_location,
+                    gps_location=best_truck_for_machine.gps_location,
                 )
                 transport_job_toDepot = TransportJob(
                     transporting_vehicle=empty_truck,
@@ -332,7 +377,7 @@ class MissionStrategyApp(Base):
 
                 # 2) leg: truck drives LOADED from machine to work site
                 loaded_truck = _clone_truck_for_leg(
-                    best_truck,
+                    best_truck_for_machine,
                     contents=Trailer(contents=[machine]),
                     gps_location=machine.gps_location,
                 )
