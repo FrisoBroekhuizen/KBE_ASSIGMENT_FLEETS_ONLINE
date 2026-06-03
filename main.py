@@ -183,7 +183,8 @@ class MissionStrategyApp(Base):
         truckRoutes = self.viableMissionGenerator(
             routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes
         )
-
+        print(filteredMatrix)
+        print(routeMatrix)
         mission_list: List[Mission] = []
 
         # --- 1) direct routes: depot / machine straight to work site ---
@@ -364,18 +365,29 @@ class MissionStrategyApp(Base):
 
         matrix = np.zeros((matrix_size, matrix_size), dtype=object)
         for i in range(matrix_size):
-            for j in range(i):
+            for j in range(i + 1):
                 matrix[i][j] = [objects[i], objects[j]]
         return matrix, objects
 
     def filterMatrix(self, matrix):
         truckIndexes = []
         directRoutes = []
-        print(matrix)
         # TODO: ADD LOGIC SUCH THAT ONLY ONE TYPE OF MACHINE IS REQUIRED FOR EACH WORK_JOB, AND THE USER DECIDES IF STUFF IS DONE IN PARALLEL OR SERIES
         needed_machine = self.work_job.needed_machines
         for i in range(0, matrix.shape[0]):
-            for j in range(i):
+            for j in range(i + 1):
+                if i == j and i != 0:
+                    if type(matrix[i][j][0]).__name__ == "Depot":
+                        if needed_machine in matrix[i][j][0].available_machine_types and "Truck" in matrix[i][j][0].available_machine_types:
+                            pass
+                        else:
+                            matrix[i][j] = 0
+                    elif (matrix[i][j][0].machine_type == needed_machine and matrix[i][j][1].machine_type == "Truck") or (matrix[i][j][1].machine_type == needed_machine and matrix[i][j][0].machine_type == "Truck"):
+                        pass
+                    else:
+                        matrix[i][j] = 0
+                elif i == j and i == 0:
+                    matrix[i][j] = 0
                 if j == 0 and i != 0:
                     if type(matrix[i][j][0]).__name__ == "Depot":
                         if needed_machine in matrix[i][j][0].available_machine_types:
@@ -423,14 +435,16 @@ class MissionStrategyApp(Base):
         routeMatrix = np.zeros((filteredMatrix.shape[0], filteredMatrix.shape[1]), dtype=object)
 
         for i in range(filteredMatrix.shape[0]):
-            for j in range(i):
+            for j in range(i + 1):
                 if filteredMatrix[i][j] != 0:
-                    routeDuration, routeDistance, _ = Routing.ComputeRoute(filteredMatrix[i][j][0].gps_location, filteredMatrix[i][j][1].gps_location,
-                                         machine_type="Truck")
-                    routeMatrix[i][j] = [routeDuration, routeDistance]
+                    if i == j:
+                        routeMatrix[i][j] = 0
+                    else:
+                        routeDuration, routeDistance, _ = Routing.ComputeRoute(filteredMatrix[i][j][0].gps_location, filteredMatrix[i][j][1].gps_location,
+                                             machine_type="Truck")
+                        routeMatrix[i][j] = [routeDuration, routeDistance]
                 else:
-                    if i == j: routeMatrix[i][j] = 0
-                    else: routeMatrix[i][j] = 1000000000
+                    routeMatrix[i][j] = 1000000000
 
         return routeMatrix
 
@@ -773,6 +787,13 @@ class Mission(Base):
     mission_NOx = Input(0.0)
     mission_CO2 = Input(0.0)
     mission_cost = Input(0.0)
+
+    def EvaluateCostFunction(self) -> float:
+        """Dot product of normalized preferences and normalized objectives."""
+        w_cost, w_time, w_emissions = self.mission_preferences
+        return (w_cost * self.normalized_cost + w_time * self.normalized_time + w_emissions * self.normalized_emissions)
+
+
 
 # ---------------------------------------------------------------------------
 # Jobs
@@ -1219,6 +1240,7 @@ if __name__ == "__main__":
                                       Depot(gps_location=(51.590574, 4.921730))],
                               gps_location = (51.416232, 5.507185),
                               machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck"),
+                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck"),
                                         Crane(gps_location=(51.584217, 5.101924), machine_type="Crane"),
                                         Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor"),
                                         Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor"),
