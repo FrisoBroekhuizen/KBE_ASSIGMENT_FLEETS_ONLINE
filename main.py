@@ -180,8 +180,6 @@ class MissionStrategyApp(Base):
         truckRoutes = self.viableMissionGenerator(
             routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes
         )
-        print(filteredMatrix)
-        print(routeMatrix)
         mission_list: List[Mission] = []
 
         # --- 1) direct routes: ONLY for self-moving vehicles (no tools) ---
@@ -229,7 +227,6 @@ class MissionStrategyApp(Base):
                 mission_list.append(mission)
 
         # --- 2) routes that require a truck to go via a depot (vehicles + tools) ---
-        print(truckRoutes)
         objects = [self.work_job]
         objects.extend(self.depots)
         objects.extend(self.road_parked)
@@ -277,9 +274,11 @@ class MissionStrategyApp(Base):
                         contents=None,
                         gps_location=best_truck.gps_location,
                     )
+                    routeDistance = routeMatrix[idx_truck_origin][idx_machine_location]
+                    if routeDistance != 0: routeDistance = routeDistance[1]
                     transport_job_toDepot = TransportJob(
                         transporting_vehicle=empty_truck,
-                        routeDistance=routeMatrix[idx_truck_origin][idx_machine_location][1],
+                        routeDistance=routeDistance,
                         begin_location_gps=empty_truck.gps_location,
                         end_location_gps=machine.gps_location,
                     )
@@ -575,6 +574,8 @@ class MissionStrategyApp(Base):
                 if (max_NOx - min_NOx) != 0 else 0.0)
             m.normalized_emissions = alpha * norm_CO2 + (1.0 - alpha) * norm_NOx
 
+            m.mission_preferences = self.mission_preferences
+
             # Scalar cost function for this mission
             m.mission_scalar = m.EvaluateCostFunction()
 
@@ -809,9 +810,15 @@ class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
 
+    mission_preferences = Input([1.0, 1.0, 1.0])
+
     mission_NOx = Input(0.0)
     mission_CO2 = Input(0.0)
     mission_cost = Input(0.0)
+
+    normalized_time = Input(0.0)
+    normalized_cost = Input(0.0)
+    normalized_emissions = Input(0.0)
 
     def EvaluateCostFunction(self) -> float:
         """Dot product of normalized preferences and normalized objectives."""
@@ -1259,7 +1266,7 @@ if __name__ == "__main__":
 
     # app3 = MissionStrategyApp(work_job = WorkJob())
 
-    app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Pump", gps_location=(51.416232, 5.507185)),
+    app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
                               depots=[Depot(gps_location=(51.584217, 5.101924)),
                                       Depot(gps_location=(51.720407, 5.269097)),
                                       Depot(gps_location=(51.590574, 4.921730))],
