@@ -11,6 +11,7 @@ from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf, all_is_number
+import copy
 
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
 from assets import *
@@ -99,6 +100,8 @@ class MissionStrategyApp(Base):
     mission_time: float = Input(0.0)
     mission_scalar: float = Input(0.0)
 
+    all_generated_missions = Input([])
+
     normalized_cost: float = Input(0.0)
     normalized_time: float = Input(0.0)
     normalized_emissions: float = Input(0.0)
@@ -121,16 +124,17 @@ class MissionStrategyApp(Base):
         self.road_parked = self.AllocateMachines()
 
         # 1) MissionGenerator: generate all candidate missions
-        all_generated_missions = self._mission_generator()
-        exit()
-        if not all_generated_missions:
+        self.all_generated_missions = self._mission_generator()
+
+        if not self.all_generated_missions:
             raise RuntimeError("MissionGenerator produced no missions to evaluate.")
 
+
         # 2) MissionEvaluator: compute raw totals per mission
-        self._mission_evaluator(all_generated_missions)
+        self._mission_evaluator(self.all_generated_missions)
 
         # 3) MissionPicker: normalize, compute scalar, pick best
-        winning_mission = self._mission_picker(all_generated_missions)
+        winning_mission = self._mission_picker(self.all_generated_missions)
 
         # Store and return for convenience
         self.winning_mission = winning_mission
@@ -147,24 +151,186 @@ class MissionStrategyApp(Base):
         jobs and work jobs).
 
         TODO:
-        - Implement combinatorial search over fleet / jobs:
-          * choose which trucks/tractors/etc. to assign
-          * build different sequences of transport_jobs and work_jobs
-          * apply feasibility filters (distance, deadlines, availability)
+        - Implement combinatorial search over fleet / jobs
         - For now, we just evaluate the current mission as a single candidate.
         """
-        # Placeholder: evaluate only the current configuration as 1 mission
+
+        # --- helper: create a fresh Truck instance for each leg ---
+        def _clone_truck_for_leg(truck, *, contents=None, gps_location=None):
+            """Create a new Truck instance with the same specs as `truck`,
+            but with possibly different contents / gps_location.
+
+            NOTE: adapt the kwargs to the actual Truck Inputs in your assets.
+            """
+            cls = type(truck)
+            return cls(
+                gps_location=gps_location if gps_location is not None else truck.gps_location,
+                overall_dimensions=truck.overall_dimensions,
+                mass=truck.mass,
+                consumption_per_hour=truck.consumption_per_hour,
+                worth=truck.worth,
+                age=truck.age,
+                machine_id=truck.machine_id,
+                # if Truck has these Inputs, keep them; otherwise remove:
+                machine_type=getattr(truck, "machine_type", "Truck"),
+                energy_source=getattr(truck, "energy_source", None),
+                contents=contents,
+            )
 
         PreliminaryMatrix, objects = self.constructMatrix()
-        filteredMatrix = self.filterMatrix(PreliminaryMatrix)
+        filteredMatrix, truckIndexes, directRoutes = self.filterMatrix(PreliminaryMatrix)
         routeMatrix = self.routeMatrix(filteredMatrix)
-        print(filteredMatrix)
-        viableMissions = self.viableMissionGenerator(routeMatrix, filteredMatrix, objects)
+        truckRoutes = self.viableMissionGenerator(
+            routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes
+        )
 
+        mission_list: List[Mission] = []
 
-        mission_list = []
+        # --- 1) direct routes: depot / machine straight to work site ---
+        for direct_route in directRoutes:
+            obj = filteredMatrix[direct_route[0]][direct_route[1]][0]
+            if type(obj).__name__ == "Depot":
+                for machine in obj.machines:
+                    if machine.machine_type == self.work_job.needed_machines:
+                        transport_job = TransportJob(
+                            transporting_vehicle=machine,
+                            routeDistance=routeMatrix[direct_route[0]][direct_route[1]][1],
+                            begin_location_gps=machine.gps_location,
+                            end_location_gps=self.gps_location,
+                        )
+                        work_job = self.work_job
+                        work_job.assigned_vehicles = [machine]
+                        mission = Mission(
+                            transport_jobs=[transport_job],
+                            work_jobs=[work_job],
+                        )
+                        mission_list.append(mission)
+            elif obj.machine_type == self.work_job.needed_machines:
+                transport_job = TransportJob(
+                    transporting_vehicle=obj,
+                    routeDistance=routeMatrix[direct_route[0]][direct_route[1]][1],
+                    begin_location_gps=obj.gps_location,
+                    end_location_gps=self.gps_location,
+                )
+                work_job = self.work_job
+                work_job.assigned_vehicles = [machine]
+                mission = Mission(
+                    transport_jobs=[transport_job],
+                    work_jobs=[work_job],
+                )
+                mission_list.append(mission)
 
-        mission = Mission(transport_jobs=[], work_jobs=[])
+        # --- 2) routes that require a truck to go via a depot ---
+        print(truckRoutes)
+        objects = [self.work_job]
+        objects.extend(self.depots)
+        objects.extend(self.road_parked)
+
+        for truck_route in truckRoutes:
+            # truck_route is [[truck_idx, depot_or_machine_idx], [depot_or_machine_idx, 0]]
+            object_with_truck = objects[truck_route[0][0]]
+
+            # pick best truck at its origin
+            if type(object_with_truck).__name__ == "Depot":
+                lowest_consumption_per_hour = 1e9
+                lowest_electricity_consumption_per_hour = 1e9
+                best_truck = None
+                # BUGFIX: use object_with_truck, not "object"
+                for machine in object_with_truck.machines:
+                    if machine.machine_type == "Truck":
+                        if getattr(machine, "energy_source", "Diesel") == "Electric":
+                            if machine.consumption_per_hour < lowest_electricity_consumption_per_hour:
+                                best_truck = machine
+                                lowest_electricity_consumption_per_hour = machine.consumption_per_hour
+                        elif machine.consumption_per_hour < lowest_consumption_per_hour:
+                            best_truck = machine
+                            lowest_consumption_per_hour = machine.consumption_per_hour
+            else:
+                best_truck = object_with_truck
+
+            if best_truck is None:
+                # no feasible truck found for this route, skip
+                raise("No truck for this route!")
+
+            object_with_needed_machine = objects[truck_route[0][1]]
+
+            # indices used in routeMatrix
+            idx_truck_origin = truck_route[0][0]
+            idx_machine_location = truck_route[0][1]
+            idx_worksite_from_machine = truck_route[1][1]  # typically 0 (=work site)
+
+            # ---- CASE A: needed machine is in a depot ----
+            if type(object_with_needed_machine).__name__ == "Depot":
+                for machine in object_with_needed_machine.machines:
+                    # 1) leg: truck drives EMPTY from its origin to the depot
+                    empty_truck = _clone_truck_for_leg(
+                        best_truck,
+                        contents=None,
+                        gps_location=best_truck.gps_location,
+                    )
+                    transport_job_toDepot = TransportJob(
+                        transporting_vehicle=empty_truck,
+                        routeDistance=routeMatrix[idx_truck_origin][idx_machine_location][1],
+                        begin_location_gps=empty_truck.gps_location,
+                        end_location_gps=machine.gps_location,
+                    )
+
+                    # 2) leg: truck drives LOADED from depot to work site
+                    loaded_truck = _clone_truck_for_leg(
+                        best_truck,
+                        contents=Trailer(contents=[machine]),
+                        gps_location=machine.gps_location,
+                    )
+                    transport_job_toWorksite = TransportJob(
+                        transporting_vehicle=loaded_truck,
+                        routeDistance=routeMatrix[truck_route[1][0]][idx_worksite_from_machine][1],
+                        begin_location_gps=loaded_truck.gps_location,
+                        end_location_gps=self.gps_location,
+                    )
+                    work_job = self.work_job
+                    work_job.assigned_vehicles = [machine]
+                    mission = Mission(
+                        transport_jobs=[transport_job_toDepot, transport_job_toWorksite],
+                        work_jobs=[work_job],
+                    )
+                    mission_list.append(mission)
+
+            # ---- CASE B: needed machine is road‑parked (not in depot) ----
+            else:
+                machine = object_with_needed_machine
+
+                # 1) leg: truck drives EMPTY from origin to machine
+                empty_truck = _clone_truck_for_leg(
+                    best_truck,
+                    contents=None,
+                    gps_location=best_truck.gps_location,
+                )
+                transport_job_toDepot = TransportJob(
+                    transporting_vehicle=empty_truck,
+                    routeDistance=routeMatrix[idx_truck_origin][idx_machine_location][1],
+                    begin_location_gps=empty_truck.gps_location,
+                    end_location_gps=machine.gps_location,
+                )
+
+                # 2) leg: truck drives LOADED from machine to work site
+                loaded_truck = _clone_truck_for_leg(
+                    best_truck,
+                    contents=Trailer(contents=[machine]),
+                    gps_location=machine.gps_location,
+                )
+                transport_job_toWorksite = TransportJob(
+                    transporting_vehicle=loaded_truck,
+                    routeDistance=routeMatrix[truck_route[1][0]][idx_worksite_from_machine][1],
+                    begin_location_gps=loaded_truck.gps_location,
+                    end_location_gps=self.gps_location,
+                )
+                work_job = self.work_job
+                work_job.assigned_vehicles = [machine]
+                mission = Mission(
+                    transport_jobs=[transport_job_toDepot, transport_job_toWorksite],
+                    work_jobs=[work_job],
+                )
+                mission_list.append(mission)
 
         return mission_list
 
@@ -178,6 +344,7 @@ class MissionStrategyApp(Base):
 
         job_area = self.site_dimensions[0] * self.site_dimensions[1]
         average_job_machine_area = np.mean(job_machines_areas)
+        if average_job_machine_area == 0: average_job_machine_area = 1
 
         max_number_of_machines = area_factor * job_area / average_job_machine_area
 
@@ -202,10 +369,24 @@ class MissionStrategyApp(Base):
         return matrix, objects
 
     def filterMatrix(self, matrix):
+        truckIndexes = []
+        directRoutes = []
+        print(matrix)
         # TODO: ADD LOGIC SUCH THAT ONLY ONE TYPE OF MACHINE IS REQUIRED FOR EACH WORK_JOB, AND THE USER DECIDES IF STUFF IS DONE IN PARALLEL OR SERIES
         needed_machine = self.work_job.needed_machines
-        for i in range(matrix.shape[0]):
-            for j in range(matrix.shape[0] - 1):
+        for i in range(0, matrix.shape[0]):
+            for j in range(i):
+                if j == 0 and i != 0:
+                    if type(matrix[i][j][0]).__name__ == "Depot":
+                        if needed_machine in matrix[i][j][0].available_machine_types:
+                            directRoutes.append([i, 0])
+                    elif matrix[i][j][0].machine_type == needed_machine:
+                        directRoutes.append([i, 0])
+                    if type(matrix[i][j][0]).__name__ == "Depot":
+                        if "Truck" in matrix[i][j][0].available_machine_types:
+                            truckIndexes.append(i)
+                    elif matrix[i][j][0].machine_type == "Truck":
+                        truckIndexes.append(i)
                 if matrix[i][j] != 0:
                     # Delete if Truck -> Truck
                     if type(matrix[i][j][0]).__name__ == type(matrix[i][j][1]).__name__ and type(matrix[i][j][0]).__name__ == "Truck":
@@ -234,22 +415,26 @@ class MissionStrategyApp(Base):
                 if matrix[i][j] != 0:
                     if i > 1 + len(self.depots):
                         # Delete if road parked machine not needed
-                        if (type(matrix[i][j][0]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck") or (type(matrix[i][j][1]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck"):
+                        if (type(matrix[i][j][0]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck") and (type(matrix[i][j][1]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck"):
                             matrix[i][j] = 0
-        return matrix
+        return matrix, truckIndexes, directRoutes
 
     def routeMatrix(self, filteredMatrix):
         routeMatrix = np.zeros((filteredMatrix.shape[0], filteredMatrix.shape[1]), dtype=object)
 
         for i in range(filteredMatrix.shape[0]):
-            for j in range(filteredMatrix.shape[1] - 1):
+            for j in range(i):
                 if filteredMatrix[i][j] != 0:
                     routeDuration, routeDistance, _ = Routing.ComputeRoute(filteredMatrix[i][j][0].gps_location, filteredMatrix[i][j][1].gps_location,
                                          machine_type="Truck")
                     routeMatrix[i][j] = [routeDuration, routeDistance]
-        return
+                else:
+                    if i == j: routeMatrix[i][j] = 0
+                    else: routeMatrix[i][j] = 1000000000
 
-    def viableMissionGenerator(self, routeMatrix, filteredMatrix, objects):
+        return routeMatrix
+
+    def viableMissionGenerator(self, routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes):
         max_worksite_machines = self.jobAnalyzer()
         possibleMachines = []
         for m in self.machines:
@@ -258,35 +443,28 @@ class MissionStrategyApp(Base):
         max_number_of_machines = min(max_worksite_machines, len(possibleMachines))
         max_number_of_machines = 2
 
-        # Get truck locations
-        # truck_locations = []
-        # for object in objects:
-        #     if type(object).__name__ == "Depot":
-        #         if "Truck" in object.available_machine_types:
-        #             truck_locations.append(object)
-
         # Logic for now: only use 1 machine, or when deadline is set use the minimal amount of machines that will meet the deadlines
         # for n in range(2, max_number_of_machines + 1):
         possibleMissions = []
         needed_machine = self.work_job.needed_machines
         possibleRoutes = []
-        for i in range(1, filteredMatrix.shape[0]):
-            for j in range(1, filteredMatrix.shape[0] - 1):
-                if filteredMatrix[i][j] != 0:
-                    # Needed machine directly to work site ('direct route')
-                    if type(filteredMatrix[i][j][0]).__name__ == "Depot":
-                        if needed_machine in filteredMatrix[i][j][0].available_machine_types:
-                             possibleRoutes.append([i, 1])
-                    elif type(filteredMatrix[i][j][1]).__name__ == "Depot":
-                        if needed_machine in filteredMatrix[i][j][1].available_machine_types:
-                             possibleRoutes.append([i, 1])
-                    elif filteredMatrix[i][j][0].machine_type == needed_machine:
-                        possibleRoutes.append([i, 1])
-                    elif filteredMatrix[i][j][1].machine_type == needed_machine:
-                        possibleRoutes.append([i, 1])
-        print(possibleRoutes)
+        truckRoutes = []
 
-        return possibleMissions
+        for direct_route in directRoutes:
+            tractor_i = direct_route[0]
+            shortest_distance = 1000000000
+            closest_truck_index = 0
+            for truck_index in truckIndexes:
+                if routeMatrix[tractor_i][truck_index] != 0:
+                    distance = routeMatrix[tractor_i][truck_index][1]
+                else: distance = 0
+                if distance < shortest_distance:
+                    closest_truck_index = truck_index
+                    shortest_distance = distance
+
+            truckRoutes.append([[closest_truck_index, tractor_i], [tractor_i, 0]])
+
+        return truckRoutes
 
 
     # ------------------------------------------------------------------
@@ -309,7 +487,7 @@ class MissionStrategyApp(Base):
                 total_mission_NOx += transport_job.job_NOx
                 total_mission_CO2 += transport_job.job_CO2
                 total_mission_cost += transport_job.job_cost
-                total_mission_time += transport_job.TimeKeeper  # assume consistent unit
+                total_mission_time += transport_job.routeDuration  # assume consistent unit
 
             # Work jobs: job_* are per tool/vehicle lists, TimeKeeper is duration
             for work_job in work_jobs:
@@ -418,13 +596,13 @@ class MissionStrategyApp(Base):
                         if item != None:
                             try:
                                 index_content = np.where(timelines[:, 0] == item.machine_id)[0][0]
-                                timelines[index_content][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
+                                timelines[index_content][1] += datetime.timedelta(minutes=transport_job.routeDuration)
                             except:
                                 continue
                                 # print("No index could be found for the vehicle " + str(
                             #     item.machine_id) + " inside trailer " + str(trailer.trailer_id))
-            timelines[index][1] += datetime.timedelta(minutes=transport_job.TimeKeeper)
-            vehicle.total_hours_used += transport_job.TimeKeeper / 60
+            timelines[index][1] += datetime.timedelta(minutes=transport_job.routeDuration)
+            vehicle.total_hours_used += transport_job.routeDuration / 60
         # print("Timeline after transport jobs:")
         # print(timelines)
         for work_job in self.work_jobs:
@@ -617,7 +795,6 @@ class TransportJob(Base):
     begin_location_gps: Tuple[float, float] = Input((0.0, 0.0))
     end_location_gps: Tuple[float, float] = Input((0.0, 0.0))
 
-    routeDuration: float = Input(0.0)
     routeDistance: float = Input(0.0)
 
     needed_machinery: Machine = Input([])
@@ -634,19 +811,20 @@ class TransportJob(Base):
 
     # As long as Valhalla is not used, if a route is planned for a tractor, we will determine the routeDuration
     # using the computed routeDistance and an average speed for a tractor.
-    @Attribute
-    def Route(self) -> List[float]:
-        self.routeDuration, self.routeDistance, _ = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
-        return[self.routeDuration, self.routeDistance]
+    # @Attribute
+    # def Route(self) -> List[float]:
+    #     self.routeDuration, self.routeDistance, _ = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
+    #     return[self.routeDuration, self.routeDistance]
 
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
     # downtimes, maintenance, ..., which can be used later in the cost function evaluation
+
     @Attribute
-    def TimeKeeper(self) -> float:
-        routeDistance = self.Route[1] / 1000 # Route distance in km
+    def routeDuration(self) -> float:
+        routeDistance = self.routeDistance / 1000 # Route distance in km
 
         if str(type(self.transporting_vehicle).__name__) == "Truck" or str(type(self.transporting_vehicle).__name__) == "Vehicle":
-            routeDuration = self.Route[0]
+            routeDuration = self.routeDistance / 1000 / (self.max_speeds[str(type(self.transporting_vehicle).__name__)] * 0.8) * 3600
         else:
             max_speed = self.max_speeds[str(type(self.transporting_vehicle).__name__)] * 0.8 # Factor for not always driving at the maximum speeds due to rural roads, traffic, etc.
             routeDuration = routeDistance / max_speed * 3600
@@ -676,7 +854,7 @@ class TransportJob(Base):
     # Talk to Arjan, depends on work hours, employees, machinery, historical data
     @Attribute
     def job_cost(self) -> float:
-        self.transporting_vehicle.hours_used = self.TimeKeeper / 60
+        self.transporting_vehicle.hours_used = self.routeDuration / 60
         cost = self.transporting_vehicle.individualCost
         return cost
 
@@ -1036,13 +1214,15 @@ if __name__ == "__main__":
     # app3 = MissionStrategyApp(work_job = WorkJob())
 
     app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
-                              depots=[Depot(gps_location=(51.584217, 5.101924)), Depot(gps_location=(51.720407, 5.269097)), Depot(gps_location=(50, 4))],
+                              depots=[Depot(gps_location=(51.584217, 5.101924)),
+                                      Depot(gps_location=(51.720407, 5.269097)),
+                                      Depot(gps_location=(51.590574, 4.921730))],
                               gps_location = (51.416232, 5.507185),
-                              machines=[Truck(gps_location=(50, 4.5), machine_type="Truck"),
+                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck"),
                                         Crane(gps_location=(51.584217, 5.101924), machine_type="Crane"),
-                                        Tractor(gps_location=(50, 3), machine_type="Tractor"),
+                                        Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor"),
                                         Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor"),
-                                        Tractor(gps_location=(50,4), machine_type="Tractor"),
-                                        Truck(gps_location=(49, 4), machine_type="Truck")])
+                                        Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor"),
+                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck")])
 
     display(app4)
