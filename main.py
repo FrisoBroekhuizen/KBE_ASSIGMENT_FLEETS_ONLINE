@@ -62,6 +62,7 @@ class MissionStrategyApp(Base):
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
     machines: List[Machine] = Input([])
+    trailers: List[Trailer] = Input([])
     depots: List[Depot] = Input([])
 
     work_job = Input()
@@ -335,7 +336,7 @@ class MissionStrategyApp(Base):
         * if vehicles: shades of yellow."""
         return TrailerPackingVisualization(
             items=self.items_to_pack,
-            trailers=self.trailers,
+            trailers=self.job_trailers,
         )
 
 
@@ -380,9 +381,11 @@ class MissionStrategyApp(Base):
 
     def AllocateMachines(self):
         machines = self.machines
+        trailers = self.trailers
         road_parked = []
         for depot in self.depots:
             depot.machines = machines
+            depot.trailers = trailers
             _, road_parked = depot.DepotMachineAllocation()
             machines = road_parked
         return road_parked
@@ -441,9 +444,9 @@ class MissionStrategyApp(Base):
         # Display in a separate ParaPy viewer window
         from parapy.gui import display
         display(map_obj)
-    # Define (normalized) preferences function
+
     @Attribute
-    def trailers(self) -> List[object]:
+    def job_trailers(self) -> List[object]:
         job_trailers: List[object] = []
         for job in self.winning_mission.transport_jobs:
             veh = job.transporting_vehicle
@@ -721,98 +724,216 @@ def generate_warning(warning_header, msg):
 if __name__ == "__main__":
     from parapy.gui import display
 
-    # Trailer 1: shorter but higher; mixed cargo
-    trailer1 = Trailer(
-        overall_dimensions=[4.5, 2.5, 3.5],  # L, W, H
-        mass=2500,
-        contents=[
-            # Big tractor, floor-only, will behave as vehicle
-            Tractor(
-                overall_dimensions=[4.5, 2.4, 3],
-                mass=16000,
-                consumption_per_hour=18,
-                worth=2500000,
-                age=5,
-                machine_id="Tractor_A",
-            ),
-            # Medium tractor
-            Tractor(
-                overall_dimensions=[4.0, 2.2, 2.8],
-                mass=14000,
-                consumption_per_hour=16,
-                worth=2200000,
-                age=8,
-                machine_id="Tractor_B",
-            ),
-            # Generic tool as cargo, more cubic
-            Tool(
-                overall_dimensions=[2.0, 1.8, 1.6],
-                mass=3000,
-                consumption_per_hour=5,
-                worth=80000,
-                age=3,
-                machine_id="Tool_A",
-            ),
-        ],
+    # Common tractor dimensions (L, W, H)
+    tractor_dims = (4.0, 2.5, 3.0)
+
+    # Trailers with different capacities
+    # - trailer_small: too short in length AND too narrow
+    # - trailer_exact: exactly matches tractor footprint (fits)
+    # - trailer_wide_low: long & wide but too low in height
+    # - trailer_large: comfortably larger in all dims (always fits)
+    trailer_small = Trailer(
+        gps_location=(51.590574, 4.921730),
+        overall_dimensions=[3.0, 2.0, 2.5],  # < tractor_dims
+        max_loading_weight=20000,
+        contents=[],
     )
 
-    # Trailer 2: longer but a bit lower; several smaller tools & a compact tractor
-    trailer2 = Trailer(
-        overall_dimensions=[14, 2.6, 3.0],
-        mass=2800,
-        contents=[
-            # Compact tractor
-            Tractor(
-                overall_dimensions=[3.5, 2.1, 2.6],
-                mass=12000,
-                consumption_per_hour=14,
-                worth=1800000,
-                age=4,
-                machine_id="Tractor_C",
-            ),
-            # Three tools with different proportions so rotations matter
-            Tool(
-                overall_dimensions=[3.0, 1.5, 1.2],  # long & flat
-                mass=2500,
-                consumption_per_hour=4,
-                worth=60000,
-                age=6,
-                machine_id="Tool_B",
-            ),
-            Tool(
-                overall_dimensions=[1.8, 1.8, 2.0],  # more cube-like
-                mass=2200,
-                consumption_per_hour=3,
-                worth=55000,
-                age=2,
-                machine_id="Tool_C",
-            ),
-            Tool(
-                overall_dimensions=[2.2, 1.0, 1.8],  # tall & narrow
-                mass=2000,
-                consumption_per_hour=3,
-                worth=50000,
-                age=1,
-                machine_id="Tool_D",
-            ),
-        ],
+    trailer_exact = Trailer(
+        gps_location=(51.590574, 4.921730),
+        overall_dimensions=list(tractor_dims),  # equal to tractor
+        max_loading_weight=20000,
+        contents=[],
     )
 
-    app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
-                              depots=[Depot(gps_location=(51.584217, 5.101924)),
-                                      Depot(gps_location=(51.720407, 5.269097)),
-                                      Depot(gps_location=(51.590574, 4.921730))],
-                              gps_location = (51.416232, 5.507185),
-                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked",
-                                              contents=Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[20, 3, 3], contents=[])),
-                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBread", overall_dimensions=(2, 2, 3),
-                                              contents=Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[20, 3, 3], contents=[])),
-                                        Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
-                                        # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
-                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
-                                        # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
-                                        Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
-                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked",
-                                              contents=Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[20, 3, 3], contents=[]))])
+    trailer_wide_low = Trailer(
+        gps_location=(51.590574, 4.921730),
+        overall_dimensions=[6.0, 3.0, 2.5],  # bigger in L,W but too low
+        max_loading_weight=20000,
+        contents=[],
+    )
+
+    trailer_large = Trailer(
+        gps_location=(51.590574, 4.921730),
+        overall_dimensions=[10.0, 4.0, 4.0],  # much larger in all dims
+        max_loading_weight=20000,
+        contents=[],
+    )
+
+    app4 = MissionStrategyApp(
+        work_job=WorkJob(
+            needed_vehicles="Tractor",
+            gps_location=(51.416232, 5.507185)
+        ),
+        depots=[
+            Depot(gps_location=(51.584217, 5.101924)),   # Depot 0
+            Depot(gps_location=(51.720407, 5.269097)),   # Depot 1
+            Depot(gps_location=(51.590574, 4.921730)),   # Depot 2
+        ],
+        gps_location=(51.416232, 5.507185),
+        machines=[
+            # Road-parked truck with too-small trailer
+            Truck(
+                gps_location=(51.359188, 5.166491),
+                machine_type="Truck",
+                machine_id="Truck_Road_SmallTrailer",
+                overall_dimensions=(2.5, 2.5, 3.5),
+                contents=trailer_small,
+            ),
+
+            # Depot truck with exact-fit trailer
+            Truck(
+                gps_location=(51.590574, 4.921730),
+                machine_type="Truck",
+                machine_id="Truck_Depot_ExactTrailer",
+                overall_dimensions=(2.5, 2.5, 3.5),
+                contents=trailer_small,
+            ),
+
+            # Depot truck with wide but low trailer
+            Truck(
+                gps_location=(51.590574, 4.921730),
+                machine_type="Truck",
+                machine_id="Truck_Depot_WideLowTrailer",
+                overall_dimensions=(2.5, 2.5, 3.5),
+                contents=trailer_small,
+            ),
+
+            # Road-parked truck with large trailer
+            Truck(
+                gps_location=(51.617221, 5.436735),
+                machine_type="Truck",
+                machine_id="Truck_Road_LargeTrailer",
+                overall_dimensions=(2.5, 2.5, 3.5),
+                contents=trailer_large,
+            ),
+
+            # A crane to prove non-truck machines are ignored for carrying
+            Crane(
+                gps_location=(51.584217, 5.101924),
+                machine_type="Crane",
+                overall_dimensions=(4, 2, 3),
+            ),
+
+            # Needed tractors (all same size)
+            # Tractor(
+            #     gps_location=(51.459288, 5.471401),
+            #     machine_type="Tractor",
+            #     machine_id="Tractor_next_to_eindhoven",
+            #     overall_dimensions=tractor_dims,
+            # ),
+            Tractor(
+                gps_location=(51.590574, 4.921730),
+                machine_type="Tractor",
+                machine_id="Tractor_DepotBreda",
+                overall_dimensions=tractor_dims,
+            ),
+
+            # A pump as an extra non-vehicle load
+            Pump(
+                gps_location=(51.590574, 4.921730),
+                machine_type="Pump",
+                overall_dimensions=(1.5, 1.5, 1.5),
+            ),
+        ]
+    )
 
     display(app4)
+
+# if __name__ == "__main__":
+#     from parapy.gui import display
+#
+#     # Trailer 1: shorter but higher; mixed cargo
+#     trailer1 = Trailer(
+#         overall_dimensions=[4.5, 2.5, 3.5],  # L, W, H
+#         mass=2500,
+#         contents=[
+#             # Big tractor, floor-only, will behave as vehicle
+#             Tractor(
+#                 overall_dimensions=[4.5, 2.4, 3],
+#                 mass=16000,
+#                 consumption_per_hour=18,
+#                 worth=2500000,
+#                 age=5,
+#                 machine_id="Tractor_A",
+#             ),
+#             # Medium tractor
+#             Tractor(
+#                 overall_dimensions=[4.0, 2.2, 2.8],
+#                 mass=14000,
+#                 consumption_per_hour=16,
+#                 worth=2200000,
+#                 age=8,
+#                 machine_id="Tractor_B",
+#             ),
+#             # Generic tool as cargo, more cubic
+#             Tool(
+#                 overall_dimensions=[2.0, 1.8, 1.6],
+#                 mass=3000,
+#                 consumption_per_hour=5,
+#                 worth=80000,
+#                 age=3,
+#                 machine_id="Tool_A",
+#             ),
+#         ],
+#     )
+#
+#     # Trailer 2: longer but a bit lower; several smaller tools & a compact tractor
+#     trailer2 = Trailer(
+#         overall_dimensions=[14, 2.6, 3.0],
+#         mass=2800,
+#         contents=[
+#             # Compact tractor
+#             Tractor(
+#                 overall_dimensions=[3.5, 2.1, 2.6],
+#                 mass=12000,
+#                 consumption_per_hour=14,
+#                 worth=1800000,
+#                 age=4,
+#                 machine_id="Tractor_C",
+#             ),
+#             # Three tools with different proportions so rotations matter
+#             Tool(
+#                 overall_dimensions=[3.0, 1.5, 1.2],  # long & flat
+#                 mass=2500,
+#                 consumption_per_hour=4,
+#                 worth=60000,
+#                 age=6,
+#                 machine_id="Tool_B",
+#             ),
+#             Tool(
+#                 overall_dimensions=[1.8, 1.8, 2.0],  # more cube-like
+#                 mass=2200,
+#                 consumption_per_hour=3,
+#                 worth=55000,
+#                 age=2,
+#                 machine_id="Tool_C",
+#             ),
+#             Tool(
+#                 overall_dimensions=[2.2, 1.0, 1.8],  # tall & narrow
+#                 mass=2000,
+#                 consumption_per_hour=3,
+#                 worth=50000,
+#                 age=1,
+#                 machine_id="Tool_D",
+#             ),
+#         ],
+#     )
+#
+#     app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
+#                               depots=[Depot(gps_location=(51.584217, 5.101924)),
+#                                       Depot(gps_location=(51.720407, 5.269097)),
+#                                       Depot(gps_location=(51.590574, 4.921730))],
+#                               gps_location = (51.416232, 5.507185),
+#                               trailers=[Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[1, 3, 3], contents=[]),
+#                                         Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[1, 1.5, 1.5], contents=[])],
+#                               machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
+#                                         Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBread", overall_dimensions=(2, 2, 3)),
+#                                         Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
+#                                         # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
+#                                         Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
+#                                         # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
+#                                         Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
+#                                         Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
+#
+#     display(app4)
