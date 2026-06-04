@@ -334,6 +334,8 @@ class Trailer(Base):
     # (you could also omit this if you only care about capacity)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
 
+    total_length = Input(0)  # Only used for truck + tractor combinations
+
     # Logical content (IDs, Machine references, or your packing Items)
     contents: List[object] = Input([None])
 

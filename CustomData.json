@@ -6,7 +6,7 @@
             "lat": 51.416232,
             "lon": 5.507185
         },
-        "dimension": 20
+        "overall_dimensions": [50, 25, 10]
     },
     {
         "type": "poi",
@@ -15,7 +15,7 @@
             "lat": 51.584217,
             "lon": 5.101924
         },
-        "dimension": 200
+        "overall_dimensions": [50, 25, 10]
     },
     {
         "type": "poi",
@@ -24,7 +24,7 @@
             "lat": 51.720407,
             "lon": 5.269097
         },
-        "dimension": 200
+        "overall_dimensions": [50, 25, 10]
     },
     {
         "type": "poi",
@@ -33,7 +33,7 @@
             "lat": 51.590574,
             "lon": 4.921730
         },
-        "dimension": 200
+        "overall_dimensions": [50, 25, 10]
     },
     {
         "type": "poi",
@@ -42,85 +42,107 @@
             "lat": 51.468288,
             "lon": 5.421365
         },
-        "dimension": 20
+        "overall_dimensions": [50, 25, 10]
     },
     {
         "type": "poi",
         "name": "Kreitemolenstraat",
+        "id": "Placeholder",
         "gps_location": {
             "lat": 51.607040408,
             "lon": 5.1537499956
         },
-        "dimension": 400
+        "overall_dimensions": [50, 25, 10]
     },
     {
         "type": "asset",
         "name": "Vrachtwagens",
+        "id": "Placeholder",
         "build_year": 2012,
         "gps_location": {
             "lat": 51.359188,
             "lon": 5.166491
         },
+        "overall_dimensions": [3, 2, 2],
+        "fuel_type": "Electric",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Vrachtwagens",
+        "id": "Placeholder",
         "build_year": 2025,
         "gps_location": {
             "lat": 51.590574,
             "lon": 4.921730
         },
+        "overall_dimensions": [3, 2, 2],
+        "fuel_type": "Electric",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Kranen",
+        "id": "Placeholder",
         "build_year": 2016,
         "gps_location": {
             "lat": 51.584217,
             "lon": 5.101924
         },
+        "overall_dimensions": [4, 2, 3],
+        "fuel_type": "Electric",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Tractor",
+        "id": "Placeholder",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.638291,
             "lon": 5.357588
         },
+        "overall_dimensions": [3, 3, 2],
+        "fuel_type": "Electric",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Tractor",
+        "id": "Placeholder",
         "build_year": 2021,
         "gps_location": {
             "lat": 51.720407,
             "lon": 5.269097
         },
+        "overall_dimensions": [3, 3, 2],
+        "fuel_type": "Electric",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Tractor",
+        "id": "Placeholder",
         "build_year": 2025,
         "gps_location": {
             "lat": 51.590574,
             "lon": 4.921730
         },
+        "overall_dimensions": [3, 3, 2],
+        "fuel_type": "Electric",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Vrachtwagens",
+        "id": "Placeholder",
         "build_year": 2018,
         "gps_location": {
             "lat": 51.617221,
             "lon": 5.436735
         },
+        "overall_dimensions": [3.5, 2, 2],
+        "fuel_type": "Electric",
         "color": "yellow"
     }
 ]

@@ -92,6 +92,12 @@ class MissionStrategyApp(Base):
         token = token_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
+        standard_dimensions = {"Vrachtwagens ": [3, 2, 2],
+                               "Tractor": [3, 2.5, 3],
+                               "Kranen": [4, 2, 3.5],
+                               "Aanhanger licht": [10, 2, 2],
+                               "Aanhanger zwaar": [18, 2.5, 2.5]}
+
         # API Get POIs
         response = requests.get(
             f"{BASE_URL}/pois",
@@ -118,16 +124,24 @@ class MissionStrategyApp(Base):
         assets.append(requests.get(f"{BASE_URL}/equipment", headers=headers, params={"pageSize": 100,
                                                                                      "activeOnly": True,
                                                                                      "searchTerm": "Vrachtwagens"}).json()["value"])
+        assets.append(requests.get(f"{BASE_URL}/equipment", headers=headers, params={"pageSize": 100,
+                                                                                     "activeOnly": True,
+                                                                                     "searchTerm": "Aanhanger licht"}).json()["value"])
+        assets.append(requests.get(f"{BASE_URL}/equipment", headers=headers, params={"pageSize": 100,
+                                                                                     "activeOnly": True,
+                                                                                     "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
-            if poi["address"] != None and poi["shapeData"] != None: # Check if the location address is defined
-                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "dimension":2*poi["shapeData"]["radius"]})
+            if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10]})
             else:
-                data.append(
-                    {"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "dimension":20})
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10]})
         for asset_type in assets: # Loop through the available assets
             for asset in asset_type:
-                data.append({"type":"asset", "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}, "color":"yellow", "fuel_type":asset["fuelType"]["name"]})
+                if "Aanhanger" in asset["type"]["name"]:
+                    data.append({"type": "asset", "id":asset["name"], "name": asset["type"]["name"], "build_year": asset["buildYear"],"gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]},"overall_dimensions": standard_dimensions[asset["type"]["name"]], "color": "yellow"})
+                else:
+                    data.append({"type":"asset", "id":asset["name"], "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":standard_dimensions[asset["type"]["name"]], "color":"yellow", "fuel_type":asset["fuelType"]["name"]})
 
         # Write FleetsOnline data to FleetsOnlineData.json file
         with open('FleetsOnlineData.json', 'w') as f:
@@ -144,7 +158,7 @@ class MissionStrategyApp(Base):
             return
 
         if self.use_FleetsOnline_data:
-            self.GetFleetData()
+            # self.GetFleetData()
             with open('FleetsOnlineData.json', 'r') as file:
                 data = json.load(file)
         else:
@@ -156,8 +170,8 @@ class MissionStrategyApp(Base):
                 if "Garage" in l["name"]:
                     depot = Depot()
                     depot.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
-                    dim = l["dimension"]
-                    depot.overall_dimensions = (dim, dim, 10)
+                    depot.overall_dimensions = l["overall_dimensions"]
+                    depot.name = l["name"]
                     self.depots.append(depot)
                 elif "Boomrooierij" in l["name"]:
                     workjob = WorkJob()
@@ -180,6 +194,9 @@ class MissionStrategyApp(Base):
                 elif l["name"] == "Vrachtwagens" or l["name"] == "Vrachtwagens ": # To account for issue stemming from FleetsOnline API data
                     m = Truck()
                     m.machine_type = "Truck"
+                elif "Aanhanger" in l["name"]:
+                    m = Trailer()
+                    m.overall_dimensions = l["overall_dimensions"]
                 else:
                     m = Vehicle()
                 try:
@@ -189,13 +206,18 @@ class MissionStrategyApp(Base):
                 m.color = l['color']
                 m.build_year = l['build_year']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
-                # if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "Diesel"
-                # elif "Biodiesel" in l["fuel_type"]: m.energy_source = "Biodiesel"
+                if "Aanhanger" in l["name"]:
+                    m.trailer_id = l["id"]
+                    self.trailers.append(m)
+                else:
+                    m.machine_id = l["id"]
+                    if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "Diesel"
+                    elif "Biodiesel" in l["fuel_type"]: m.energy_source = "Biodiesel"
+                    self.machines.append(m)
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
                 elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
-                self.machines.append(m)
             else:
                 generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
 
