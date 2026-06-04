@@ -67,8 +67,18 @@ class MapMaker(Base):
 
     @Attribute
     def route_geometries(self):
-        """List of geometries [[lon, lat], ...], one per route."""
-        return [res[4] for res in self.route_results]
+        """List of geometries [[lon, lat], ...], one per *non-degenerate* route."""
+        geoms = []
+        for start, end, duration, distance, geometry in self.route_results:
+            # Skip invalid / degenerate routes:
+            # - no geometry
+            # - distance ~ 0 (start == end)
+            if not geometry:
+                continue
+            if distance is None or distance < 1.0:  # 1 m tolerance
+                continue
+            geoms.append(geometry)
+        return geoms
 
     # ------------------------------------------------------------------
     # Map selection + image parameters
@@ -153,7 +163,7 @@ class MapMaker(Base):
                     )
                     for lon, lat in geometry
                 ],
-                color=(255, 0, 0),  # default red-ish; you can plug in your random_red_color here if desired
+                color=(255, 0, 0),
                 line_thickness=8,
             )
             for geometry in self.route_geometries
