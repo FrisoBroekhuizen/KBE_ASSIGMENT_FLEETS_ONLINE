@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import requests
+
 from typing import Tuple, List
 
 from parapy.core import Base, Input, Attribute
 from parapy.core.validate import OneOf, GreaterThan
 
 import numpy as np
+
+import datetime
 
 import copy
 
@@ -39,7 +43,8 @@ class Machine(Base):
     machine_id = Input("")
     machine_type = Input("")
 
-    age: float = Input(0.0) # Years
+    buildyear = Input
+    age: datetime.datetime.today().year - buildYear
     prediction_tool: str = Input("")
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
 

@@ -20,6 +20,8 @@ from Depot import Depot
 from MapMaker import MapMaker
 import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
+import requests
+import json
 
 maindir = os.path.dirname(__file__)
 
@@ -46,11 +48,22 @@ class MissionStrategyApp(Base):
 
     # TODO: UPDATE ONCE WE HAVE THE EXAMPLE JSON FILE!!
 
+    use_FleetsOnline_data = Input(True)
+
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
     # Mission attributes
     needed_tools: str = Input("")
-    needed_machinery: str = Input("")
+    needed_machinery: str = Input("Tractor")
+    man_hours = Input(50)
+
+    standard_locations = {"Eindhoven":(51.468288, 5.421365),
+                          "Tilburg":(51.591433, 5.023739),
+                          "Breda":(51.585288, 4.732775),
+                          "Den Bosch":(51.585288, 4.732775),
+                          "Waalwijk":(51.699574, 5.046544)
+                        }
+
     site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
@@ -67,22 +80,122 @@ class MissionStrategyApp(Base):
 
     work_job = Input()
 
-    def JSONReader(self):
-        """"TODO:IF NOT GPS location provided: print 'no locations of machine X provided,, machine will be ignored for future analysis' """
+    @action
+    def GetFleetData(self):
+        # API Authentication Header
+        BASE_URL = "https://api.v2.deepdigital.org"
+        token_response = requests.post(f"{BASE_URL}/oauth/token",
+                                       data={"grant_type": "password", "username": "testing@fleets-online.com",
+                                             "password": "WTuXQ8ZsK9#mT4qZ"})
+        token_response.raise_for_status()
+        token = token_response.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
 
-        # Loop through assets
-        asset_location = (0.0, 0.0)
-        gps_check = Routing.gps_checker(asset_location)
-        if gps_check == 2: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
-        elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
-        elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
+        # API Get POIs
+        response = requests.get(
+            f"{BASE_URL}/pois",
+            headers=headers,
+            params={
+                "page": 1,
+                "pageSize": 50,
+                # "searchTerm": "depot",
+                "archived": False,
+                # "poiGroupId": 7,
+            },
+        )
+        response.raise_for_status()
+        pois = response.json()["value"]
+
+        # Types: Aanhanger licht, Aanhanger zwaar, Kranen, Tractor, Vrachtwagens,
+        assets = []
+        assets.append(requests.get(f"{BASE_URL}/equipment", headers=headers, params={"pageSize": 100,
+                                                                                  "activeOnly": True,
+                                                                                     "searchTerm": "Tractor"}).json()["value"])
+        assets.append(requests.get(f"{BASE_URL}/equipment", headers=headers, params={"pageSize": 100,
+                                                                                     "activeOnly": True,
+                                                                                     "searchTerm": "Kranen"}).json()["value"])
+        assets.append(requests.get(f"{BASE_URL}/equipment", headers=headers, params={"pageSize": 100,
+                                                                                     "activeOnly": True,
+                                                                                     "searchTerm": "Vrachtwagens"}).json()["value"])
+        data = [] # Keep track of all pois and assets to write to the json file
+        for poi in pois: # Loop through the available points of interest
+            if poi["address"] != None and poi["shapeData"] != None: # Check if the location address is defined
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "dimension":2*poi["shapeData"]["radius"]})
+            else:
+                data.append(
+                    {"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "dimension":20})
+        for asset_type in assets: # Loop through the available assets
+            for asset in asset_type:
+                data.append({"type":"asset", "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}})
+
+        # Write FleetsOnline data to FleetsOnlineData.json file
+        with open('FleetsOnlineData.json', 'w') as f:
+            json.dump(data, f, indent=4)
+        return pois, assets
+
+    @action()
+    def JSONReader(self):
+        if not self.needed_machinery in self.possible_machinery:
+            generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
+            return
+        elif self.man_hours <= 0:
+            generate_warning("Warning: Man hours invalid", "The selected number of man hours is equal to or smaller than zero. Please choose a positive number of man hours.")
+            return
+
+        if self.use_FleetsOnline_data:
+            self.GetFleetData()
+            with open('FleetsOnlineData.json', 'r') as file:
+                data = json.load(file)
+        else:
+            with open('CustomData.json', 'r') as file:
+                data = json.load(file)
+
+        for l in data:
+            if l["type"] == "poi":
+                if "Garage" in l["name"]:
+                    depot = Depot()
+                    depot.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                    dim = l["dimension"]
+                    depot.overall_dimensions = (dim, dim, 10)
+                    self.depots.append(depot)
+                elif "Boomrooierij" in l["name"]:
+                    workjob = WorkJob()
+                    if l["gps_location"] == None:
+                        print("One of the worksites has no location data")
+                        workjob.gps_location = (self.standard_locations["Breda"][0], self.standard_locations["Breda"][1])
+                    else:
+                        workjob.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                    workjob.needed_vehicles = self.needed_machinery
+                    workjob.man_hours = self.man_hours
+                    self.work_job = workjob
+            elif l["type"] == "asset":
+                if l["name"] == "Tractor":
+                    m = Tractor()
+                    m.overall_dimensions = [2, 2, 2]
+                    m.machine_type = "Tractor"
+                elif l["name"] == "Kranen":
+                    m = Crane()
+                    m.overall_dimensions = [4, 2, 3]
+                    m.machine_type = "Crane"
+                elif l["name"] == "Vrachtwagens":
+                    m = Truck()
+                    m.overall_dimensions = [3, 2, 3]
+                    m.machine_type = "Truck"
+                else:
+                    m = Vehicle()
+                    m.overall_dimensions = [2, 2, 1.5]
+                m.age = datetime.datetime.now().year - l['build_year']
+                m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
+                if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
+                elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
+                elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
+            else:
+                generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
+
 
         asset_overall_dimensions = (0.0, 0.0, 0.0)
         if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
-
-        # Loop through work jobs
-        workjob_needed_machinery = "Bulldozer"
-        if not workjob_needed_machinery in self.possible_machinery: generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
 
 
     @Attribute
@@ -94,6 +207,10 @@ class MissionStrategyApp(Base):
     def number_of_machines_in_fleet(self) -> int:
         # Later done to sum the machines for strategy evaluation
         return len(self.fleet.machines) if self.fleet else 0
+
+    @Attribute
+    def standard_location(self):
+        return self.standard_locations["Eindhoven"]
 
     # Optional: declare these as Inputs so you can inspect them in the GUI
     mission_time: float = Input(0.0)
@@ -840,20 +957,20 @@ if __name__ == "__main__":
 #         ],
 #     )
 
-    app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
-                              depots=[Depot(gps_location=(51.584217, 5.101924)),
-                                      Depot(gps_location=(51.720407, 5.269097)),
-                                      Depot(gps_location=(51.590574, 4.921730))],
-                              gps_location = (51.416232, 5.507185),
-                              trailers=[Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 1, 3], contents=[])],
-                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
-                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBreda", overall_dimensions=(2, 2, 3),
-                                              contents=Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 4, 4], contents=[])),
-                                        Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
-                                        # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
-                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
-                                        # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
-                                        Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
-                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
-
+    # app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
+    #                           depots=[Depot(gps_location=(51.584217, 5.101924)),
+    #                                   Depot(gps_location=(51.720407, 5.269097)),
+    #                                   Depot(gps_location=(51.590574, 4.921730))],
+    #                           gps_location = (51.416232, 5.507185),
+    #                           trailers=[Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 1, 3], contents=[])],
+    #                           machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
+    #                                     Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBreda", overall_dimensions=(2, 2, 3),
+    #                                           contents=Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 4, 4], contents=[])),
+    #                                     Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
+    #                                     # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
+    #                                     Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
+    #                                     # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
+    #                                     Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
+    #                                     Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
+    app4 = MissionStrategyApp()
     display(app4)
