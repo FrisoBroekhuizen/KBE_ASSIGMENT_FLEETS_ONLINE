@@ -16,6 +16,7 @@ import copy
 from MissionGenerator import generate_missions
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
 from assets import *
+from Warning import generate_warning
 # from DepotArrangement import *
 from Depot import Depot
 from MapMaker import MapMaker
@@ -110,62 +111,43 @@ class MissionStrategyApp(Base):
     def winning_mission(self):
         return self.MissionIterator()
 
+    # --- existing methods like NormalizePreferences(), etc. ---
+
     @action
     def MissionIterator(self) -> "MissionStrategyApp":
+        tic = time.perf_counter()
         """Top-level mission loop:
         1) Generate candidate missions
         2) Evaluate raw metrics per mission
         3) Normalize & pick mission with lowest scalar cost
-
-        Any external emissions API errors are shown in a GUI warning dialog
-        (via generate_warning) instead of only in the terminal.
         """
-        tic = time.perf_counter()
-
         # 0) Ensure preferences are normalized before evaluation
         self.NormalizePreferences()
 
         # Allocate machines to depots / road-side
         self.road_parked = self.AllocateMachines()
 
-        try:
-            # 1) MissionGenerator: generate all candidate missions (external module)
-            self.all_generated_missions = generate_missions(
-                self,
-                MissionCls=Mission,
-                TransportJobCls=TransportJob,
-                VehicleCls=Vehicle,
-                TrailerCls=Trailer,
-            )
+        # 1) MissionGenerator: generate all candidate missions (external module)
+        self.all_generated_missions = generate_missions(
+            self,
+            MissionCls=Mission,
+            TransportJobCls=TransportJob,
+            VehicleCls=Vehicle,
+            TrailerCls=Trailer,
+        )
 
-            if not self.all_generated_missions:
-                # Logical issue: nothing to evaluate
-                generate_warning(
-                    "No missions generated",
-                    "MissionGenerator produced no missions to evaluate.\n\n"
-                    "Please check your inputs (machines, depots, work jobs).",
-                )
-                # Return self so GUI call does not crash
-                return self
+        if not self.all_generated_missions:
+            raise RuntimeError("MissionGenerator produced no missions to evaluate.")
 
-            # 2) MissionEvaluator: compute raw totals per mission
-            self._mission_evaluator(self.all_generated_missions)
+        # 2) MissionEvaluator: compute raw totals per mission
+        self._mission_evaluator(self.all_generated_missions)
 
-            # 3) MissionPicker: normalize, compute scalar, pick best
-            winning_mission = self._mission_picker(self.all_generated_missions)
+        # 3) MissionPicker: normalize, compute scalar, pick best
+        winning_mission = self._mission_picker(self.all_generated_missions)
 
-            toc = time.perf_counter()
-            print(f"Took {toc - tic:0.4f} seconds")
-            return winning_mission
-
-        except RuntimeError as exc:
-            # Typically external API / emissions errors from EmissionsExternalTool
-            generate_warning(
-                "Emissions API error",
-                str(exc),
-            )
-            # Do not crash the GUI; return self
-            return self
+        toc = time.perf_counter()
+        print(f"Took {toc - tic:0.4f} seconds")
+        return winning_mission
 
     def jobAnalyzer(self):
         '''
@@ -710,36 +692,6 @@ class Fleet(Base):
     trucks: List["Truck"] = Input([])
     vehicles: List["Vehicle"] = Input([])
     trailers: List["Trailer"] = Input([])
-
-def generate_warning(warning_header, msg):
-    """Generate a warning dialog box, wait for user confirmation and close it.
-
-    Parameters
-    ----------
-    warning_header : str
-        String shown in the window header.
-    msg : str
-        String shown in the body of the message window
-
-    Returns
-    -------
-    None.
-
-    """
-    # tkinter is a built-in GUI library in Python
-    from tkinter import Tk, messagebox
-
-    # initialization
-    window = Tk()
-    window.withdraw()
-
-    # generates message box and waits for user to close it
-    messagebox.showwarning(warning_header, msg)
-
-    # close the message window, terminate the associated process
-    window.deiconify()
-    window.destroy()
-    window.quit()
 
 if __name__ == "__main__":
     from parapy.gui import display
