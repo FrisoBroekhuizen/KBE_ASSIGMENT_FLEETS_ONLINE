@@ -149,9 +149,13 @@ class MissionStrategyApp(Base):
     def _mission_generator(self) -> List["Mission"]:
         """Generate candidate missions (combinations of vehicles, transport
         jobs and work jobs).
-
+        Flow:
+        - First a matrix is constructed with combinations of all relevant locations: work site, depots and road-parked machines.
+        - This triangular matrix is then filtered by deleting on unviable combinations.
+        - For each non-zero entry the route is computed (route matrix), assuming a truck, which can later be scaled based on the maximum speed of the actual vehicle.
+        - Based on the work job, the needed machinery is transported to the work site, which can be direct (if a vehicle), or can be carried by a truck if it fits (both vehicles and tools).
         TODO:
-        - Implement combinatorial search over fleet / jobs
+        - Make combinations of multiple machines possible, right now it only checks each machine individually.
         - For now, we just evaluate the current mission as a single candidate.
         """
 
@@ -182,6 +186,7 @@ class MissionStrategyApp(Base):
         def _clone_truck_for_leg(truck, *, contents=None, gps_location=None):
             """Create a new Truck instance with the same specs as `truck`,
             but with possibly different contents / gps_location.
+            This is used such that the truck is empty before it picks up the machine, and is filled for the second part of the route.
             """
             cls = type(truck)
             return cls(
@@ -197,21 +202,19 @@ class MissionStrategyApp(Base):
                 contents=contents,
             )
 
-        PreliminaryMatrix, objects = self.constructMatrix()
-        filteredMatrix, truckIndexes, directRoutes = self.filterMatrix(PreliminaryMatrix)
-        routeMatrix = self.routeMatrix(filteredMatrix)
-        truckRoutes = self.viableMissionGenerator(
-            routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes
-        )
-        print(filteredMatrix)
-        print(routeMatrix)
+        PreliminaryMatrix, objects = self.constructMatrix() # NxN Matrix build here, which includes all location combinations
+        filteredMatrix, truckIndexes, directRoutes = self.filterMatrix(PreliminaryMatrix) # Matrix is filtered to a lower triangle based on unviable routes
+        routeMatrix = self.routeMatrix(filteredMatrix) # Using routing.py, computes the route for each non-zero entry in filteredMatrix.
+        truckRoutes = self.viableMissionGenerator(routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes) # Computes viable missions, and returns truck routes which pick up machines
+
         mission_list: List[Mission] = []
 
         # --- 1) direct routes: depot / machine straight to work site ---
         for direct_route in directRoutes:
             obj = filteredMatrix[direct_route[0]][direct_route[1]][0]
-            if type(obj).__name__ == "Depot":
+            if type(obj).__name__ == "Depot": # If the needed vehicle is in a depot
                 for machine in obj.machines:
+                    # Check that the current machine is the needed machine and actually a vehicle (tools can not do direct routes)
                     if machine.machine_type == self.work_job.needed_machines and isinstance(machine, Vehicle):
                         transport_job = TransportJob(
                             transporting_vehicle=machine,
@@ -226,10 +229,8 @@ class MissionStrategyApp(Base):
                             work_jobs=[work_job],
                         )
                         mission_list.append(mission)
-            elif (
-                    obj.machine_type == self.work_job.needed_machines
-                    and isinstance(obj, Vehicle)
-            ):
+            # If the needed vehicle is road-side parked
+            elif (obj.machine_type == self.work_job.needed_machines and isinstance(obj, Vehicle)):
                 transport_job = TransportJob(
                     transporting_vehicle=obj,
                     routeDistance=routeMatrix[direct_route[0]][direct_route[1]][1],
@@ -244,12 +245,11 @@ class MissionStrategyApp(Base):
                 )
                 mission_list.append(mission)
 
-        # --- 2) routes that require a truck to go via a depot ---
-        print(truckRoutes)
-        objects = [self.work_job]
+        objects = [self.work_job] # List of locations (one side of the matrix)
         objects.extend(self.depots)
         objects.extend(self.road_parked)
 
+        # --- 2) routes that require a truck to go via a depot ---
         for truck_route in truckRoutes:
             # truck_route is [[truck_origin_idx, depot_or_machine_idx], [depot_or_machine_idx, 0]]
             origin_obj = objects[truck_route[0][0]]
@@ -263,7 +263,7 @@ class MissionStrategyApp(Base):
             idx_worksite_from_machine = truck_route[1][1]  # typically 0 (=work site)
 
             # ---- CASE A: needed machine is in a depot ----
-            if type(object_with_needed_machine).__name__ == "Depot":
+            if type(object_with_needed_machine).__name__ == "Depot": # If the truck is parked in a depot
                 depot_with_machines = object_with_needed_machine
 
                 for machine in depot_with_machines.machines:
@@ -301,8 +301,8 @@ class MissionStrategyApp(Base):
                         contents=None,
                         gps_location=best_truck_for_machine.gps_location,
                     )
-                    routeDistance = routeMatrix[idx_truck_origin][idx_machine_location]
-                    if routeDistance != 0: routeDistance = routeDistance[1]
+                    routeDistance = routeMatrix[idx_truck_origin][idx_machine_location] # Get pre-computed route distance from route matrix
+                    if routeDistance != 0: routeDistance = routeDistance[1] # If the routeDistance = 0, take 0 as this is the depot-depot distance
                     transport_job_toDepot = TransportJob(
                         transporting_vehicle=empty_truck,
                         routeDistance=routeDistance,
@@ -370,7 +370,7 @@ class MissionStrategyApp(Base):
                     best_truck_for_machine,
                     contents=None,
                     gps_location=best_truck_for_machine.gps_location,
-                )
+                ) # A transport job is made from the empty truck to the machine
                 transport_job_toDepot = TransportJob(
                     transporting_vehicle=empty_truck,
                     routeDistance=routeMatrix[idx_truck_origin][idx_machine_location][1],
@@ -383,7 +383,7 @@ class MissionStrategyApp(Base):
                     best_truck_for_machine,
                     contents=Trailer(contents=[machine]),
                     gps_location=machine.gps_location,
-                )
+                ) # A transport job is made from the loaded truck to the work site
                 transport_job_toWorksite = TransportJob(
                     transporting_vehicle=loaded_truck,
                     routeDistance=routeMatrix[truck_route[1][0]][idx_worksite_from_machine][1],
@@ -408,6 +408,10 @@ class MissionStrategyApp(Base):
         return mission_list
 
     def jobAnalyzer(self):
+        '''
+        This function determines the maximum number of machines that can work on a work site, based on the machine
+        area and the site area, to not have an overcrowded work site.
+        '''
         # TODO: Find better way to determine area_factor
         area_factor = 0.2
         job_machines_areas = []
@@ -425,15 +429,14 @@ class MissionStrategyApp(Base):
 
     # Construct Matrix
     def constructMatrix(self):
+        '''
+        This is an N x N matrix, with on both the horizontal and vertical axis the relevant objects, sorted as follows:
+        1 work site, followed by all depots (which includes all objects in its depot), and finally all individual road-side parked machines.
+        '''
         matrix_size = 1 + len(self.depots) + len(self.road_parked) # 1 Worksite + depots + road-side parked machines
-        # locations = [self.site_location]
         objects = [self.work_job]
         objects.extend(self.depots)
         objects.extend(self.road_parked)
-        # for depot in self.depots:
-        #     locations.append(depot.location)
-        # for machine in self.road_parked:
-        #     locations.append(machine.gps_location)
 
         matrix = np.zeros((matrix_size, matrix_size), dtype=object)
         for i in range(matrix_size):
@@ -442,37 +445,41 @@ class MissionStrategyApp(Base):
         return matrix, objects
 
     def filterMatrix(self, matrix):
+        '''
+        This function filters the matrix made in constructMatrix(), by first making it a lower triangular matrix, and deleting the diagonal
+        entries, except when a depot has both a truck and needed machine. It then also deletes other entries corresponding to unviable
+        routes, based on a number of rules.
+        '''
         truckIndexes = []
         directRoutes = []
         # TODO: ADD LOGIC SUCH THAT ONLY ONE TYPE OF MACHINE IS REQUIRED FOR EACH WORK_JOB, AND THE USER DECIDES IF STUFF IS DONE IN PARALLEL OR SERIES
         needed_machine = self.work_job.needed_machines
+        # Loop through all entries of the lower triangle (including the diagonals)
         for i in range(0, matrix.shape[0]):
             for j in range(i + 1):
-                if i == j and i != 0:
-                    if type(matrix[i][j][0]).__name__ == "Depot":
+                if i == j and i != 0: # Check if a diagonal entry (excluding the worksite)
+                    if type(matrix[i][j][0]).__name__ == "Depot": # If Depot -> Depot, and the depot contains a truck and needed machine, this is a viable route
                         if needed_machine in matrix[i][j][0].available_machine_types and "Truck" in matrix[i][j][0].available_machine_types:
                             pass
-                        else:
+                        else: # If depot does not contain both, this route is deleted
                             matrix[i][j] = 0
-                    elif (matrix[i][j][0].machine_type == needed_machine and matrix[i][j][1].machine_type == "Truck") or (matrix[i][j][1].machine_type == needed_machine and matrix[i][j][0].machine_type == "Truck"):
-                        pass
-                    else:
+                    else: # Other diagonal entries can not be a viable route and are deleted
                         matrix[i][j] = 0
-                elif i == j and i == 0:
+                elif i == j and i == 0: # Worksite -> worksite also deleted
                     matrix[i][j] = 0
-                if j == 0 and i != 0:
-                    if type(matrix[i][j][0]).__name__ == "Depot":
+                if j == 0 and i != 0: # These are direct routes towards the worksite
+                    if type(matrix[i][j][0]).__name__ == "Depot": # First check if a depot contains the needed machine
                         if needed_machine in matrix[i][j][0].available_machine_types:
                             directRoutes.append([i, 0])
-                    elif matrix[i][j][0].machine_type == needed_machine:
+                    elif matrix[i][j][0].machine_type == needed_machine: # Or check if the road-side parked machine is needed
                         directRoutes.append([i, 0])
-                    if type(matrix[i][j][0]).__name__ == "Depot":
+                    if type(matrix[i][j][0]).__name__ == "Depot": # Check if the depot contains a truck which can be used to transport the needed machine
                         if "Truck" in matrix[i][j][0].available_machine_types:
                             truckIndexes.append(i)
-                    elif matrix[i][j][0].machine_type == "Truck":
+                    elif matrix[i][j][0].machine_type == "Truck": # Check if the road-side parked machine is a truck
                         truckIndexes.append(i)
-                if matrix[i][j] != 0:
-                    # Delete if Truck -> Truck
+                if matrix[i][j] != 0: # Routes not towards work site
+                    # Delete if Truck -> other Truck
                     if type(matrix[i][j][0]).__name__ == type(matrix[i][j][1]).__name__ and type(matrix[i][j][0]).__name__ == "Truck":
                         matrix[i][j] = 0
                     # Delete if road-side Truck -> WorkJob
@@ -491,43 +498,51 @@ class MissionStrategyApp(Base):
                     elif type(matrix[i][j][0]).__name__ == "Depot":
                         if not needed_machine in matrix[i][j][0].available_machine_types:
                             matrix[i][j] = 0
-                    # Delete depot if needed machine not in Depot
+                    # Delete depot if needed machine not in Depot (same check as above but depot can be both the first [0] and second [1] entry)
                     if matrix[i][j] != 0:
                         if type(matrix[i][j][1]).__name__ == "Depot":
                             if not needed_machine in matrix[i][j][1].available_machine_types:
                                 matrix[i][j] = 0
                 if matrix[i][j] != 0:
                     if i > 1 + len(self.depots):
-                        # Delete if road parked machine not needed
+                        # Delete if road parked machine not needed and not a truc
                         if (type(matrix[i][j][0]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck") and (type(matrix[i][j][1]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck"):
                             matrix[i][j] = 0
         return matrix, truckIndexes, directRoutes
 
+
     def routeMatrix(self, filteredMatrix):
+        '''
+        This function transforms the filteredMatrix, by computing the routes between the row and column entries that are non-zero.
+        '''
         routeMatrix = np.zeros((filteredMatrix.shape[0], filteredMatrix.shape[1]), dtype=object)
 
         for i in range(filteredMatrix.shape[0]):
             for j in range(i + 1):
                 if filteredMatrix[i][j] != 0:
-                    if i == j:
+                    if i == j: # If diagonal, the distance is always zero because the machines are in the same depot, which is encouraged to save transport
                         routeMatrix[i][j] = 0
-                    else:
+                    else: # Else, Routing.py is called to determine the normal route distance
                         routeDuration, routeDistance, _ = Routing.ComputeRoute(filteredMatrix[i][j][0].gps_location, filteredMatrix[i][j][1].gps_location,
                                              machine_type="Truck")
                         routeMatrix[i][j] = [routeDuration, routeDistance]
-                else:
+                else: # If the route was deleted in the filtered matrix, routeDistance is set very large to not make this route viable
                     routeMatrix[i][j] = 1000000000
-
         return routeMatrix
 
+
     def viableMissionGenerator(self, routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes):
+        '''
+        This function generates truck routes transporting machines by trucks, based on the location of the trucks (trucIndexes) and the location of the needed machines (directRoutes)
+        '''
+        # TODO: Use more than 1 max machine using the jobAnalyzer logic
         max_worksite_machines = self.jobAnalyzer()
         possibleMachines = []
         for m in self.machines:
             if m.machine_type == self.needed_machinery:
                 possibleMachines.append(m)
         max_number_of_machines = min(max_worksite_machines, len(possibleMachines))
-        max_number_of_machines = 2
+        max_number_of_machines = 1
 
         # Logic for now: only use 1 machine, or when deadline is set use the minimal amount of machines that will meet the deadlines
         # for n in range(2, max_number_of_machines + 1):
@@ -536,11 +551,12 @@ class MissionStrategyApp(Base):
         possibleRoutes = []
         truckRoutes = []
 
+        # Loop through the locations of all possible instances of the needed machine and built possible truckRoutes to collect these machines
         for direct_route in directRoutes:
             tractor_i = direct_route[0]
             shortest_distance = 1000000000
             closest_truck_index = 0
-            for truck_index in truckIndexes:
+            for truck_index in truckIndexes: # Find the truck that is closest by the needed machine, based on the routing distance
                 if routeMatrix[tractor_i][truck_index] != 0:
                     distance = routeMatrix[tractor_i][truck_index][1]
                 else: distance = 0
@@ -1325,6 +1341,12 @@ if __name__ == "__main__":
                                         Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor"),
                                         Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor"),
                                         Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor"),
+                                        # Tractor(gps_location=(51.648291, 5.357588), machine_type="Tractor"),
+                                        # Tractor(gps_location=(51.730407, 5.269097), machine_type="Tractor"),
+                                        # Tractor(gps_location=(51.550574, 4.921730), machine_type="Tractor"),
+                                        # Tractor(gps_location=(51.648291, 5.357588), machine_type="Tractor"),
+                                        # Tractor(gps_location=(51.730407, 5.269097), machine_type="Tractor"),
+                                        # Tractor(gps_location=(51.560574, 4.921730), machine_type="Tractor"),
                                         Pump(gps_location=(51.590574, 4.921730), machine_type="Pump"),
                                         Truck(gps_location=(51.617221, 5.436735), machine_type="Truck")])
 
