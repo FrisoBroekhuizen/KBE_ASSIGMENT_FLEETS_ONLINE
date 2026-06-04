@@ -83,9 +83,6 @@ class MissionStrategyApp(Base):
         workjob_needed_machinery = "Bulldozer"
         if not workjob_needed_machinery in self.possible_machinery: generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
 
-    @Attribute
-    def road_parked(self):
-        return self.AllocateMachines()
 
     @Attribute
     def all_jobs(self) -> List[Base]:
@@ -124,10 +121,6 @@ class MissionStrategyApp(Base):
         # 0) Ensure preferences are normalized before evaluation
         self.NormalizePreferences()
 
-<<<<<<< HEAD
-        # 1) MissionGenerator: generate all candidate missions
-        self.all_generated_missions = self._mission_generator()
-=======
         # Allocate machines to depots / road-side
         self.road_parked = self.AllocateMachines()
 
@@ -139,7 +132,6 @@ class MissionStrategyApp(Base):
             VehicleCls=Vehicle,
             TrailerCls=Trailer,
         )
->>>>>>> f9305eb4f2410d77e0a2cd3619e7ec6f1f1d871f
 
         if not self.all_generated_missions:
             raise RuntimeError("MissionGenerator produced no missions to evaluate.")
