@@ -100,6 +100,7 @@ class Depot(GeomBase):
         trailer_vehicles = []
         trailer_attachable_tools = []
         trailer_nonattachable_tools = []
+        self.non_attachable_tools = []
         for machine in list(self.machines):
             if type(machine).__bases__[0].__name__ == "Tool" or type(machine).__name__ == "Tool":
                 if machine.vehicle_attachable == False:
@@ -168,12 +169,16 @@ class Depot(GeomBase):
                 if type(vehicle).__name__ != "Trailer" and type(vehicle).__name__ != "Tool" and type(vehicle).__bases__[0].__name__ != "Tool":
                     if longest_vehicle == None:
                         longest_vehicle_length = vehicle.overall_dimensions[0]
-                        if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
+                        try:
+                            if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
+                        except: longest_vehicle = vehicle
                         longest_vehicle = vehicle
                     elif longest_vehicle_length < vehicle.overall_dimensions[0]:
                         longest_vehicle = vehicle
                         longest_vehicle_length = vehicle.overall_dimensions[0]
-                        if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
+                        try:
+                            if vehicle.contents != None: longest_vehicle_length += vehicle.contents.overall_dimensions[0]
+                        except: pass
                     else:
                         try:
                             if longest_vehicle_length < vehicle.overall_dimensions[0] + vehicle.contents.overall_dimensions[0]:

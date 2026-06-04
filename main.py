@@ -55,8 +55,6 @@ class MissionStrategyApp(Base):
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
-    road_parked = []
-
     # Aggregations / associations
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
     strict_deadline: bool = Input(False)
@@ -375,10 +373,6 @@ class MissionStrategyApp(Base):
             raise RuntimeError(
                 "MissionStrategyApp has no 'items_to_pack' attribute. "
                 "Define it as an Input or Attribute that returns List[Item].")
-        if not hasattr(self, "trailers"):
-            raise RuntimeError(
-                "MissionStrategyApp has no 'trailers' attribute. "
-                "Define it as an Input or Attribute that returns a list of trailers.")
         # Build the visualization model using your helper
         viz_model = self.PackagedVisualization()
         # Open in a new ParaPy window
@@ -398,8 +392,9 @@ class MissionStrategyApp(Base):
     def DepotMaker(self):
         depots = []
         current_y = 0
+        road_parked = self.AllocateMachines() # road_parked unused, still trigger AllocateMachines() to compute only once for entire MissionStrategyApp
         for i, d in enumerate(self.depots):
-            d.location=(0, current_y)
+            d.gps_location=(0, current_y)
             current_y += 10 + d.overall_dimensions[1]
             depots.append(d)
         display(depots)
@@ -450,7 +445,7 @@ class MissionStrategyApp(Base):
     @Attribute
     def trailers(self) -> List[object]:
         job_trailers: List[object] = []
-        for job in self.transport_jobs:
+        for job in self.winning_mission.transport_jobs:
             veh = job.transporting_vehicle
             trailer_obj = getattr(veh, "contents", None)
             if trailer_obj is not None:
@@ -461,7 +456,7 @@ class MissionStrategyApp(Base):
     @Attribute
     def items_to_pack(self) -> List[Item]:
         items: List[Item] = []
-        for job in self.transport_jobs:
+        for job in self.winning_mission.transport_jobs:
             veh = job.transporting_vehicle
             trailer_obj = getattr(veh, "contents", None)
             if trailer_obj is None:
@@ -808,13 +803,16 @@ if __name__ == "__main__":
                                       Depot(gps_location=(51.720407, 5.269097)),
                                       Depot(gps_location=(51.590574, 4.921730))],
                               gps_location = (51.416232, 5.507185),
-                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
-                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBread"),
-                                        Crane(gps_location=(51.584217, 5.101924), machine_type="Crane"),
-                                        Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
-                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar"),
-                                        Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far"),
-                                        Pump(gps_location=(51.590574, 4.921730), machine_type="Pump"),
-                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
+                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked",
+                                              contents=Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[20, 3, 3], contents=[])),
+                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBread", overall_dimensions=(2, 2, 3),
+                                              contents=Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[20, 3, 3], contents=[])),
+                                        Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
+                                        # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
+                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
+                                        # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
+                                        Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
+                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked",
+                                              contents=Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[20, 3, 3], contents=[]))])
 
     display(app4)

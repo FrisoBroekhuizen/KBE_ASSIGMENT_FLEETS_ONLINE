@@ -281,7 +281,7 @@ class Pump(Tool):
     """
 
     # UML: energy_source: diesel (default)
-    energy_source: str = Input("diesel")
+    energy_source: str = Input("Diesel")
 
 class Trailer(Base):
     """
