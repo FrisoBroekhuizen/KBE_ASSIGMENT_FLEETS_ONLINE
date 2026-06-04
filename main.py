@@ -760,86 +760,6 @@ if __name__ == "__main__":
         contents=[],
     )
 
-    app4 = MissionStrategyApp(
-        work_job=WorkJob(
-            needed_vehicles="Tractor",
-            gps_location=(51.416232, 5.507185)
-        ),
-        depots=[
-            Depot(gps_location=(51.584217, 5.101924)),   # Depot 0
-            Depot(gps_location=(51.720407, 5.269097)),   # Depot 1
-            Depot(gps_location=(51.590574, 4.921730)),   # Depot 2
-        ],
-        gps_location=(51.416232, 5.507185),
-        machines=[
-            # Road-parked truck with too-small trailer
-            Truck(
-                gps_location=(51.359188, 5.166491),
-                machine_type="Truck",
-                machine_id="Truck_Road_SmallTrailer",
-                overall_dimensions=(2.5, 2.5, 3.5),
-                contents=trailer_small,
-            ),
-
-            # Depot truck with exact-fit trailer
-            Truck(
-                gps_location=(51.590574, 4.921730),
-                machine_type="Truck",
-                machine_id="Truck_Depot_ExactTrailer",
-                overall_dimensions=(2.5, 2.5, 3.5),
-                contents=trailer_small,
-            ),
-
-            # Depot truck with wide but low trailer
-            Truck(
-                gps_location=(51.590574, 4.921730),
-                machine_type="Truck",
-                machine_id="Truck_Depot_WideLowTrailer",
-                overall_dimensions=(2.5, 2.5, 3.5),
-                contents=trailer_small,
-            ),
-
-            # Road-parked truck with large trailer
-            Truck(
-                gps_location=(51.617221, 5.436735),
-                machine_type="Truck",
-                machine_id="Truck_Road_LargeTrailer",
-                overall_dimensions=(2.5, 2.5, 3.5),
-                contents=trailer_large,
-            ),
-
-            # A crane to prove non-truck machines are ignored for carrying
-            Crane(
-                gps_location=(51.584217, 5.101924),
-                machine_type="Crane",
-                overall_dimensions=(4, 2, 3),
-            ),
-
-            # Needed tractors (all same size)
-            # Tractor(
-            #     gps_location=(51.459288, 5.471401),
-            #     machine_type="Tractor",
-            #     machine_id="Tractor_next_to_eindhoven",
-            #     overall_dimensions=tractor_dims,
-            # ),
-            Tractor(
-                gps_location=(51.590574, 4.921730),
-                machine_type="Tractor",
-                machine_id="Tractor_DepotBreda",
-                overall_dimensions=tractor_dims,
-            ),
-
-            # A pump as an extra non-vehicle load
-            Pump(
-                gps_location=(51.590574, 4.921730),
-                machine_type="Pump",
-                overall_dimensions=(1.5, 1.5, 1.5),
-            ),
-        ]
-    )
-
-    display(app4)
-
 # if __name__ == "__main__":
 #     from parapy.gui import display
 #
@@ -919,21 +839,21 @@ if __name__ == "__main__":
 #             ),
 #         ],
 #     )
-#
-#     app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
-#                               depots=[Depot(gps_location=(51.584217, 5.101924)),
-#                                       Depot(gps_location=(51.720407, 5.269097)),
-#                                       Depot(gps_location=(51.590574, 4.921730))],
-#                               gps_location = (51.416232, 5.507185),
-#                               trailers=[Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[1, 3, 3], contents=[]),
-#                                         Trailer(gps_location=(51.590574, 4.921730), overall_dimensions=[1, 1.5, 1.5], contents=[])],
-#                               machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
-#                                         Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBread", overall_dimensions=(2, 2, 3)),
-#                                         Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
-#                                         # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
-#                                         Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
-#                                         # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
-#                                         Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
-#                                         Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
-#
-#     display(app4)
+
+    app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
+                              depots=[Depot(gps_location=(51.584217, 5.101924)),
+                                      Depot(gps_location=(51.720407, 5.269097)),
+                                      Depot(gps_location=(51.590574, 4.921730))],
+                              gps_location = (51.416232, 5.507185),
+                              trailers=[Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 1, 3], contents=[])],
+                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
+                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBreda", overall_dimensions=(2, 2, 3),
+                                              contents=Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 4, 4], contents=[])),
+                                        Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
+                                        # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
+                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
+                                        # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
+                                        Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
+                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
+
+    display(app4)

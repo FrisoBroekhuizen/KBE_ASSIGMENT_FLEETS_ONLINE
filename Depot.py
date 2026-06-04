@@ -37,7 +37,7 @@ class Depot(GeomBase):
     # -------
     # Generic allocation helper (no generics, just duck-typing on gps_location)
     # -------
-    def _allocate_assets(self, assets, range_m: float):
+    def _allocate_assets(self, assets, trailers, range_m: float):
         """Snap nearby assets (with gps_location) to depot; return (in_depot, street)."""
         self.available_machine_types = []
         depot_lat, depot_lon = self.gps_location
@@ -46,6 +46,7 @@ class Depot(GeomBase):
         critical_proximity = range_m + depot_radius
 
         in_depot = []
+        trailers_in_depot = []
         street = []
 
         for asset in assets:
@@ -54,17 +55,26 @@ class Depot(GeomBase):
 
             if distance <= critical_proximity:
                 asset.gps_location = (depot_lat, depot_lon)
-                in_depot.append(asset)
-                if not type(asset).__name__ in self.available_machine_types:
-                    self.available_machine_types.append(type(asset).__name__)
-                    if type(asset).__name__ == "Truck":
-                        if asset.contents != None:
-                            for c in asset.contents.contents:
-                                self.available_machine_types.append(c.machine_type)
+                if type(asset).__name__ == "Trailer":
+                    trailers_in_depot.append(asset)
+                else:
+                    in_depot.append(asset)
+                    if not type(asset).__name__ in self.available_machine_types:
+                        self.available_machine_types.append(type(asset).__name__)
+                        if type(asset).__name__ == "Truck":
+                            if asset.contents != None:
+                                for c in asset.contents.contents:
+                                    self.available_machine_types.append(c.machine_type)
             else:
                 street.append(asset)
+        for trailer in trailers:
+            a_lat, a_lon = trailer.gps_location
+            distance = HaversineDistance(a_lat, a_lon, depot_lat, depot_lon)
+            if distance <= critical_proximity:
+                trailer.gps_location = (depot_lat, depot_lon)
+                trailers_in_depot.append(trailer)
 
-        return in_depot, street
+        return in_depot, street, trailers_in_depot
 
     # -------
     # Public API: machines
@@ -74,8 +84,9 @@ class Depot(GeomBase):
             range_m: float = 500.0
     ) -> Tuple[List["Machine"], List["Machine"]]:
         """Assign nearby machines to this depot; return (in_depot, road_parked)."""
-        depot_machines, road_parked = self._allocate_assets(self.machines, range_m)
+        depot_machines, road_parked, depot_trailers = self._allocate_assets(self.machines, self.trailers, range_m)
         self.machines = depot_machines
+        self.trailers = depot_trailers
         return depot_machines, road_parked
 
     # ------

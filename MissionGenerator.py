@@ -76,29 +76,28 @@ def filter_matrix(app, matrix):
 
                 # Delete depot if needed machine & Truck not in depot
                 elif type(obj_i).__name__ == "Depot":
-                    if (needed_machine not in obj_i.available_machine_types
-                            and "Truck" not in obj_i.available_machine_types):
+                    if not needed_machine in obj_i.available_machine_types and not "Truck" in obj_i.available_machine_types:
                         matrix[i][j] = 0
                     elif type(obj_j).__name__ == "Depot":
-                        if (needed_machine not in obj_j.available_machine_types
-                                and "Truck" not in obj_j.available_machine_types):
+                        if not needed_machine in obj_j.available_machine_types and not "Truck" in obj_j.available_machine_types:
                             matrix[i][j] = 0
-                    elif needed_machine not in obj_i.available_machine_types:
-                        matrix[i][j] = 0
+                    elif not needed_machine in obj_i.available_machine_types:
+                        if type(obj_j).__name__ == "WorkJob":
+                            matrix[i][j] = 0
+                        elif obj_j.machine_type != needed_machine:
+                            matrix[i][j] = 0
 
-                # Same depot check but depot can be second entry
-                if matrix[i][j] != 0 and type(matrix[i][j][1]).__name__ == "Depot":
-                    obj_j = matrix[i][j][1]
-                    if (needed_machine not in obj_j.available_machine_types
-                            and "Truck" not in obj_j.available_machine_types):
+                elif type(obj_j).__name__ == "Depot":
+                    if not needed_machine in obj_j.available_machine_types and not "Truck" in obj_j.available_machine_types:
                         matrix[i][j] = 0
-                    elif type(matrix[i][j][0]).__name__ == "Depot":
-                        obj_i = matrix[i][j][0]
-                        if (needed_machine not in obj_i.available_machine_types
-                                and "Truck" not in obj_i.available_machine_types):
+                    elif type(obj_i).__name__ == "Depot":
+                        if not needed_machine in obj_i.available_machine_types and not "Truck" in obj_i.available_machine_types:
                             matrix[i][j] = 0
-                    elif needed_machine not in obj_j.available_machine_types:
-                        matrix[i][j] = 0
+                    elif not needed_machine in obj_j.available_machine_types:
+                        if type(obj_i).__name__ == "WorkJob":
+                            matrix[i][j] =0
+                        elif obj_i.machine_type != needed_machine:
+                            matrix[i][j] = 0
 
             if matrix[i][j] != 0:
                 if i > 1 + len(app.depots):
@@ -128,6 +127,7 @@ def route_matrix(filteredMatrix):
                     routeMatrix[i][j] = [routeDuration, routeDistance]
             else:
                 routeMatrix[i][j] = 1000000000
+
     return routeMatrix
 
 # 4) Truck routes (viable mission routes) --------------------------------------
@@ -143,14 +143,15 @@ def viable_mission_generator(app, routeMatrix, filteredMatrix, objects, truckInd
 
     needed_machine = app.work_job.needed_machines
     truckRoutes = []
-
     for direct_route in directRoutes:
         tractor_i = direct_route[0]
         shortest_distance = 1000000000
         closest_truck_index = 0
         for truck_index in truckIndexes:
-            if routeMatrix[tractor_i][truck_index] != 0:
+            if routeMatrix[tractor_i][truck_index] != 0 and routeMatrix[tractor_i][truck_index] != 1000000000:
                 distance = routeMatrix[tractor_i][truck_index][1]
+            elif routeMatrix[tractor_i][truck_index] == 1000000000:
+                distance = 1000000000
             else:
                 distance = 0
             if distance < shortest_distance:
@@ -188,6 +189,25 @@ def generate_missions(app,
     -------
     list of MissionCls
     """
+
+    # --- helper: can this specific truck carry this specific machine? ---
+    def _can_trailer_carry(trailer, machine) -> bool:
+        """Return True if `truck` (possibly with Trailer in contents)
+        can carry `machine` based on simple bbox + weight checks."""
+
+        # geometric: allow any orientation -> compare sorted dims
+        m_dims = sorted(machine.overall_dimensions)
+        t_dims = sorted(trailer.overall_dimensions)
+        if any(md > td for md, td in zip(m_dims, t_dims)):
+            return False
+
+        # weight: if max_loading_weight > 0, enforce it
+        if trailer.max_loading_weight and trailer.max_loading_weight > 0:
+            if machine.mass > trailer.max_loading_weight:
+                return False
+
+        # If no trailer, treat as flatbed that can always carry (adjust if needed)
+        return True
 
     # --- helper: can this specific truck carry this specific machine? ---
     def _can_truck_carry(truck, machine) -> bool:
@@ -318,11 +338,20 @@ def generate_missions(app,
 
                 # choose feasible trucks at origin that can carry THIS machine
                 feasible_trucks: List = []
+                feasible_trailers: List = []
 
+                for m in object_with_needed_machine.trailers:
+                    if _can_trailer_carry(m, machine):
+                        feasible_trailers.append(m)
+
+                # If the chosen truck is in a depot
                 if type(origin_obj).__name__ == "Depot":
-                    for cand in origin_obj.machines:
-                        if cand.machine_type == "Truck" and _can_truck_carry(cand, machine):
-                            feasible_trucks.append(cand)
+                    for m in origin_obj.trailers: # Loop through all machine types
+                        if _can_trailer_carry(m, machine):
+                            feasible_trailers.append(m)
+                    for m in origin_obj.machines:  # Loop through all machine types
+                        if m.machine_type == "Truck":
+                            feasible_trucks.append(m)
                 else:
                     # origin is a single truck
                     if origin_obj.machine_type == "Truck" and _can_truck_carry(origin_obj, machine):
@@ -341,13 +370,24 @@ def generate_missions(app,
                 )
                 best_truck_for_machine = feasible_trucks[0]
 
+                if best_truck_for_machine.contents != None:
+                    if _can_truck_carry(best_truck_for_machine.contents, machine):
+                        feasible_trailers.append(best_truck_for_machine.contents)
+
+                if feasible_trailers != []:
+                    best_trailer_for_machine = feasible_trailers[0]
+                    best_trailer_for_machine.contents = [machine]
+                else:
+                    print("No trailer present in the depot(s); using a standard issue trailer instead!")
+                    best_trailer_for_machine = TrailerCls(contents=[machine], overall_dimensions=[15, machine.overall_dimensions[0] * 1.1, machine.overall_dimensions[0] * 1.1])
+
                 # 1) leg: truck drives EMPTY from its origin to the depot
                 empty_truck = _clone_truck_for_leg(
                     best_truck_for_machine,
-                    contents=None,
+                    contents=best_truck_for_machine.contents,
                     gps_location=best_truck_for_machine.gps_location,
                 )
-                routeDistance = route_mat[idx_truck_origin][idx_machine_location]
+                routeDistance = route_mat[idx_machine_location][idx_truck_origin]
                 if routeDistance != 0:
                     routeDistance = routeDistance[1]  # depot-depot special case
                 transport_job_toDepot = TransportJobCls(
@@ -360,7 +400,7 @@ def generate_missions(app,
                 # 2) leg: truck drives LOADED from depot to work site
                 loaded_truck = _clone_truck_for_leg(
                     best_truck_for_machine,
-                    contents=TrailerCls(contents=[machine]),
+                    contents=best_trailer_for_machine,
                     gps_location=machine.gps_location,
                 )
                 transport_job_toWorksite = TransportJobCls(
@@ -391,12 +431,16 @@ def generate_missions(app,
                 continue
 
             feasible_trucks: List = []
+            feasible_trailers: List = []
 
-            if type(origin_obj).__name__ == "Depot":
-                for cand in origin_obj.machines:
-                    if cand.machine_type == "Truck" and _can_truck_carry(cand, machine):
-                        feasible_trucks.append(cand)
-            else:
+            if type(origin_obj).__name__ == "Depot": # If truck is parked in a depot
+                for m in origin_obj.trailers:
+                    if _can_trailer_carry(m, machine):
+                        feasible_trucks.append(m)
+                for m in origin_obj.machines:
+                    if m.machine_type == "Truck":
+                        feasible_trucks.append(m)
+            else: # If truck is road-side parked
                 if origin_obj.machine_type == "Truck" and _can_truck_carry(origin_obj, machine):
                     feasible_trucks.append(origin_obj)
 
@@ -409,17 +453,29 @@ def generate_missions(app,
                     t.consumption_per_hour,
                 )
             )
+
             best_truck_for_machine = feasible_trucks[0]
+
+            if best_truck_for_machine.contents != None:
+                if _can_truck_carry(best_truck_for_machine.contents, machine):
+                    feasible_trailers.append(best_truck_for_machine.contents)
+
+            if feasible_trailers != []:
+                best_trailer_for_machine = feasible_trailers[0]
+            else:
+                print("No trailer present in the depot(s); using a standard issue trailer instead!")
+                best_trailer_for_machine = TrailerCls(contents=[machine], overall_dimensions=[15, machine.overall_dimensions[1] * 1.1, machine.overall_dimensions[2] * 1.1])
+
 
             # 1) leg: truck drives EMPTY from origin to machine
             empty_truck = _clone_truck_for_leg(
                 best_truck_for_machine,
-                contents=None,
+                contents=best_truck_for_machine.contents,
                 gps_location=best_truck_for_machine.gps_location,
             )
             transport_job_toDepot = TransportJobCls(
                 transporting_vehicle=empty_truck,
-                routeDistance=route_mat[idx_truck_origin][idx_machine_location][1],
+                routeDistance=route_mat[idx_machine_location][idx_truck_origin][1],
                 begin_location_gps=empty_truck.gps_location,
                 end_location_gps=machine.gps_location,
             )
