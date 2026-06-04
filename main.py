@@ -184,7 +184,7 @@ class MissionStrategyApp(Base):
                 else:
                     m = Vehicle()
                     m.overall_dimensions = [2, 2, 1.5]
-                m.age = datetime.datetime.now().year - l['build_year']
+                m.build_year = l['build_year']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")

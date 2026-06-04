@@ -55,20 +55,20 @@
     },
     {
         "type": "asset",
-        "name": "Tractor",
+        "name": "Vrachtwagens",
         "build_year": 2012,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.359188,
+            "lon": 5.166491
         }
     },
     {
         "type": "asset",
-        "name": "Tractor",
+        "name": "Vrachtwagens",
         "build_year": 2025,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.590574,
+            "lon": 4.921730
         }
     },
     {
@@ -76,323 +76,44 @@
         "name": "Kranen",
         "build_year": 2016,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.584217,
+            "lon": 5.101924
         }
     },
     {
         "type": "asset",
-        "name": "Kranen",
+        "name": "Tractor",
         "build_year": 2020,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.638291,
+            "lon": 5.357588
         }
     },
     {
         "type": "asset",
-        "name": "Kranen",
+        "name": "Tractor",
         "build_year": 2021,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.720407,
+            "lon": 5.269097
         }
     },
     {
         "type": "asset",
-        "name": "Kranen",
+        "name": "Tractor",
         "build_year": 2025,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.590574,
+            "lon": 4.921730
         }
     },
     {
         "type": "asset",
-        "name": "Kranen",
+        "name": "Vrachtwagens",
         "build_year": 2018,
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2015,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2018,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2019,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2023,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2023,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2015,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2017,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2007,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2009,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2009,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2014,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2012,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2014,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2014,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2015,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2017,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2013,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2019,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2007,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2022,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2024,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2024,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2021,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2024,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens ",
-        "build_year": 2024,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.617221,
+            "lon": 5.436735
         }
     }
 ]
