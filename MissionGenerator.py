@@ -3,7 +3,7 @@ from typing import List, Tuple
 import numpy as np
 import Routing
 
-
+# 1) Matrix construction -------------------------------------------------------
 def construct_matrix(app) -> Tuple[np.ndarray, list]:
     """Standalone version of MissionStrategyApp.constructMatrix()."""
     matrix_size = 1 + len(app.depots) + len(app.road_parked)
@@ -17,7 +17,7 @@ def construct_matrix(app) -> Tuple[np.ndarray, list]:
             matrix[i][j] = [objects[i], objects[j]]
     return matrix, objects
 
-
+# 2) Filter matrix -------------------------------------------------------------
 def filter_matrix(app, matrix):
     """Standalone version of MissionStrategyApp.filterMatrix()."""
     truckIndexes = []
@@ -109,7 +109,7 @@ def filter_matrix(app, matrix):
 
     return matrix, truckIndexes, directRoutes
 
-
+# 3) Route matrix --------------------------------------------------------------
 def route_matrix(filteredMatrix):
     """Standalone version of MissionStrategyApp.routeMatrix()."""
     routeMatrix = np.zeros((filteredMatrix.shape[0], filteredMatrix.shape[1]), dtype=object)
@@ -130,7 +130,7 @@ def route_matrix(filteredMatrix):
                 routeMatrix[i][j] = 1000000000
     return routeMatrix
 
-
+# 4) Truck routes (viable mission routes) --------------------------------------
 def viable_mission_generator(app, routeMatrix, filteredMatrix, objects, truckIndexes, directRoutes):
     """Standalone version of MissionStrategyApp.viableMissionGenerator()."""
     max_worksite_machines = app.jobAnalyzer()
@@ -160,7 +160,7 @@ def viable_mission_generator(app, routeMatrix, filteredMatrix, objects, truckInd
         truckRoutes.append([[closest_truck_index, tractor_i], [tractor_i, 0]])
 
     return truckRoutes
-
+# 5) Full mission generation (public entry) ------------------------------------
 def generate_missions(app,
                       MissionCls,
                       TransportJobCls,
