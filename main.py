@@ -106,7 +106,9 @@ class MissionStrategyApp(Base):
     normalized_time: float = Input(0.0)
     normalized_emissions: float = Input(0.0)
 
-    winning_mission: Optional["MissionStrategyApp"] = Input(None)
+    @Attribute
+    def winning_mission(self):
+        return self.MissionIterator()
 
     # --- existing methods like NormalizePreferences(), etc. ---
 
@@ -135,9 +137,6 @@ class MissionStrategyApp(Base):
 
         # 3) MissionPicker: normalize, compute scalar, pick best
         winning_mission = self._mission_picker(self.all_generated_missions)
-
-        # Store and return for convenience
-        self.winning_mission = winning_mission
 
         toc = time.perf_counter()
         print(f"Took {toc - tic:0.4f} seconds")
@@ -496,16 +495,26 @@ class MissionStrategyApp(Base):
                             else: matrix[i][j] = 0
                     # Delete depot if needed machine not in Depot
                     elif type(matrix[i][j][0]).__name__ == "Depot":
-                        if not needed_machine in matrix[i][j][0].available_machine_types:
+                        if not needed_machine in matrix[i][j][0].available_machine_types and not "Truck" in matrix[i][j][0].available_machine_types:
+                            matrix[i][j] = 0
+                        elif type(matrix[i][j][1]).__name__ == "Depot":
+                            if not needed_machine in matrix[i][j][1].available_machine_types and not "Truck" in matrix[i][j][1].available_machine_types:
+                                matrix[i][j] = 0
+                        elif not needed_machine in matrix[i][j][0].available_machine_types:
                             matrix[i][j] = 0
                     # Delete depot if needed machine not in Depot (same check as above but depot can be both the first [0] and second [1] entry)
                     if matrix[i][j] != 0:
                         if type(matrix[i][j][1]).__name__ == "Depot":
-                            if not needed_machine in matrix[i][j][1].available_machine_types:
+                            if not needed_machine in matrix[i][j][1].available_machine_types and not "Truck" in matrix[i][j][1].available_machine_types:
+                                matrix[i][j] = 0
+                            elif type(matrix[i][j][0]).__name__ == "Depot":
+                                if not needed_machine in matrix[i][j][0].available_machine_types and not "Truck" in matrix[i][j][0].available_machine_types:
+                                    matrix[i][j] = 0
+                            elif not needed_machine in matrix[i][j][1].available_machine_types:
                                 matrix[i][j] = 0
                 if matrix[i][j] != 0:
                     if i > 1 + len(self.depots):
-                        # Delete if road parked machine not needed and not a truc
+                        # Delete if road parked machine not needed and not a truck
                         if (type(matrix[i][j][0]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck") and (type(matrix[i][j][1]).__name__ != needed_machine and type(matrix[i][j][0]).__name__ != "Truck"):
                             matrix[i][j] = 0
         return matrix, truckIndexes, directRoutes
@@ -816,7 +825,9 @@ class MissionStrategyApp(Base):
 
         # --- build route list: (start, end, machine_type) ---
         routes = []
-        for job in self.transport_jobs:
+        transport_jobs = self.winning_mission.transport_jobs
+        work_jobs = self.winning_mission.work_jobs
+        for job in transport_jobs:
             start = job.begin_location_gps
             end = job.end_location_gps
             machine_type = type(job.transporting_vehicle).__name__
@@ -832,7 +843,7 @@ class MissionStrategyApp(Base):
 
         # --- work site GPS points (one per work job) ---
         worksite_points: List[Tuple[float, float]] = [
-            wj.gps_location for wj in self.work_jobs
+            wj.gps_location for wj in work_jobs
         ]
 
         # Instantiate map object
@@ -1202,152 +1213,18 @@ if __name__ == "__main__":
         ],
     )
 
-    # app = MissionStrategyApp(site_location=(51.416232, 5.507185, 0), transport_jobs=[TransportJob(
-    #     needed_machinery=[Tractor(gps_location=(51.584217, 5.101924), overall_dimensions=[4,2, 2.5], mass=15000, consumption_per_hour=15, worth=2000000,
-    #                                            machine_id="Tractor_in_trailer")],
-    #     transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000, worth=500000,
-    #                                age=1, machine_id="Truck_1",
-    #                                contents=trailer1),
-    #     begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         needed_machinery=[Pump(machine_id="Pump_1", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[2, 2, 2]), Pump(machine_id="Pump_2", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[1.5, 1.5, 1.5]), Tool(machine_id="Tool_1", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[4,1.5,1.5]), Tool(machine_id="Tool_2", gps_location=(51.584217, 5.101924), vehicle_attachable=True, overall_dimensions=[3,2,2]), Tool(machine_id="Tool_3", gps_location=(51.584217, 5.101924), vehicle_attachable=False, overall_dimensions=[5,5,2])],
-    #         transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_1",
-    #                                    contents=Trailer(overall_dimensions=[12, 2, 3], mass=2000, contents=[
-    #                                        Tractor(overall_dimensions=[3,2,3], mass=15000, consumption_per_hour=15, worth=2000000,
-    #                                                machine_id="Tractor_in_trailer")])),
-    #         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.720407, 5.269097), overall_dimensions=[4, 2, 3.5],
-    #                                    consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_4",
-    #                                    contents=trailer2),
-    #         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_5",
-    #                                    contents=Trailer(overall_dimensions=[16, 2, 3], mass=2000)),
-    #         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5],
-    #                                    consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_7",
-    #                                    contents=Trailer(overall_dimensions=[14, 2, 3], mass=2000)),
-    #         begin_location_gps=[51.625882, 4.768424], end_location_gps=[51.584217, 5.101924]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_7",
-    #                                    contents=Trailer(overall_dimensions=[14, 2, 3], mass=2000)),
-    #         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.584217, 5.101924), overall_dimensions=[4, 2, 3.5], consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_8",
-    #                                    contents=Trailer(overall_dimensions=[16, 2, 3], mass=2000)),
-    #         begin_location_gps=[51.720407, 5.269097], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.720407, 5.269097), overall_dimensions=[4, 2, 3.5],
-    #                                    consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_9",
-    #                                    contents=Trailer(overall_dimensions=[14, 2, 3], mass=2000)),
-    #         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Truck(gps_location=(51.720407, 5.269097), overall_dimensions=[4, 2, 3.5],
-    #                                    consumption_per_hour=30, mass=10000,
-    #                                    worth=500000,
-    #                                    age=1, machine_id="Truck_10",
-    #                                    contents=Trailer(overall_dimensions=[16, 2, 3], mass=2000)),
-    #         begin_location_gps=[51.584217, 5.101924], end_location_gps=[51.416232, 5.507185]),
-    #                                                                                  TransportJob(
-    #                                                                                      transporting_vehicle=Tractor(
-    #                                                                                          gps_location=(51.584217, 5.101924),
-    #                                                                                          overall_dimensions=[4, 3,
-    #                                                                                                              3],
-    #                                                                                          consumption_per_hour=15,
-    #                                                                                          worth=1000000, age=30,
-    #                                                                                          machine_id="Tractor_1"),
-    #                                                                                      begin_location_gps=[51.584217,
-    #                                                                                                          5.101924],
-    #                                                                                      end_location_gps=[51.416232,
-    #                                                                                                        5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Tractor(
-    #             gps_location=(51.519917, 4.774090),
-    #             overall_dimensions=[6, 4,
-    #                                 4],
-    #             consumption_per_hour=15,
-    #             worth=1000000, age=30,
-    #             machine_id="Crane_1"),
-    #         begin_location_gps=[51.584217,
-    #                             5.101924],
-    #         end_location_gps=[51.416232,
-    #                           5.507185]),
-    #     TransportJob(
-    #         transporting_vehicle=Crane(
-    #             gps_location=(51.584217, 5.101924),
-    #             overall_dimensions=[6, 4,
-    #                                 4],
-    #             consumption_per_hour=15,
-    #             worth=1000000, age=30,
-    #             machine_id="Crane_1"),
-    #         begin_location_gps=[51.584217,
-    #                             5.101924],
-    #         end_location_gps=[51.416232,
-    #                           5.507185]),
-    #                                                                                  TransportJob(
-    #                                                                                      transporting_vehicle=Truck(
-    #                                                                                          gps_location=(51.584217, 5.101924),
-    #                                                                                          overall_dimensions=[4, 2,
-    #                                                                                                              2],
-    #                                                                                          consumption_per_hour=30,
-    #                                                                                          mass=10000, worth=500000,
-    #                                                                                          age=10,
-    #                                                                                          machine_id="Truck_2"),
-    #                                                                                      begin_location_gps=[51.587863,
-    #                                                                                                          5.099568],
-    #                                                                                      end_location_gps=[51.416232,
-    #                                                                                                        5.507185])],
-    #                          work_jobs=[WorkJob(location=(51.416232, 5.507185), assigned_vehicles=[
-    #                              Truck(mass=10000, consumption_per_hour=30, worth=500000, age=2, machine_id="Truck_1"),
-    #                              Truck(mass=10000, consumption_per_hour=30, worth=500000, age=2, machine_id="Truck_2"),
-    #                              Tractor(mass=10000, consumption_per_hour=15, worth=1000000, age=30,
-    #                                      machine_id="Tractor_1"),
-    #                              Tractor(mass=15000, consumption_per_hour=15, worth=2000000, age=30,
-    #                                      machine_id="Tractor_in_trailer")], man_hours=20)],
-    #                          depots=[Depot(location=(51.586911, 5.101759)),
-    #                                  Depot(location=(51.720407, 5.269097))])k
-
-    # app2 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
-    #                           depots=[Depot(gps_location=(51.584217, 5.101924)), Depot(gps_location=(51.720407, 5.269097))],
-    #                           gps_location = (51.416232, 5.507185),
-    #                           machines=[Tractor(gps_location=(51.624520, 4.769122), machine_type = "Tractor"), Truck(gps_location=(51.720407, 5.269097), machine_type = "Truck", contents=Trailer(contents=[Tractor(machine_type = "Tractor", gps_location=(51.720407, 5.269097))])), Crane(gps_location=(51.720407, 5.269097), machine_type="Crane"), Crane(gps_location=(51.586911, 5.101759), machine_type="Crane")])
-
-    # app3 = MissionStrategyApp(work_job = WorkJob())
-
     app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
                               depots=[Depot(gps_location=(51.584217, 5.101924)),
                                       Depot(gps_location=(51.720407, 5.269097)),
                                       Depot(gps_location=(51.590574, 4.921730))],
                               gps_location = (51.416232, 5.507185),
-                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck"),
-                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck"),
+                              machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
+                                        Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBread"),
                                         Crane(gps_location=(51.584217, 5.101924), machine_type="Crane"),
-                                        Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor"),
-                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor"),
-                                        Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor"),
-                                        # Tractor(gps_location=(51.648291, 5.357588), machine_type="Tractor"),
-                                        # Tractor(gps_location=(51.730407, 5.269097), machine_type="Tractor"),
-                                        # Tractor(gps_location=(51.550574, 4.921730), machine_type="Tractor"),
-                                        # Tractor(gps_location=(51.648291, 5.357588), machine_type="Tractor"),
-                                        # Tractor(gps_location=(51.730407, 5.269097), machine_type="Tractor"),
-                                        # Tractor(gps_location=(51.560574, 4.921730), machine_type="Tractor"),
+                                        Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
+                                        Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar"),
+                                        Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far"),
                                         Pump(gps_location=(51.590574, 4.921730), machine_type="Pump"),
-                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck")])
+                                        Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
 
     display(app4)
