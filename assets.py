@@ -1,7 +1,7 @@
 from __future__ import annotations
-
+import datetime
 from typing import Tuple, List
-
+from EmissionsExternalTool import CO2Calculator, NOxCalculator
 from parapy.core import Base, Input, Attribute
 from parapy.core.validate import OneOf, GreaterThan
 
@@ -38,16 +38,15 @@ class Machine(Base):
 
     machine_id = Input("")
     machine_type = Input("")
-
-    age: float = Input(0.0) # Years
+    build_year: int = Input(datetime.datetime.today().year) # default current year (new)
     prediction_tool: str = Input("")
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
-
+    emission_class_version: str = Input("Stage_V", validator=OneOf(("Stage_I", "Stage_II", "Stage_III", "Stage_IV", "Stage_V", "Stage_VI", "Stage_VII")),)
     worth: float = Input(1.0) # Million Euro's
     energy_source: str = Input("Diesel") # Can be: Diesel, Gasoline, Electric, Hybrid
     mass: float = Input(0.0)
 
-    consumption_per_hour = Input(1.0) # (kg, L or kW)/h
+    consumption_per_hour = Input(1.0) # (L or kW)/h
 
     # overall_dimensions: array[x, y, z]
     overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
@@ -92,12 +91,24 @@ class Machine(Base):
     # UML operations – placeholders
     # look at comments in main
     @Attribute
+    def age(self) -> float:
+        """Age in years, derived from build_year."""
+        return datetime.datetime.today().year - self.build_year
+    @Attribute
     def individualCO2(self) -> float:
-        return 1
+        """CO2 [kg] over self.hours_used."""
+        fuel_type = self.energy_source.lower()
+        fuel_usage = self.consumption_per_hour * self.hours_used
+        return CO2Calculator(energy_source=self.energy_source,fuel_type=fuel_type,fuel_usage_liters=fuel_usage,year=self.build_year,)
 
     @Attribute
     def individualNOX(self) -> float:
-        return 1
+        """NOx [g] over self.hours_used using UB method by default."""
+        fuel_usage = self.consumption_per_hour * self.hours_used
+
+        # UB mode: just fuel_liters and engine_hours
+        return NOxCalculator(energy_source=self.energy_source, emission_class_version=self.emission_class_version,
+            fuel_liters=fuel_usage, engine_hours=self.hours_used,)
 
     @Attribute
     def individualCost(self) -> float:
