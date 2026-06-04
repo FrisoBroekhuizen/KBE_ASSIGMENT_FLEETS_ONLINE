@@ -1,11 +1,16 @@
 from __future__ import annotations
 import datetime
+
+import requests
+
 from typing import Tuple, List
 from EmissionsExternalTool import CO2Calculator, NOxCalculator
 from parapy.core import Base, Input, Attribute
 from parapy.core.validate import OneOf, GreaterThan
 
 import numpy as np
+
+import datetime
 
 import copy
 
@@ -39,6 +44,7 @@ class Machine(Base):
     machine_id = Input("")
     machine_type = Input("")
     build_year: int = Input(datetime.datetime.today().year) # default current year (new)
+
     prediction_tool: str = Input("")
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
     emission_class_version: str = Input("Stage_V", validator=OneOf(("Stage_I", "Stage_II", "Stage_III", "Stage_IV", "Stage_V", "Stage_VI", "Stage_VII")),)
