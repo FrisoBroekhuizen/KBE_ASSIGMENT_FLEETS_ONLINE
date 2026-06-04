@@ -226,8 +226,6 @@ class MissionStrategyApp(Base):
     def winning_mission(self):
         return self.MissionIterator()
 
-    # --- existing methods like NormalizePreferences(), etc. ---
-
     @action
     def MissionIterator(self) -> "MissionStrategyApp":
         tic = time.perf_counter()
@@ -242,27 +240,44 @@ class MissionStrategyApp(Base):
         # Allocate machines to depots / road-side
         self.road_parked = self.AllocateMachines()
 
-        # 1) MissionGenerator: generate all candidate missions (external module)
-        self.all_generated_missions = generate_missions(
-            self,
-            MissionCls=Mission,
-            TransportJobCls=TransportJob,
-            VehicleCls=Vehicle,
-            TrailerCls=Trailer,
-        )
+        try:
+            # 1) MissionGenerator: generate all candidate missions (external module)
+            self.all_generated_missions = generate_missions(
+                self,
+                MissionCls=Mission,
+                TransportJobCls=TransportJob,
+                VehicleCls=Vehicle,
+                TrailerCls=Trailer,
+            )
 
-        if not self.all_generated_missions:
-            raise RuntimeError("MissionGenerator produced no missions to evaluate.")
+            if not self.all_generated_missions:
+                # Logical issue: nothing to evaluate
+                generate_warning(
+                    "No missions generated",
+                    "MissionGenerator produced no missions to evaluate.\n\n"
+                    "Please check your inputs (machines, depots, work jobs).",
+                )
+                # Return self so GUI call does not crash
+                return self
 
-        # 2) MissionEvaluator: compute raw totals per mission
-        self._mission_evaluator(self.all_generated_missions)
+            # 2) MissionEvaluator: compute raw totals per mission
+            self._mission_evaluator(self.all_generated_missions)
 
-        # 3) MissionPicker: normalize, compute scalar, pick best
-        winning_mission = self._mission_picker(self.all_generated_missions)
+            # 3) MissionPicker: normalize, compute scalar, pick best
+            winning_mission = self._mission_picker(self.all_generated_missions)
 
-        toc = time.perf_counter()
-        print(f"Took {toc - tic:0.4f} seconds")
-        return winning_mission
+            toc = time.perf_counter()
+            print(f"Took {toc - tic:0.4f} seconds")
+            return winning_mission
+
+        except RuntimeError as exc:
+            # Typically external API / emissions errors from EmissionsExternalTool
+            generate_warning(
+                "Emissions API error",
+                str(exc),
+            )
+            # Do not crash the GUI; return self
+            return self
 
     def jobAnalyzer(self):
         '''
