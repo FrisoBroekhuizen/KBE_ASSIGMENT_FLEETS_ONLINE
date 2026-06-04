@@ -49,7 +49,7 @@ class MissionStrategyApp(Base):
 
     # TODO: UPDATE ONCE WE HAVE THE EXAMPLE JSON FILE!!
 
-    use_FleetsOnline_data = Input(True)
+    use_FleetsOnline_data = Input(False)
 
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
@@ -169,6 +169,7 @@ class MissionStrategyApp(Base):
                     workjob.needed_vehicles = self.needed_machinery
                     workjob.man_hours = self.man_hours
                     self.work_job = workjob
+                    self.gps_location = workjob.gps_location
             elif l["type"] == "asset":
                 if l["name"] == "Tractor":
                     m = Tractor()
@@ -191,6 +192,7 @@ class MissionStrategyApp(Base):
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
                 elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
+                self.machines.append(m)
             else:
                 generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
 

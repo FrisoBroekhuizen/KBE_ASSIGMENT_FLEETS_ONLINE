@@ -258,9 +258,7 @@ def generate_missions(app,
     preliminary_matrix, objects = construct_matrix(app)
     filtered_matrix, truck_indexes, direct_routes = filter_matrix(app, preliminary_matrix)
     route_mat = route_matrix(filtered_matrix)
-    truck_routes = viable_mission_generator(
-        app, route_mat, filtered_matrix, objects, truck_indexes, direct_routes
-    )
+    truck_routes = viable_mission_generator(app, route_mat, filtered_matrix, objects, truck_indexes, direct_routes)
 
     mission_list: List = []
 
@@ -473,9 +471,13 @@ def generate_missions(app,
                 contents=best_truck_for_machine.contents,
                 gps_location=best_truck_for_machine.gps_location,
             )
+            if route_mat[idx_machine_location][idx_truck_origin] == 0:
+                route_distance = 0
+            else:
+                route_distance = route_mat[idx_machine_location][idx_truck_origin][1]
             transport_job_toDepot = TransportJobCls(
                 transporting_vehicle=empty_truck,
-                routeDistance=route_mat[idx_machine_location][idx_truck_origin][1],
+                routeDistance=route_distance,
                 begin_location_gps=empty_truck.gps_location,
                 end_location_gps=machine.gps_location,
             )
@@ -486,9 +488,13 @@ def generate_missions(app,
                 contents=TrailerCls(contents=[machine]),
                 gps_location=machine.gps_location,
             )
+            if route_mat[truck_route[1][0]][idx_worksite_from_machine] == 0:
+                route_distance = 0
+            else:
+                route_distance = route_mat[truck_route[1][0]][idx_worksite_from_machine][1]
             transport_job_toWorksite = TransportJobCls(
                 transporting_vehicle=loaded_truck,
-                routeDistance=route_mat[truck_route[1][0]][idx_worksite_from_machine][1],
+                routeDistance=route_distance,
                 begin_location_gps=loaded_truck.gps_location,
                 end_location_gps=app.gps_location,
             )

@@ -105,16 +105,19 @@ class Machine(Base):
         """CO2 [kg] over self.hours_used."""
         fuel_type = self.energy_source.lower()
         fuel_usage = self.consumption_per_hour * self.hours_used
-        return CO2Calculator(energy_source=self.energy_source,fuel_type=fuel_type,fuel_usage_liters=fuel_usage,year=self.build_year,)
+        return 1
+        result = CO2Calculator(energy_source=self.energy_source,fuel_type=fuel_type,fuel_usage_liters=fuel_usage,year=self.build_year,)
+        return result
 
     @Attribute
     def individualNOX(self) -> float:
         """NOx [g] over self.hours_used using UB method by default."""
         fuel_usage = self.consumption_per_hour * self.hours_used
-
+        return 1
         # UB mode: just fuel_liters and engine_hours
-        return NOxCalculator(energy_source=self.energy_source, emission_class_version=self.emission_class_version,
+        result = NOxCalculator(energy_source=self.energy_source, emission_class_version=self.emission_class_version,
             fuel_liters=fuel_usage, engine_hours=self.hours_used,)
+        return result
 
     @Attribute
     def individualCost(self) -> float:
