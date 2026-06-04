@@ -51,7 +51,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -60,7 +62,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -69,7 +73,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -78,7 +84,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -87,7 +95,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Electric"
     },
     {
         "type": "asset",
@@ -96,7 +106,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Electric"
     },
     {
         "type": "asset",
@@ -105,7 +117,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -114,7 +128,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -123,7 +139,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -132,7 +150,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Electric"
     },
     {
         "type": "asset",
@@ -141,7 +161,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -150,7 +172,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -159,7 +183,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -168,7 +194,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -177,7 +205,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -186,7 +216,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Onbekend"
     },
     {
         "type": "asset",
@@ -195,7 +227,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -204,7 +238,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -213,7 +249,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -222,7 +260,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -231,7 +271,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -240,7 +282,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -249,7 +293,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -258,7 +304,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Diesel (fossiel)"
     },
     {
         "type": "asset",
@@ -267,7 +315,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -276,7 +326,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -285,7 +337,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -294,7 +348,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -303,7 +359,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -312,7 +370,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -321,7 +381,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -330,7 +392,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -339,7 +403,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -348,7 +414,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -357,7 +425,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -366,7 +436,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     },
     {
         "type": "asset",
@@ -375,7 +447,9 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Diesel (fossiel)"
     },
     {
         "type": "asset",
@@ -384,6 +458,8 @@
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)"
     }
 ]

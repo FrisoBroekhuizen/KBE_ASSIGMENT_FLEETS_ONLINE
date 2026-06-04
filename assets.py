@@ -76,11 +76,13 @@ class Machine(Base):
 
     # Current energy prices in eur per kg, L or kW
     energy_source_cost = {"Diesel": 2.19, # /L
+                          "Biodiesel": 1.9,
                              "Gasoline": 2.31, # /L
                              "Electric": 0.8, # /kWh
                              "Hybrid": 1.4} # /Combo
 
     energy_source_factors = {"Diesel": 1.2,
+                             "Biodiesel": 1.3,
                              "Gasoline": 1.1,
                              "Electric": 0.8,
                              "Hybrid": 1.3}

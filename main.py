@@ -127,7 +127,7 @@ class MissionStrategyApp(Base):
                     {"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "dimension":20})
         for asset_type in assets: # Loop through the available assets
             for asset in asset_type:
-                data.append({"type":"asset", "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}})
+                data.append({"type":"asset", "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}, "color":"yellow", "fuel_type":asset["fuelType"]["name"]})
 
         # Write FleetsOnline data to FleetsOnlineData.json file
         with open('FleetsOnlineData.json', 'w') as f:
@@ -173,21 +173,24 @@ class MissionStrategyApp(Base):
             elif l["type"] == "asset":
                 if l["name"] == "Tractor":
                     m = Tractor()
-                    m.overall_dimensions = [2, 2, 2]
                     m.machine_type = "Tractor"
                 elif l["name"] == "Kranen":
                     m = Crane()
-                    m.overall_dimensions = [4, 2, 3]
                     m.machine_type = "Crane"
-                elif l["name"] == "Vrachtwagens":
+                elif l["name"] == "Vrachtwagens" or l["name"] == "Vrachtwagens ": # To account for issue stemming from FleetsOnline API data
                     m = Truck()
-                    m.overall_dimensions = [3, 2, 3]
                     m.machine_type = "Truck"
                 else:
                     m = Vehicle()
-                    m.overall_dimensions = [2, 2, 1.5]
+                try:
+                    m.overall_dimensions = l['overall_dimensions']
+                except:
+                    m.overall_dimensions = (2, 2, 2)
+                m.color = l['color']
                 m.build_year = l['build_year']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                # if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "Diesel"
+                # elif "Biodiesel" in l["fuel_type"]: m.energy_source = "Biodiesel"
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")

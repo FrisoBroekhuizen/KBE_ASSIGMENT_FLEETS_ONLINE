@@ -48,7 +48,10 @@ def CO2Calculator(
 ) -> float:
     if energy_source.strip().lower() == "electric":
         return 0.0
-
+    elif energy_source.strip().lower() == "biodiesel":
+        WTW_factor = 0.3 # Factor to account for well-to-well emissions instead of wheel-to-well
+    else:
+        WTW_factor = 1
     headers = _get_auth_headers()
 
     try:
@@ -64,7 +67,7 @@ def CO2Calculator(
         )
         resp.raise_for_status()
         data = resp.json()
-        return float(data["co2Kg"])
+        return float(data["co2Kg"]) * WTW_factor
     except requests.RequestException as exc:
         generate_warning(
             "Emissions API error",
