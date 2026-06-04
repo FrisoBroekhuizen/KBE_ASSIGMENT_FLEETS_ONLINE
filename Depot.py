@@ -104,7 +104,31 @@ class Depot(GeomBase):
     # ---------------------------------------------
     # FUNCTION 2: Depot arrangement
     # ---------------------------------------------
+    @Attribute
+    def machine_colors(self):
+        """Color per sorted machine, using machine.color if set,
+        otherwise yellow for vehicles, blue for tools."""
+        colors = []
+        from_types = (Tool,)  # to use isinstance
 
+        for m in self.sorted_machines:
+            # 1) explicit color on machine → use it
+            c = getattr(m, "color", None)
+            if c not in (None, ""):
+                colors.append(c)
+                continue
+
+            # 2) fallback based on type
+            is_tool = isinstance(m, Tool) or (
+                    m.__class__.__name__ == "Tool"
+                    or (m.__class__.__bases__ and m.__class__.__bases__[0].__name__ == "Tool")
+            )
+            if is_tool:
+                colors.append("blue")
+            else:
+                colors.append("yellow")
+
+        return colors
     # Returns the machines list sorted based on the length of the vehicles
     @Attribute
     def sorted_machines(self):
@@ -294,13 +318,18 @@ class Depot(GeomBase):
 
     @Part
     def PlaceMachines(self):
-        return Box(quantify=len(self.machine_positions),
-                   width=self.sorted_machines[child.index].overall_dimensions[0],
-                   length=self.sorted_machines[child.index].overall_dimensions[1],
-                   height=self.sorted_machines[child.index].overall_dimensions[2],
-                   position=translate(self.position, 'x', self.machine_positions[child.index][0], 'y', self.machine_positions[child.index][1]),
-                   color=("Blue" if type(self.sorted_machines[child.index]).__bases__[0].__name__ == "Tool" or type(self.sorted_machines[child.index]).__name__ == "Tool"
-                          else "Yellow"))
+        return Box(
+            quantify=len(self.machine_positions),
+            width=self.sorted_machines[child.index].overall_dimensions[0],
+            length=self.sorted_machines[child.index].overall_dimensions[1],
+            height=self.sorted_machines[child.index].overall_dimensions[2],
+            position=translate(
+                self.position,
+                'x', self.machine_positions[child.index][0],
+                'y', self.machine_positions[child.index][1]
+            ),
+            color=self.machine_colors[child.index],
+        )
 
     # Place ghost vehicles that indicate the vehicles that will collect the vehicle attached tools
     # Currently disabled as the exact dimensions of the collecting vehicle are not known

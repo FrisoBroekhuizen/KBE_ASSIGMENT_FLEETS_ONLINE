@@ -59,7 +59,6 @@ class Item:
                 that are vehicles or tools with (vehicle_attachable AND
                 upright_only) may be loaded in that trailer.
     """
-
     id: str
     lx: float
     ly: float
@@ -67,16 +66,18 @@ class Item:
     item_type: ItemType
     upright_only: bool
     vehicle_attachable: bool
+    color: Any
 
     def __init__(
-        self,
-        id: str,
-        lx: float,
-        ly: float,
-        lz: float,
-        item_type: ItemType,
-        upright_only: bool = False,
-        vehicle_attachable: bool = False,
+            self,
+            id: str,
+            lx: float,
+            ly: float,
+            lz: float,
+            item_type: ItemType,
+            upright_only: bool = False,
+            vehicle_attachable: bool = False,
+            color: Any = None,
     ):
         self.id = id
         self.lx = lx
@@ -85,6 +86,7 @@ class Item:
         self.item_type = item_type
         self.upright_only = upright_only
         self.vehicle_attachable = vehicle_attachable
+        self.color = color
 
 
 class PlacedItem:
@@ -739,46 +741,34 @@ class TrailerPackingVisualization(Base):
 
     @Attribute
     def vehicle_colors(self):
-        """Deterministic random yellowish colors for vehicles."""
-        random.seed(1)
+        """Color per vehicle item. Prefer item.color, else default yellow."""
         vs = [p for p in self.flat_placed if p.item.item_type == "vehicle"]
         colors = {}
+        default_vehicle_color = [255, 255, 0]  # bright yellow
+
         for p in vs:
-            # Yellowish: high R and G, low B
-            r = 200 + random.randint(0, 55)
-            g = 200 + random.randint(0, 55)
-            b = random.randint(0, 70)
-            colors[p.item.id] = [r, g, b]
+            it = p.item
+            c = getattr(it, "color", None)
+            if c not in (None, ""):
+                colors[it.id] = c
+            else:
+                colors[it.id] = default_vehicle_color
         return colors
 
     @Attribute
     def tool_colors(self):
-        """Colors for tools:
-        - only attachable (vehicle_attachable == True, upright_only == False): pink
-        - only upright_only (upright_only == True, vehicle_attachable == False): very light/baby blue
-        - both attachable and upright_only: purple
-        - neither: bluish random (fallback)
-        """
-        random.seed(2)
+        """Color per tool item. Prefer item.color, else default blue."""
         ts = [p for p in self.flat_placed if p.item.item_type == "tool"]
         colors = {}
+        default_tool_color = [0, 0, 255]  # blue
+
         for p in ts:
             it = p.item
-            if it.vehicle_attachable and not it.upright_only:
-                # Only attachable: pink
-                colors[it.id] = [255, 105, 180]  # hot pink
-            elif it.upright_only and not it.vehicle_attachable:
-                # Only upright_only: very light / baby blue
-                colors[it.id] = [173, 216, 230]
-            elif it.vehicle_attachable and it.upright_only:
-                # Both: purple
-                colors[it.id] = [160, 32, 240]
+            c = getattr(it, "color", None)
+            if c not in (None, ""):
+                colors[it.id] = c
             else:
-                # Neither: bluish random fallback
-                r = random.randint(0, 60)
-                g = random.randint(0, 140)
-                b = 180 + random.randint(0, 70)
-                colors[it.id] = [r, g, b]
+                colors[it.id] = default_tool_color
         return colors
 
     @Attribute
@@ -893,12 +883,7 @@ class TrailerPackingVisualization(Base):
 # ---------------------------------------------------------------------------
 
 def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
-    """Convert a machine-like object into an Item.
-
-    Expects:
-        machine.overall_dimensions -> [L, W, H]
-        machine.machine_id -> str
-    """
+    """Convert a machine-like object into an Item."""
     L, W, H = machine.overall_dimensions
     cls_name = type(machine).__name__
     item_id = machine.machine_id
@@ -906,7 +891,6 @@ def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
     if item_type_hint is not None:
         item_type = item_type_hint
     else:
-        # Default: tractors / vehicles / trucks are 'vehicle', rest is 'tool'
         item_type = "vehicle" if cls_name in ("Truck", "Tractor", "Vehicle") else "tool"
 
     if item_type == "vehicle":
@@ -916,6 +900,8 @@ def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
         upright_only = False
         vehicle_attachable = False
 
+    color = getattr(machine, "color", None)
+
     return Item(
         id=item_id,
         lx=L,
@@ -924,6 +910,7 @@ def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
         item_type=item_type,
         upright_only=upright_only,
         vehicle_attachable=vehicle_attachable,
+        color=color,
     )
 
 

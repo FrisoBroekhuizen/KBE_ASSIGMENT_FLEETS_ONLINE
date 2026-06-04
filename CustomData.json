@@ -28,15 +28,6 @@
     },
     {
         "type": "poi",
-        "name": "Garage vd Sande",
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        },
-        "dimension": 200
-    },
-    {
-        "type": "poi",
         "name": "Heuvelmans ",
         "gps_location": {
             "lat": 51.468288,
@@ -55,26 +46,9 @@
     },
     {
         "type": "asset",
-        "name": "Vrachtwagens",
-        "build_year": 2012,
-        "gps_location": {
-            "lat": 51.359188,
-            "lon": 5.166491
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        }
-    },
-    {
-        "type": "asset",
         "name": "Kranen",
         "build_year": 2016,
+        "color": "pink",
         "gps_location": {
             "lat": 51.584217,
             "lon": 5.101924
@@ -83,15 +57,7 @@
     {
         "type": "asset",
         "name": "Tractor",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.638291,
-            "lon": 5.357588
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Tractor",
+        "color": "pink",
         "build_year": 2021,
         "gps_location": {
             "lat": 51.720407,
@@ -100,17 +66,9 @@
     },
     {
         "type": "asset",
-        "name": "Tractor",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        }
-    },
-    {
-        "type": "asset",
         "name": "Vrachtwagens",
         "build_year": 2018,
+        "color": "pink",
         "gps_location": {
             "lat": 51.617221,
             "lon": 5.436735

@@ -51,7 +51,9 @@ class Machine(Base):
     worth: float = Input(1.0) # Million Euro's
     energy_source: str = Input("Diesel") # Can be: Diesel, Gasoline, Electric, Hybrid
     mass: float = Input(0.0)
-
+    # Color used in visualizations (Depot, trailers, etc.).
+    # None or "" means "use class-dependent default".
+    color: Any = Input(None)
     consumption_per_hour = Input(1.0) # (L or kW)/h
 
     # overall_dimensions: array[x, y, z]
@@ -181,7 +183,7 @@ class Vehicle(Machine):
     wheelbase_track: float = Input(2)
     number_of_axles: int = Input(2)
     max_steering_angle: float = Input(20.0)
-
+    color = Input("yellow")
     dimensions: Tuple[float, float, float] = Input((1, 2, 2))
     dimensions_rear: Tuple[float, float, float] = Input((5, 2, 2))
 
@@ -289,6 +291,7 @@ class Tool(Machine):
 
     tool_id: str = Input("")
     vehicle_attachable: bool = Input(False)
+    color = Input("blue")
     upright_only: bool = Input(False)
 
 class Pump(Tool):
