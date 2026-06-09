@@ -331,6 +331,7 @@ class MissionStrategyApp(Base):
         """For each mission, sum maintenance, NOx, CO2, cost and time over all
         its transport and work jobs."""
         for m in missions:
+            m.work_jobs[0].assigned_vehicles = m.machines
             total_mission_NOx = 0.0
             total_mission_CO2 = 0.0
             total_mission_cost = 0.0
@@ -631,7 +632,7 @@ class MissionStrategyApp(Base):
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
-
+    machines: List["Machine"] = Input([])
     mission_preferences = Input([1.0, 1.0, 1.0])
 
     mission_NOx = Input(0.0)
