@@ -12,6 +12,7 @@ from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf, all_is_number
+from parapy.core.widgets import PyField, CheckBox
 import copy
 from MissionGenerator import generate_missions, deadline_restricted_mission_generator
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
@@ -48,16 +49,14 @@ class MissionStrategyApp(Base):
                  - If time: combine multiple work jobs into one mission.
                  - Maximum vehicles in worksite is area worksite divided by area vehicle times a factor"""
 
-    # TODO: UPDATE ONCE WE HAVE THE EXAMPLE JSON FILE!!
-
-    use_FleetsOnline_data = Input(False)
+    use_FleetsOnline_data = Input(False, widget=CheckBox)
 
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
     # Mission attributes
-    needed_tools: str = Input("")
-    needed_machinery: str = Input("Tractor")
-    man_hours = Input(50)
+    needed_tools: str = Input("", widget=TextField(autocompute=True))
+    needed_machinery: str = Input("Tractor", widget=TextField(autocompute=True, background_color=lambda self: "Red" if self.needed_machinery not in self.possible_machinery and self.needed_machinery != "" else "White"))
+    man_hours = Input(0, widget=PyField(autocompute=True, background_color=lambda self: "Red" if self.man_hours == 0 else "White"))
 
     standard_locations = {"Eindhoven":(51.468288, 5.421365),
                           "Tilburg":(51.591433, 5.023739),
@@ -84,7 +83,6 @@ class MissionStrategyApp(Base):
                                    "Pump":0}
 
     # Aggregations / associations
-    fleet: Optional["Fleet"] = Input(None)
     machines: List[Machine] = Input([])
     trailers: List[Trailer] = Input([])
     depots: List[Depot] = Input([])
@@ -224,7 +222,7 @@ class MissionStrategyApp(Base):
                     m.overall_dimensions = l['overall_dimensions']
                 except:
                     m.overall_dimensions = (2, 2, 2)
-                    generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l["id"]}. Standard dimensions of [2 x 2 x 2] are used instead.")
+                    generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l['id']}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
                 if m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
@@ -338,6 +336,11 @@ class MissionStrategyApp(Base):
         return winning_mission
 
     def jobAnalyzer(self):
+        '''
+        This function determines the maximum number of machines that can work on a work site, based on the machine
+        area and the site area, to not have an overcrowded work site.
+        '''
+        # TODO: Find better way to determine area_factor
         area_factor = 0.2
         job_machines_areas = []
         for m in self.machines:
@@ -537,7 +540,7 @@ class MissionStrategyApp(Base):
     def generate_strategies(self):
         raise NotImplementedError
 
-    @action(button_label="Export Results")
+    @action
     def export_results(self):
         # Export JSON results
         raise NotImplementedError
@@ -653,6 +656,37 @@ class MissionStrategyApp(Base):
                 if machine != None:
                     items.append(item_from_machine(machine))
         return items
+
+    @Part
+    def New_Vehicle(self):
+        return Machine()
+
+    @action(button_label="Add vehicle to JSON data file", label="Add vehicle")
+    def AddVehicle(self):
+        m = self.New_Vehicle
+        with open("CustomData.json", "r") as f:
+            data = json.load(f)
+        data.append(
+                {"type": "asset", "id": m.machine_id, "name": m.machine_type, "build_year": m.build_year,
+                 "gps_location": {"lat": m.gps_location[0], "lon": m.gps_location[1]},
+                 "overall_dimensions": m.overall_dimensions, "color": m.color,
+                 "fuel_type": m.energy_source})
+        # except:
+        #     generate_warning("Missing or invalid data", "Please ensure all data slots in the new vehicle are filled in correctly before adding it to the JSON file.")
+        print(data)
+        # Write FleetsOnline data to FleetsOnlineData.json file
+        with open('CustomData.json', 'w') as f:
+            json.dump(data, f, indent=4)
+
+    @action(button_label="Delete the last added machine", label="Delete machine")
+    def RemoveVehicle(self):
+        with open("CustomData.json", "r") as f:
+            data = json.load(f)
+        data = data[0:len(data)]
+        with open('CustomData.json', 'w') as f:
+            json.dump(data, f, indent=4)
+        generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
+
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
@@ -879,136 +913,5 @@ class Fleet(Base):
 if __name__ == "__main__":
     from parapy.gui import display
 
-    # Common tractor dimensions (L, W, H)
-    tractor_dims = (4.0, 2.5, 3.0)
-
-    # Trailers with different capacities
-    # - trailer_small: too short in length AND too narrow
-    # - trailer_exact: exactly matches tractor footprint (fits)
-    # - trailer_wide_low: long & wide but too low in height
-    # - trailer_large: comfortably larger in all dims (always fits)
-    trailer_small = Trailer(
-        gps_location=(51.590574, 4.921730),
-        overall_dimensions=[3.0, 2.0, 2.5],  # < tractor_dims
-        max_loading_weight=20000,
-        contents=[],
-    )
-
-    trailer_exact = Trailer(
-        gps_location=(51.590574, 4.921730),
-        overall_dimensions=list(tractor_dims),  # equal to tractor
-        max_loading_weight=20000,
-        contents=[],
-    )
-
-    trailer_wide_low = Trailer(
-        gps_location=(51.590574, 4.921730),
-        overall_dimensions=[6.0, 3.0, 2.5],  # bigger in L,W but too low
-        max_loading_weight=20000,
-        contents=[],
-    )
-
-    trailer_large = Trailer(
-        gps_location=(51.590574, 4.921730),
-        overall_dimensions=[10.0, 4.0, 4.0],  # much larger in all dims
-        max_loading_weight=20000,
-        contents=[],
-    )
-
-# if __name__ == "__main__":
-#     from parapy.gui import display
-#
-#     # Trailer 1: shorter but higher; mixed cargo
-#     trailer1 = Trailer(
-#         overall_dimensions=[4.5, 2.5, 3.5],  # L, W, H
-#         mass=2500,
-#         contents=[
-#             # Big tractor, floor-only, will behave as vehicle
-#             Tractor(
-#                 overall_dimensions=[4.5, 2.4, 3],
-#                 mass=16000,
-#                 consumption_per_hour=18,
-#                 worth=2500000,
-#                 age=5,
-#                 machine_id="Tractor_A",
-#             ),
-#             # Medium tractor
-#             Tractor(
-#                 overall_dimensions=[4.0, 2.2, 2.8],
-#                 mass=14000,
-#                 consumption_per_hour=16,
-#                 worth=2200000,
-#                 age=8,
-#                 machine_id="Tractor_B",
-#             ),
-#             # Generic tool as cargo, more cubic
-#             Tool(
-#                 overall_dimensions=[2.0, 1.8, 1.6],
-#                 mass=3000,
-#                 consumption_per_hour=5,
-#                 worth=80000,
-#                 age=3,
-#                 machine_id="Tool_A",
-#             ),
-#         ],
-#     )
-#
-#     # Trailer 2: longer but a bit lower; several smaller tools & a compact tractor
-#     trailer2 = Trailer(
-#         overall_dimensions=[14, 2.6, 3.0],
-#         mass=2800,
-#         contents=[
-#             # Compact tractor
-#             Tractor(
-#                 overall_dimensions=[3.5, 2.1, 2.6],
-#                 mass=12000,
-#                 consumption_per_hour=14,
-#                 worth=1800000,
-#                 age=4,
-#                 machine_id="Tractor_C",
-#             ),
-#             # Three tools with different proportions so rotations matter
-#             Tool(
-#                 overall_dimensions=[3.0, 1.5, 1.2],  # long & flat
-#                 mass=2500,
-#                 consumption_per_hour=4,
-#                 worth=60000,
-#                 age=6,
-#                 machine_id="Tool_B",
-#             ),
-#             Tool(
-#                 overall_dimensions=[1.8, 1.8, 2.0],  # more cube-like
-#                 mass=2200,
-#                 consumption_per_hour=3,
-#                 worth=55000,
-#                 age=2,
-#                 machine_id="Tool_C",
-#             ),
-#             Tool(
-#                 overall_dimensions=[2.2, 1.0, 1.8],  # tall & narrow
-#                 mass=2000,
-#                 consumption_per_hour=3,
-#                 worth=50000,
-#                 age=1,
-#                 machine_id="Tool_D",
-#             ),
-#         ],
-#     )
-
-    # app4 = MissionStrategyApp(work_job = WorkJob(needed_vehicles = "Tractor", gps_location=(51.416232, 5.507185)),
-    #                           depots=[Depot(gps_location=(51.584217, 5.101924)),
-    #                                   Depot(gps_location=(51.720407, 5.269097)),
-    #                                   Depot(gps_location=(51.590574, 4.921730))],
-    #                           gps_location = (51.416232, 5.507185),
-    #                           trailers=[Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 1, 3], contents=[])],
-    #                           machines=[Truck(gps_location=(51.359188, 5.166491), machine_type="Truck", machine_id="Truck_RoadParked"),
-    #                                     Truck(gps_location=(51.590574, 4.921730), machine_type="Truck", machine_id="Truck_DepotBreda", overall_dimensions=(2, 2, 3),
-    #                                           contents=Trailer(gps_location=(51.720407, 5.269097), overall_dimensions=[2, 4, 4], contents=[])),
-    #                                     Crane(gps_location=(51.584217, 5.101924), machine_type="Crane", overall_dimensions=(4, 2, 3)),
-    #                                     # Tractor(gps_location=(51.638291, 5.357588), machine_type="Tractor", machine_id="Tractor_RoadParked_close"),
-    #                                     Tractor(gps_location=(51.720407, 5.269097), machine_type="Tractor", machine_id="Tractor_DepotDenBosch_veryfar", overall_dimensions=(3, 2, 3)),
-    #                                     # Tractor(gps_location=(51.590574, 4.921730), machine_type="Tractor", machine_id="Tractor_DepotBreda_far", overall_dimensions=(4, 2.5, 3)),
-    #                                     Pump(gps_location=(51.590574, 4.921730), machine_type="Pump", overall_dimensions=(1.5, 1.5, 1.5)),
-    #                                     Truck(gps_location=(51.617221, 5.436735), machine_type="Truck", machine_id="Truck_RoadParked")])
-    app4 = MissionStrategyApp()
-    display(app4)
+    app = MissionStrategyApp()
+    display(app)
