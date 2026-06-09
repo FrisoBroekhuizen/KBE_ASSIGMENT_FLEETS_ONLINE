@@ -12,7 +12,7 @@ from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf, all_is_number
 import copy
-from MissionGenerator import generate_missions
+from MissionGenerator import generate_missions, deadline_restricted_mission_generator
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
 from assets import *
 from Warning import generate_warning
@@ -294,6 +294,18 @@ class MissionStrategyApp(Base):
             VehicleCls=Vehicle,
             TrailerCls=Trailer,
         )
+
+        # --- 1b) Deadline restriction (if enabled) ---
+        if self.strict_deadline and self.deadline_time is not None:
+            # Available total hours between start and deadline
+            deadline_delta = self.deadline_time - self.start_time
+            deadline_total_hours = deadline_delta.total_seconds() / 3600.0
+
+            # Call special deadline-aware mission generator / filter
+            self.all_generated_missions = deadline_restricted_mission_generator(
+                self.all_generated_missions,
+                deadline_total_hours,
+            )
 
 
 

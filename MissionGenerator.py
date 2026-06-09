@@ -515,3 +515,30 @@ def generate_missions(app,
 
     return mission_list
 
+def deadline_restricted_mission_generator(
+    missions: List,
+    deadline_total_hours: float,
+) -> List:
+    """
+    Filter or adapt missions so that they respect a total available time budget.
+
+    Parameters
+    ----------
+    missions :
+        List of Mission objects (as created by generate_missions).
+        Each mission is expected to have its time already evaluated
+        (m.mission_time) when this function is called, or you can
+        choose to call this *after* _mission_evaluator.
+    deadline_total_hours :
+        Total available hours between start_time and deadline_time.
+
+    Returns
+    -------
+    List
+        New list of missions that satisfy the deadline constraint.
+        Currently returns all missions unchanged (placeholder).
+    """
+
+
+    return missions
+
