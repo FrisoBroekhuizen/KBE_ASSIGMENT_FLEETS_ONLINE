@@ -25,7 +25,7 @@ import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
 import requests
 import json
-import PDFMaker
+
 
 maindir = os.path.dirname(__file__)
 

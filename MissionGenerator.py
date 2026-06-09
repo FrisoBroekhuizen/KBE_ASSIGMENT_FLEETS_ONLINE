@@ -436,14 +436,15 @@ def generate_missions(app,
             feasible_trucks: List = []
             feasible_trailers: List = []
 
-            if type(origin_obj).__name__ == "Depot": # If truck is parked in a depot
+            if type(origin_obj).__name__ == "Depot":  # If truck is parked in a depot
+                # <-- FIX: trailers go into feasible_trailers, not feasible_trucks
                 for m in origin_obj.trailers:
                     if _can_trailer_carry(m, machine):
-                        feasible_trucks.append(m)
+                        feasible_trailers.append(m)
                 for m in origin_obj.machines:
                     if m.machine_type == "Truck":
                         feasible_trucks.append(m)
-            else: # If truck is road-side parked
+            else:  # If truck is road-side parked
                 if origin_obj.machine_type == "Truck" and _can_truck_carry(origin_obj, machine):
                     feasible_trucks.append(origin_obj)
 
@@ -453,22 +454,24 @@ def generate_missions(app,
             feasible_trucks.sort(
                 key=lambda t: (
                     getattr(t, "energy_source", "Diesel") != "Electric",
-                    t.consumption_per_hour,
+                    getattr(t, "consumption_per_hour", float("inf")),  # extra safety
                 )
             )
 
             best_truck_for_machine = feasible_trucks[0]
 
-            if best_truck_for_machine.contents != None:
+            if best_truck_for_machine.contents is not None:
                 if _can_truck_carry(best_truck_for_machine.contents, machine):
                     feasible_trailers.append(best_truck_for_machine.contents)
 
-            if feasible_trailers != []:
+            if feasible_trailers:
                 best_trailer_for_machine = feasible_trailers[0]
             else:
                 print("No trailer present in the depot(s); using a standard issue trailer instead!")
-                best_trailer_for_machine = TrailerCls(contents=[machine], overall_dimensions=[15, machine.overall_dimensions[1] * 1.1, machine.overall_dimensions[2] * 1.1])
-
+                best_trailer_for_machine = TrailerCls(
+                    contents=[machine],
+                    overall_dimensions=[15, machine.overall_dimensions[1] * 1.1, machine.overall_dimensions[2] * 1.1],
+                )
 
             # 1) leg: truck drives EMPTY from origin to machine
             empty_truck = _clone_truck_for_leg(
@@ -505,12 +508,6 @@ def generate_missions(app,
             )
 
             work_job = app.work_job
-            # if isinstance(machine, VehicleCls):
-                # work_job.assigned_vehicles = [machine]
-                # work_job.assigned_tools = []
-            # else:
-                # work_job.assigned_tools = [machine]
-                # work_job.assigned_vehicles = []
 
             mission = MissionCls(
                 transport_jobs=[transport_job_toDepot, transport_job_toWorksite],
