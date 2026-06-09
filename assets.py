@@ -47,7 +47,7 @@ class Machine(Base):
 
     prediction_tool: str = Input("")
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
-    emission_class_version: str = Input("Stage_V", validator=OneOf(("Stage_I", "Stage_II", "Stage_III", "Stage_IV", "Stage_V", "Stage_VI", "Stage_VII")),)
+    emission_class_version: str = Input("StageIIIA", validator=OneOf(("StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")),)
     worth: float = Input(1.0) # Million Euro's
     energy_source: str = Input("diesel-(fossiel)") # Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
     mass: float = Input(0.0)
@@ -114,8 +114,9 @@ class Machine(Base):
 
     @Attribute
     def individualNOX(self) -> float:
-        """NOx [g] over self.hours_used using UB method by default."""
-        fuel_usage = self.consumption_per_hour * self.hours_used
+        """NOx [g] over self.hours_used using AUB method by default."""
+        # fuel_usage = self.consumption_per_hour * self.hours_used
+        fuel_usage = self.consumption_per_hour
         # UB mode: just fuel_liters and engine_hours
         result = NOxCalculator(energy_source=self.energy_source, emission_class_version=self.emission_class_version,
             fuel_liters=fuel_usage, engine_hours=self.hours_used,)

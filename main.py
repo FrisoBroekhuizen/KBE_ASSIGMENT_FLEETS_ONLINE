@@ -206,6 +206,7 @@ class MissionStrategyApp(Base):
                     generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l["id"]}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
+                if m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
                 m.color = l['color']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                 if "Aanhanger" in l["name"]:
@@ -217,6 +218,7 @@ class MissionStrategyApp(Base):
                     elif "Biodiesel" in l["fuel_type"]: m.energy_source = "biodiesel-(hvo)"
                     elif "Electric" in l["fuel_type"]: m.energy_source = "Electric"
                     m.emission_class = l["emission_class_version"]
+                    m.consumption_per_hour = l["consumption_per_hour"]
                     self.machines.append(m)
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
@@ -294,6 +296,7 @@ class MissionStrategyApp(Base):
 
         toc = time.perf_counter()
         print(f"Took {toc - tic:0.4f} seconds")
+
         return winning_mission
 
     def jobAnalyzer(self):
