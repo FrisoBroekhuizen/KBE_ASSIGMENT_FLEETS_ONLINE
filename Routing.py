@@ -9,7 +9,7 @@ from parapy.geom import Point, Polyline
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf
-
+import requests
 from routingpy import ORS
 from routingpy.exceptions import RouterApiError
 from Warning import generate_warning
@@ -45,12 +45,16 @@ def HaversineDistance(
 
 def ComputeRoute(start, end, machine_type):
     """
+    Compute a route between two GPS points.
+
     start, end: (lat, lon)
     machine_type: "Vehicle" -> driving-car, anything else -> driving-hgv
 
-    If ORS cannot be reached (rate limit, network issue, etc.), we fall back to a
-    straight-line route using Haversine distance and a constant average speed.
-    A warning is shown in the GUI so the user knows routes are approximate.
+    Behavior:
+    - Use OpenRouteService via routingpy when available.
+    - If ORS or the network is unavailable, or returns an error, show a
+      warning dialog and fall back to a conservative 2‑leg route:
+      first purely N/S, then purely E/W (Manhattan-style).
     """
     start_lat, start_lon = start
     end_lat, end_lon = end
@@ -63,49 +67,84 @@ def ComputeRoute(start, end, machine_type):
 
     api_key = os.environ.get("ORS_API_KEY", None)
     if api_key is None:
-        # optionally still use your existing hard-coded token instead of "YOUR_KEY_HERE"
-        api_key = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImY0OThhNGEyMGQwYjRmZjE5MDdmOGU2NjQzMDY0ZGVjIiwiaCI6Im11cm11cjY0In0="
-
+        # Your existing hard-coded token:
+        api_key = (
+            "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImY0OThhNGEy"
+            "MGQwYjRmZjE5MDdmOGU2NjQzMDY0ZGVjIiwiaCI6Im11cm11cjY0In0="
+        )
 
     client = ORS(api_key=api_key)
     profile = "driving-car" if machine_type == "Vehicle" else "driving-hgv"
 
     try:
+        # --- normal ORS call ---
         route = client.directions(locations=coordinates, profile=profile)
-        duration = route.duration
-        distance = route.distance
-        geometry = route.geometry
+        duration = route.duration         # [s]
+        distance = route.distance         # [m]
+        geometry = route.geometry         # [[lon, lat], ...]
         return duration, distance, geometry
 
-    except RouterApiError as e:
-        # This includes OverQueryLimit(429) and other ORS errors.
+    except (RouterApiError, requests.RequestException) as e:
+        # Known ORS / network problems (rate limits, DNS, etc.)
         msg = (
-            "The external routing service (OpenRouteService) returned an error:\n"
+            "The external routing service (OpenRouteService) could not be reached "
+            "or returned an error:\n"
             f"{e}\n\n"
-            "A simplified straight-line route is used instead with an approximate "
+            "A simplified conservative route is used instead with an approximate "
             "travel time. Distances and times in this strategy are therefore only "
             "approximate. Try again later or reduce the number of route requests."
         )
-        print(f"[ComputeRoute] ORS error: {e} – using straight-line fallback")
-        generate_warning("Routing service unavailable – using fallback route", msg)
+        print(f"[ComputeRoute] ORS/network error: {e} – using conservative fallback")
+        generate_warning(
+            "Routing service unavailable – using fallback route",
+            msg,
+        )
 
-        # Straight-line fallback using Haversine + constant average speed
-        (lat1, lon1) = start
-        (lat2, lon2) = end
+    except Exception as e:
+        # Any other unexpected error – still fall back, but log differently
+        msg = (
+            "An unexpected error occurred while computing a route:\n"
+            f"{e}\n\n"
+            "A simplified conservative route is used instead with an approximate "
+            "travel time. Distances and times in this strategy may be inaccurate."
+        )
+        print(f"[ComputeRoute] Unexpected error: {e} – using conservative fallback")
+        generate_warning(
+            "Routing error – using fallback route",
+            msg,
+        )
 
-        n = 20
-        geometry: list[list[float]] = []
-        for i in range(n + 1):
-            t = i / n
-            lat = lat1 + t * (lat2 - lat1)
-            lon = lon1 + t * (lon2 - lon1)
-            geometry.append([lon, lat])  # [lon, lat]
+    # ------------------------------------------------------------------
+    # Fallback: conservative 2‑leg “Manhattan” route (N/S then E/W)
+    # ------------------------------------------------------------------
+    lat1, lon1 = start
+    lat2, lon2 = end
 
-        total_dist = HaversineDistance(lat1, lon1, lat2, lon2)  # [m]
-        avg_speed = 20.0  # m/s ~ 72 km/h
-        duration = total_dist / avg_speed
+    if (lat1, lon1) == (lat2, lon2):
+        # Degenerate route: zero length
+        geometry = [[lon1, lat1], [lon2, lat2]]
+        return 0.0, 0.0, geometry
 
-        return duration, total_dist, geometry
+    # First leg: north/south only (change latitude, keep longitude)
+    corner_lat = lat2
+    corner_lon = lon1
+
+    d_ns = HaversineDistance(lat1, lon1, corner_lat, corner_lon)  # N/S leg
+    d_ew = HaversineDistance(corner_lat, corner_lon, lat2, lon2)  # E/W leg
+    total_dist = d_ns + d_ew
+
+    # 3-point polyline: start -> corner -> end
+    geometry = [
+        [lon1, lat1],
+        [corner_lon, corner_lat],
+        [lon2, lat2],
+    ]
+
+    # Conservative average speed (same as before)
+    avg_speed = 20.0  # m/s ~ 72 km/h
+    duration = total_dist / avg_speed  # [s]
+
+    return duration, total_dist, geometry
 
 # ---------------------------------------------------------------------
 # Helpers for map selection + projection
