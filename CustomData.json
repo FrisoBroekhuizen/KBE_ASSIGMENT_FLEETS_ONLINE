@@ -1,158 +1,133 @@
 [
-    {
-        "type": "poi",
-        "name": "Boomrooierij Weijtmans Udenhout",
-        "gps_location": {
-            "lat": 51.416232,
-            "lon": 5.507185
-        },
-        "dimension": 20
+  {
+    "type": "poi",
+    "name": "Boomrooierij Eindhoven",
+    "gps_location": {
+      "lat": 51.468300,
+      "lon": 5.421400
     },
-    {
-        "type": "poi",
-        "name": "Garage vd Sande",
-        "gps_location": {
-            "lat": 51.584217,
-            "lon": 5.101924
-        },
-        "overall_dimensions": [25, 25, 20]
+    "overall_dimensions": [20, 20, 10]
+  },
+
+  {
+    "type": "poi",
+    "name": "Garage Den Bosch",
+    "gps_location": {
+      "lat": 51.585300,
+      "lon": 4.732800
     },
-    {
-        "type": "poi",
-        "name": "Heuvelmans ",
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        },
-        "dimension": 20
+    "overall_dimensions": [40, 30, 10]
+  },
+
+  {
+    "type": "asset",
+    "name": "Tractor",
+    "id": "Tractor_EHV_close",
+    "build_year": 2022,
+    "gps_location": {
+      "lat": 51.468350,
+      "lon": 5.421450
     },
-    {
-        "type": "poi",
-        "name": "Kreitemolenstraat",
-        "gps_location": {
-            "lat": 51.607040408,
-            "lon": 5.1537499956
-        },
-        "dimension": 400
+    "overall_dimensions": [3, 2.5, 3],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Biodiesel (HVO)",
+    "consumption_per_hour": 15,
+    "color": "yellow"
+  },
+
+  {
+    "type": "asset",
+    "name": "Tractor",
+    "id": "Tractor_Tilburg",
+    "build_year": 2021,
+    "gps_location": {
+      "lat": 51.591500,
+      "lon": 5.023800
     },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens",
-        "id": "Vrachtwagen 1",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.359188,
-            "lon": 5.166491
-        },
-        "overall_dimensions": [3, 2, 2],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Electric",
-        "consumption_per_hour": 100,
-        "color": "yellow",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.359188,
-            "lon": 5.166491
-        }
+    "overall_dimensions": [3, 2.5, 3],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Diesel (fossiel)",
+    "consumption_per_hour": 15,
+    "color": "yellow"
+  },
+
+  {
+    "type": "asset",
+    "name": "Vrachtwagens",
+    "id": "Truck_Tilburg",
+    "build_year": 2020,
+    "gps_location": {
+      "lat": 51.591480,
+      "lon": 5.023780
     },
-    {
-        "type": "asset",
-        "id": "Vrachtwagen 2",
-        "name": "Vrachtwagens",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        },
-        "overall_dimensions": [3, 2, 2],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Electric",
-        "consumption_per_hour": 100,
-        "color": "yellow"
+    "overall_dimensions": [4, 2.5, 3],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Diesel (fossiel)",
+    "consumption_per_hour": 25,
+    "color": "yellow"
+  },
+
+  {
+    "type": "asset",
+    "name": "Aanhanger zwaar",
+    "id": "Trailer_Tilburg",
+    "build_year": 2020,
+    "gps_location": {
+      "lat": 51.591470,
+      "lon": 5.023770
     },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "id": "Kraan 1",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.584217,
-            "lon": 5.101924
-        },
-        "overall_dimensions": [4, 2, 3],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Electric",
-        "consumption_per_hour": 100,
-        "color": "yellow",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.584217,
-            "lon": 5.101924
-        }
+    "overall_dimensions": [10, 3.0, 3.5],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Diesel (fossiel)",
+    "consumption_per_hour": 0,
+    "color": "yellow"
+  },
+
+  {
+    "type": "asset",
+    "name": "Tractor",
+    "id": "Tractor_DB_1",
+    "build_year": 2020,
+    "gps_location": {
+      "lat": 51.585320,
+      "lon": 4.732820
     },
-    {
-        "type": "asset",
-        "name": "Tractor",
-        "id": "Tractor 1",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.638291,
-            "lon": 5.357588
-        },
-        "overall_dimensions": [3, 3, 2],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Biodiesel (HVO)",
-        "consumption_per_hour": 100,
-        "color": "yellow"
+    "overall_dimensions": [3, 2.5, 3],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Diesel (fossiel)",
+    "consumption_per_hour": 15,
+    "color": "yellow"
+  },
+
+  {
+    "type": "asset",
+    "name": "Tractor",
+    "id": "Tractor_DB_2",
+    "build_year": 2020,
+    "gps_location": {
+      "lat": 51.585310,
+      "lon": 4.732810
     },
-    {
-        "type": "asset",
-        "name": "Tractor",
-        "id": "Tractor 2",
-        "build_year": 2021,
-        "gps_location": {
-            "lat": 51.720407,
-            "lon": 5.269097
-        },
-        "overall_dimensions": [3, 3, 2],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 100,
-        "color": "yellow"
+    "overall_dimensions": [3, 2.5, 3],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Biodiesel (HVO)",
+    "consumption_per_hour": 15,
+    "color": "yellow"
+  },
+
+  {
+    "type": "asset",
+    "name": "Vrachtwagens",
+    "id": "Truck_DB",
+    "build_year": 2020,
+    "gps_location": {
+      "lat": 51.585330,
+      "lon": 4.732830
     },
-    {
-        "type": "asset",
-        "name": "Tractor",
-        "id": "Tractor 3",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        },
-        "overall_dimensions": [3, 3, 2],
-        "fuel_type": "Biodiesel (HVO)",
-        "consumption_per_hour": 100,
-        "emission_class_version": "StageIIIA",
-        "color": "yellow"
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens",
-        "id": "Vrachtwagen 3",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.617221,
-            "lon": 5.436735
-        },
-        "overall_dimensions": [3.5, 2, 2],
-        "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 100,
-        "emission_class_version": "StageIIIA",
-        "color": "yellow",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.617221,
-            "lon": 5.436735
-        }
-    }
+    "overall_dimensions": [4, 2.5, 3],
+    "emission_class_version": "StageIIIA",
+    "fuel_type": "Diesel (fossiel)",
+    "consumption_per_hour": 25,
+    "color": "yellow"
+  }
 ]

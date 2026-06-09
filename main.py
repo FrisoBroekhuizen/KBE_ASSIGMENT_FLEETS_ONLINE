@@ -7,6 +7,7 @@ import sys
 import subprocess
 import datetime
 import time
+import numpy as np
 from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
@@ -159,6 +160,17 @@ class MissionStrategyApp(Base):
 
     @action()
     def JSONReader(self):
+        # reset mutable state so we don't accumulate entries across runs
+        self.depots = []
+        self.machines = []
+        self.trailers = []
+        self.number_of_machines_per_type = {
+            "Crane": 0,
+            "Tractor": 0,
+            "Truck": 0,
+            "Tool": 0,
+            "Pump": 0,
+        }
         if not self.needed_machinery in self.possible_machinery:
             generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
             return
@@ -262,6 +274,10 @@ class MissionStrategyApp(Base):
 
     @action
     def MissionIterator(self) -> "MissionStrategyApp":
+        print("=== DEBUG: current machines ===")
+        print("Total machines:", len(self.machines))
+        for m in self.machines:
+            print(type(m).__name__, getattr(m, "machine_id", None))
         # --- deadline consistency check (WARNING but no abort) ---
         if self.strict_deadline and self.deadline_time is None:
             generate_warning(
@@ -322,11 +338,6 @@ class MissionStrategyApp(Base):
         return winning_mission
 
     def jobAnalyzer(self):
-        '''
-        This function determines the maximum number of machines that can work on a work site, based on the machine
-        area and the site area, to not have an overcrowded work site.
-        '''
-        # TODO: Find better way to determine area_factor
         area_factor = 0.2
         job_machines_areas = []
         for m in self.machines:
@@ -334,8 +345,9 @@ class MissionStrategyApp(Base):
                 job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1])
 
         job_area = self.site_dimensions[0] * self.site_dimensions[1]
-        average_job_machine_area = np.mean(job_machines_areas)
-        if average_job_machine_area == 0: average_job_machine_area = 1
+        average_job_machine_area = np.mean(job_machines_areas) if job_machines_areas else 0.0
+        if average_job_machine_area == 0:
+            average_job_machine_area = 1.0
 
         max_number_of_machines = area_factor * job_area / average_job_machine_area
 

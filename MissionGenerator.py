@@ -3,6 +3,7 @@ from typing import List, Tuple
 from assets import Vehicle, Tool
 import numpy as np
 import Routing
+import math
 import copy
 
 # 1) Matrix construction -------------------------------------------------------
@@ -521,29 +522,151 @@ def generate_missions(app,
     return mission_list
 
 def deadline_restricted_mission_generator(
+    app,
     missions: List,
     deadline_total_hours: float,
 ) -> List:
     """
-    Filter or adapt missions so that they respect a total available time budget.
+    Build a deadline-feasible mission by:
+    1) For each candidate *machine* of the needed type (Vehicle OR Tool),
+       taking the mission with the *shortest* total travel time.
+       - Vehicles may have both direct and truck missions; we keep the
+         shortest of these.
+       - Tools only have truck missions; we just take those.
+    2) Sorting these candidate machines by this shortest travel time.
+    3) Determining how many machines X are *minimally* required to meet the
+       man_hours within the deadline: ceil(man_hours / deadline_total_hours),
+       then limiting this by jobAnalyzer() (site capacity).
+    4) Starting with N = min(X, max_on_site, available) + 1 machines to
+       compensate for travel time, and increasing N until the summed effective
+       machine hours meet the required man_hours:
+           eff_i = max(deadline_total_hours - travel_hours_i, 0.0)
+           sum(eff_i for i in first N) >= man_hours
+       or until we run out of machines.
+    5) Combining those N machines (and their missions' transport jobs) into a
+       single Mission.
 
-    Parameters
-    ----------
-    missions :
-        List of Mission objects (as created by generate_missions).
-        Each mission is expected to have its time already evaluated
-        (m.mission_time) when this function is called, or you can
-        choose to call this *after* _mission_evaluator.
-    deadline_total_hours :
-        Total available hours between start_time and deadline_time.
-
-    Returns
-    -------
-    List
-        New list of missions that satisfy the deadline constraint.
-        Currently returns all missions unchanged (placeholder).
+    If no feasible combination exists (even with all candidates), we still
+    return a best-effort combined mission with all candidates.
     """
+    if not missions or deadline_total_hours <= 0.0:
+        return missions
+
+    work_job = app.work_job
+    required_man_hours = float(work_job.man_hours)
+    if required_man_hours <= 0.0:
+        return missions
+
+    needed_type = work_job.needed_machines  # e.g. "Tractor"
+
+    # --- 1) Minimal number of machines required from deadline alone ---
+    minimal_needed_machines = max(
+        1, int(math.ceil(required_man_hours / deadline_total_hours))
+    )
+
+    # --- 2) Max number of machines on site from area constraint ---
+    max_on_site_raw = app.jobAnalyzer()  # can be float
+    max_on_site = max(1, int(math.floor(max_on_site_raw)))
+
+    # --- 3) For each machine (vehicle OR tool), pick mission with shortest travel time ---
+    best_for_machine = {}  # machine -> (travel_time_hours, mission)
+
+    for mission in missions:
+        if not getattr(mission, "machines", None):
+            continue
+
+        machine = mission.machines[0]
+
+        # Only consider machines of needed type (vehicles OR tools)
+        if not isinstance(machine, (Vehicle, Tool)):
+            continue
+        if machine.machine_type != needed_type:
+            continue
+
+        # Travel time: sum all TransportJob.routeDuration [minutes] → hours
+        travel_minutes = sum(
+            tj.routeDuration for tj in getattr(mission, "transport_jobs", [])
+        )
+        travel_hours = travel_minutes / 60.0
+
+        prev = best_for_machine.get(machine)
+        if (prev is None) or (travel_hours < prev[0]):
+            best_for_machine[machine] = (travel_hours, mission)
+
+    candidates = [
+        (machine, travel_h, mission)
+        for machine, (travel_h, mission) in best_for_machine.items()
+    ]
+
+    if not candidates:
+        return missions
+
+    # sort by shortest travel time
+    candidates.sort(key=lambda tup: tup[1])
+    available = len(candidates)
+
+    # --- 4) how many machines do we start with? ---
+    base_X = min(minimal_needed_machines, max_on_site, available)
+    if base_X < 1:
+        base_X = 1
+
+    # Start with the minimal required number of machines
+    N = base_X
+
+    def total_machine_hours(num: int) -> float:
+        total = 0.0
+        for k in range(num):
+            _, travel_h, _ = candidates[k]
+            eff = max(deadline_total_hours - travel_h, 0.0)
+            total += eff
+        return total
+
+    # Grow N until we satisfy required_man_hours or we run out
+    while N <= available and total_machine_hours(N) < required_man_hours:
+        N += 1
+
+    if N > available:
+        N = available
+
+    selected = candidates[:N]
+    sum_eff = total_machine_hours(N)
+    print(f"Required man_hours: {required_man_hours}, effective-hours from selected: {sum_eff}")
 
 
-    return missions
+    # --- DEBUG OUTPUT ---
+    print("=== DEBUG: deadline candidates ===")
+    for machine, travel_h, mission in candidates:
+        print(type(machine).__name__, getattr(machine, "machine_id", None),
+              "travel_h:", travel_h)
+    print("available:", available)
+    print("N selected:", N)
+    print("selected machines:",
+          [m.machine_id for (m, _, _) in selected])
+
+    # --- 5) Combine selected machines into a single mission ---
+    combined_transport_jobs = []
+    combined_machines = []
+
+    for machine, _, mission in selected:
+        combined_transport_jobs.extend(mission.transport_jobs)
+        combined_machines.append(machine)
+
+    MissionCls = type(missions[0])
+
+    work_job_copy = copy.copy(work_job)
+
+    # Split into vehicles vs tools for correct NOx/CO2/cost accounting
+    vehicles = [m for m in combined_machines if isinstance(m, Vehicle)]
+    tools = [m for m in combined_machines if isinstance(m, Tool)]
+    work_job_copy.assigned_vehicles = vehicles
+    work_job_copy.assigned_tools = tools
+
+    combined_mission = MissionCls(
+        transport_jobs=combined_transport_jobs,
+        work_jobs=[work_job_copy],
+        machines=combined_machines,
+    )
+
+    return [combined_mission]
+
 
