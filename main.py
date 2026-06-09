@@ -310,11 +310,10 @@ class MissionStrategyApp(Base):
 
             # Call special deadline-aware mission generator / filter
             self.all_generated_missions = deadline_restricted_mission_generator(
+                self,
                 self.all_generated_missions,
                 deadline_total_hours,
             )
-
-
 
         if not self.all_generated_missions:
             raise RuntimeError("MissionGenerator produced no missions to evaluate.")

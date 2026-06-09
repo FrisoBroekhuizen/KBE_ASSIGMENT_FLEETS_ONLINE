@@ -1,5 +1,6 @@
 # MissionGenerator.py
 from typing import List, Tuple
+from assets import Vehicle, Tool
 import numpy as np
 import Routing
 import copy
