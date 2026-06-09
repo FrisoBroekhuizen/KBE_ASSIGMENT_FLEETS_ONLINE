@@ -2,6 +2,7 @@
 from typing import List, Tuple
 import numpy as np
 import Routing
+import copy
 
 # 1) Matrix construction -------------------------------------------------------
 def construct_matrix(app) -> Tuple[np.ndarray, list]:
@@ -251,7 +252,6 @@ def generate_missions(app,
             energy_source=getattr(truck, "energy_source", None),
             contents=contents,
         )
-
     # ------------------------------------------------------------------
     # Use standalone helpers instead of methods on app
     # ------------------------------------------------------------------
@@ -283,10 +283,11 @@ def generate_missions(app,
                         end_location_gps=app.gps_location,
                     )
                     work_job = app.work_job
-                    work_job.assigned_vehicles = [machine]
+                    # work_job.assigned_vehicles = [machine]
                     mission = MissionCls(
                         transport_jobs=[transport_job],
                         work_jobs=[work_job],
+                        machines=[machine]
                     )
                     mission_list.append(mission)
 
@@ -300,10 +301,11 @@ def generate_missions(app,
                 end_location_gps=app.gps_location,
             )
             work_job = app.work_job
-            work_job.assigned_vehicles = [obj]
+            # work_job.assigned_vehicles = [obj]
             mission = MissionCls(
                 transport_jobs=[transport_job],
                 work_jobs=[work_job],
+                machines=[obj]
             )
             mission_list.append(mission)
 
@@ -409,16 +411,17 @@ def generate_missions(app,
                 )
 
                 work_job = app.work_job
-                if isinstance(machine, VehicleCls):
-                    work_job.assigned_vehicles = [machine]
-                    work_job.assigned_tools = []
-                else:
-                    work_job.assigned_tools = [machine]
-                    work_job.assigned_vehicles = []
+                # if isinstance(machine, VehicleCls):
+                #     work_job.assigned_vehicles = [machine]
+                #     work_job.assigned_tools = []
+                # else:
+                #     work_job.assigned_tools = [machine]
+                #     work_job.assigned_vehicles = []
 
                 mission = MissionCls(
                     transport_jobs=[transport_job_toDepot, transport_job_toWorksite],
                     work_jobs=[work_job],
+                    machines=[machine],
                 )
                 mission_list.append(mission)
 
@@ -500,16 +503,17 @@ def generate_missions(app,
             )
 
             work_job = app.work_job
-            if isinstance(machine, VehicleCls):
-                work_job.assigned_vehicles = [machine]
-                work_job.assigned_tools = []
-            else:
-                work_job.assigned_tools = [machine]
-                work_job.assigned_vehicles = []
+            # if isinstance(machine, VehicleCls):
+                # work_job.assigned_vehicles = [machine]
+                # work_job.assigned_tools = []
+            # else:
+                # work_job.assigned_tools = [machine]
+                # work_job.assigned_vehicles = []
 
             mission = MissionCls(
                 transport_jobs=[transport_job_toDepot, transport_job_toWorksite],
                 work_jobs=[work_job],
+                machines=[machine]
             )
             mission_list.append(mission)
 

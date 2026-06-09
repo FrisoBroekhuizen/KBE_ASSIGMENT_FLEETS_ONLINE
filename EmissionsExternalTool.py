@@ -84,7 +84,6 @@ def NOxCalculator(
     fuel_liters: float | None = None,
     engine_hours: float | None = None,
 ) -> float:
-    return 0.0
     if energy_source.strip().lower() == "electric":
         return 0.0
 
@@ -93,7 +92,7 @@ def NOxCalculator(
     body = {
         "emissionClassVersion": emission_class_version,
         "kwh": 250,  # required — engine power in kW
-        "usesAdblue": True,
+        "usesAdblue": False,
         "adblueLiters": 6.2,
     }
     if fuel_liters is not None:

@@ -76,6 +76,12 @@ class MissionStrategyApp(Base):
     # Only required / meaningful if strict_deadline is True
     deadline_time: Optional[datetime.datetime] = Input(None)
 
+    number_of_machines_per_type = {"Crane":0,
+                                   "Tractor":0,
+                                   "Truck":0,
+                                   "Tool":0,
+                                   "Pump":0}
+
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
     machines: List[Machine] = Input([])
@@ -209,6 +215,7 @@ class MissionStrategyApp(Base):
                     generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l["id"]}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
+                if m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
                 m.color = l['color']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                 if "Aanhanger" in l["name"]:
@@ -220,15 +227,15 @@ class MissionStrategyApp(Base):
                     elif "Biodiesel" in l["fuel_type"]: m.energy_source = "biodiesel-(hvo)"
                     elif "Electric" in l["fuel_type"]: m.energy_source = "Electric"
                     m.emission_class = l["emission_class_version"]
+                    m.consumption_per_hour = l["consumption_per_hour"]
                     self.machines.append(m)
+                    self.number_of_machines_per_type[m.machine_type] += 1
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
                 elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
             else:
                 generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
-
-
         asset_overall_dimensions = (0.0, 0.0, 0.0)
         if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
 
@@ -320,6 +327,7 @@ class MissionStrategyApp(Base):
 
         toc = time.perf_counter()
         print(f"Took {toc - tic:0.4f} seconds")
+
         return winning_mission
 
     def jobAnalyzer(self):
@@ -349,6 +357,7 @@ class MissionStrategyApp(Base):
         """For each mission, sum maintenance, NOx, CO2, cost and time over all
         its transport and work jobs."""
         for m in missions:
+            m.work_jobs[0].assigned_vehicles = m.machines
             total_mission_NOx = 0.0
             total_mission_CO2 = 0.0
             total_mission_cost = 0.0
@@ -556,6 +565,8 @@ class MissionStrategyApp(Base):
 
     def AllocateMachines(self):
         machines = self.machines
+        for machine in machines:
+            machine.number_of_this_type = self.number_of_machines_per_type[machine.machine_type]
         trailers = self.trailers
         road_parked = []
         for depot in self.depots:
@@ -647,7 +658,7 @@ class MissionStrategyApp(Base):
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
-
+    machines: List["Machine"] = Input([])
     mission_preferences = Input([1.0, 1.0, 1.0])
 
     mission_NOx = Input(0.0)
