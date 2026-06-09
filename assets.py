@@ -49,7 +49,7 @@ class Machine(Base):
     historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
     emission_class_version: str = Input("Stage_V", validator=OneOf(("Stage_I", "Stage_II", "Stage_III", "Stage_IV", "Stage_V", "Stage_VI", "Stage_VII")),)
     worth: float = Input(1.0) # Million Euro's
-    energy_source: str = Input("Diesel") # Can be: Diesel, Gasoline, Electric, Hybrid
+    energy_source: str = Input("diesel-(fossiel)") # Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
     mass: float = Input(0.0)
 
     consumption_per_hour = Input(1.0) # (L or kW)/h
@@ -75,15 +75,15 @@ class Machine(Base):
     w_stationary = 1e-8
 
     # Current energy prices in eur per kg, L or kW
-    energy_source_cost = {"Diesel": 2.19, # /L
-                          "Biodiesel": 1.9,
-                             "Gasoline": 2.31, # /L
+    energy_source_cost = {"diesel-(fossiel)": 2.19, # /L
+                          "biodiesel-(hvo)": 1.9,
+                             "benzine-(e10-blend)": 2.31, # /L
                              "Electric": 0.8, # /kWh
                              "Hybrid": 1.4} # /Combo
 
-    energy_source_factors = {"Diesel": 1.2,
-                             "Biodiesel": 1.3,
-                             "Gasoline": 1.1,
+    energy_source_factors = {"diesel-(fossiel)": 1.2,
+                             "biodiesel-(hvo)": 1.3,
+                             "benzine-(e10-blend)": 1.1,
                              "Electric": 0.8,
                              "Hybrid": 1.3}
 
@@ -107,7 +107,6 @@ class Machine(Base):
         """CO2 [kg] over self.hours_used."""
         fuel_type = self.energy_source.lower()
         fuel_usage = self.consumption_per_hour * self.hours_used
-        return 1
         result = CO2Calculator(energy_source=self.energy_source,fuel_type=fuel_type,fuel_usage_liters=fuel_usage,year=self.build_year,)
         return result
 
@@ -115,7 +114,6 @@ class Machine(Base):
     def individualNOX(self) -> float:
         """NOx [g] over self.hours_used using UB method by default."""
         fuel_usage = self.consumption_per_hour * self.hours_used
-        return 1
         # UB mode: just fuel_liters and engine_hours
         result = NOxCalculator(energy_source=self.energy_source, emission_class_version=self.emission_class_version,
             fuel_liters=fuel_usage, engine_hours=self.hours_used,)

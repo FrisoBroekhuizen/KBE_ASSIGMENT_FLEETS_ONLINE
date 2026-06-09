@@ -5,19 +5,16 @@ from Warning import generate_warning
 
 import requests
 
-BASE_URL = "https://api.deepdigital.org/v2"
-USERNAME = "testing@fleets-online.com"
-PASSWORD = "WTuXQ8ZsK9#mT4qZ"
-
+BASE_URL = "https://api.v2.deepdigital.org"
 
 def _get_access_token() -> str:
     try:
         resp = requests.post(
-            f"{BASE_URL}/oauth/token",
+            "https://api.v2.deepdigital.org/oauth/token",
             data={
                 "grant_type": "password",
-                "username": USERNAME,
-                "password": PASSWORD,
+                "username": "testing@fleets-online.com",
+                "password": "WTuXQ8ZsK9#mT4qZ",
             },
             timeout=10.0,
         )
@@ -38,7 +35,7 @@ def _get_access_token() -> str:
 def _get_auth_headers() -> dict:
     return {"Authorization": f"Bearer {_get_access_token()}"}
 
-
+# Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
 def CO2Calculator(
     *,
     energy_source: str,
@@ -48,10 +45,6 @@ def CO2Calculator(
 ) -> float:
     if energy_source.strip().lower() == "electric":
         return 0.0
-    elif energy_source.strip().lower() == "biodiesel":
-        WTW_factor = 0.3 # Factor to account for well-to-well emissions instead of wheel-to-well
-    else:
-        WTW_factor = 1
     headers = _get_auth_headers()
 
     try:
@@ -65,9 +58,13 @@ def CO2Calculator(
             },
             timeout=10.0,
         )
+        if not resp.ok:
+            print(resp.status_code)
+            print(resp.text)
+
         resp.raise_for_status()
         data = resp.json()
-        return float(data["co2Kg"]) * WTW_factor
+        return float(data["co2Kg"])
     except requests.RequestException as exc:
         generate_warning(
             "Emissions API error",
@@ -87,6 +84,7 @@ def NOxCalculator(
     fuel_liters: float | None = None,
     engine_hours: float | None = None,
 ) -> float:
+    return 0.0
     if energy_source.strip().lower() == "electric":
         return 0.0
 
@@ -94,6 +92,9 @@ def NOxCalculator(
 
     body = {
         "emissionClassVersion": emission_class_version,
+        "kwh": 250,  # required — engine power in kW
+        "usesAdblue": True,
+        "adblueLiters": 6.2,
     }
     if fuel_liters is not None:
         body["fuelLiters"] = float(fuel_liters)
@@ -102,11 +103,15 @@ def NOxCalculator(
 
     try:
         resp = requests.post(
-            f"{BASE_URL}/emission-calculators/ub",
+            f"{BASE_URL}/emission-calculators/aub",
             headers=headers,
             json=body,
             timeout=10.0,
         )
+        if not resp.ok:
+            print(resp.status_code)
+            print(resp.text)
+
         resp.raise_for_status()
         data = resp.json()
         return float(data["noxGrams"])

@@ -29,12 +29,12 @@
         "type": "poi",
         "name": "Garage vd Sande",
         "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
+            "lat": 51.593139664,
+            "lon": 5.1432600664
         },
         "overall_dimensions": [
             100,
-            50,
+            50.0,
             10
         ]
     },
@@ -59,8 +59,8 @@
             "lon": 5.1537499956
         },
         "overall_dimensions": [
-            400,
             200,
+            100.0,
             10
         ]
     },

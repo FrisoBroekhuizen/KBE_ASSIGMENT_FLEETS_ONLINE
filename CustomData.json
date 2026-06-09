@@ -58,12 +58,13 @@
         "type": "asset",
         "name": "Vrachtwagens",
         "id": "Placeholder",
-        "build_year": 2012,
+        "build_year": 2020,
         "gps_location": {
             "lat": 51.359188,
             "lon": 5.166491
         },
         "overall_dimensions": [3, 2, 2],
+        "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "color": "yellow"
     },
@@ -77,6 +78,7 @@
             "lon": 4.921730
         },
         "overall_dimensions": [3, 2, 2],
+        "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "color": "yellow"
     },
@@ -84,12 +86,13 @@
         "type": "asset",
         "name": "Kranen",
         "id": "Placeholder",
-        "build_year": 2016,
+        "build_year": 2020,
         "gps_location": {
             "lat": 51.584217,
             "lon": 5.101924
         },
         "overall_dimensions": [4, 2, 3],
+        "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "color": "yellow"
     },
@@ -103,6 +106,7 @@
             "lon": 5.357588
         },
         "overall_dimensions": [3, 3, 2],
+        "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "color": "yellow"
     },
@@ -116,6 +120,7 @@
             "lon": 5.269097
         },
         "overall_dimensions": [3, 3, 2],
+        "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "color": "yellow"
     },
@@ -129,20 +134,22 @@
             "lon": 4.921730
         },
         "overall_dimensions": [3, 3, 2],
-        "fuel_type": "Electric",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIA",
         "color": "yellow"
     },
     {
         "type": "asset",
         "name": "Vrachtwagens",
         "id": "Placeholder",
-        "build_year": 2018,
+        "build_year": 2020,
         "gps_location": {
             "lat": 51.617221,
             "lon": 5.436735
         },
         "overall_dimensions": [3.5, 2, 2],
-        "fuel_type": "Electric",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
         "color": "yellow"
     }
 ]
