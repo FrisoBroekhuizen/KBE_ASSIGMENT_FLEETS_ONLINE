@@ -514,3 +514,4 @@ def generate_missions(app,
             mission_list.append(mission)
 
     return mission_list
+

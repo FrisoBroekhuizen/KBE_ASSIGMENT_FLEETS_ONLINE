@@ -71,7 +71,10 @@ class MissionStrategyApp(Base):
 
     # Aggregations / associations
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
-    strict_deadline: bool = Input(False)
+
+    strict_deadline: bool = Input(False)  # default: no deadline restriction
+    # Only required / meaningful if strict_deadline is True
+    deadline_time: Optional[datetime.datetime] = Input(None)
 
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
@@ -259,6 +262,15 @@ class MissionStrategyApp(Base):
 
     @action
     def MissionIterator(self) -> "MissionStrategyApp":
+        # --- deadline consistency check (WARNING but no abort) ---
+        if self.strict_deadline and self.deadline_time is None:
+            generate_warning(
+                "Missing deadline",
+                "You enabled 'strict_deadline', but did not specify a 'deadline_time'.\n\n"
+                "The strategy will still be generated, but deadlines are ignored.\n"
+                "Please fill in 'deadline_time' if you want real deadline enforcement."
+            )
+            self.strict_deadline = False
         tic = time.perf_counter()
         """Top-level mission loop:
         1) Generate candidate missions
@@ -279,6 +291,8 @@ class MissionStrategyApp(Base):
             VehicleCls=Vehicle,
             TrailerCls=Trailer,
         )
+
+
 
         if not self.all_generated_missions:
             raise RuntimeError("MissionGenerator produced no missions to evaluate.")
