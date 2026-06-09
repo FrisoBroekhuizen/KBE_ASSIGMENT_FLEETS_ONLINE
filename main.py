@@ -73,6 +73,12 @@ class MissionStrategyApp(Base):
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
     strict_deadline: bool = Input(False)
 
+    number_of_machines_per_type = {"Crane":0,
+                                   "Tractor":0,
+                                   "Truck":0,
+                                   "Tool":0,
+                                   "Pump":0}
+
     # Aggregations / associations
     fleet: Optional["Fleet"] = Input(None)
     machines: List[Machine] = Input([])
@@ -220,14 +226,13 @@ class MissionStrategyApp(Base):
                     m.emission_class = l["emission_class_version"]
                     m.consumption_per_hour = l["consumption_per_hour"]
                     self.machines.append(m)
+                    self.number_of_machines_per_type[m.machine_type] += 1
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
                 elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
             else:
                 generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
-
-
         asset_overall_dimensions = (0.0, 0.0, 0.0)
         if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
 
@@ -533,6 +538,8 @@ class MissionStrategyApp(Base):
 
     def AllocateMachines(self):
         machines = self.machines
+        for machine in machines:
+            machine.number_of_this_type = self.number_of_machines_per_type[machine.machine_type]
         trailers = self.trailers
         road_parked = []
         for depot in self.depots:

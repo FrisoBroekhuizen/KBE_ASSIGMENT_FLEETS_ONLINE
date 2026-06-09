@@ -56,6 +56,8 @@ class Machine(Base):
     color: Any = Input(None)
     consumption_per_hour = Input(1.0) # (L or kW)/h
 
+    number_of_this_type = 1
+
     # overall_dimensions: array[x, y, z]
     overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
     total_length = Input(0) # Only used for truck + tractor combinations
@@ -96,6 +98,13 @@ class Machine(Base):
                             "Tool": 1.6,
                             "Pump": 1.9}
 
+    expected_turnover_factors = {"Crane": 500,
+                            "Tractor": 300,
+                            "Truck": 250,
+                            "Vehicle": 100,
+                            "Tool": 20,
+                            "Pump": 50}
+
     wage = Input(20)
 
     # UML operations – placeholders
@@ -126,7 +135,6 @@ class Machine(Base):
     def individualCost(self) -> float:
         hours_used = self.hours_used
         wearFactor = self.individualDepreciation # A factor to account for extra maintenance, inefficiency, extra emissions, reliability, etc...
-        # print("-- " + str(self.machine_id) + " --")
         try: # Check if vehicle is carrying any additional mass
             content_mass = self.contents.mass
             try: # Check if vehicle was carrying a trailer that is carrying additional mass
@@ -136,12 +144,28 @@ class Machine(Base):
             loading_factor = (self.mass + content_mass + trailer_content_mass) / self.mass
         except:
             loading_factor = 1
-        # print("Loading factor: " + str(loading_factor))
-        # print("Wear factor: " + str(wearFactor))
+
+        # Operating costs, which includes: fuel, predicted maintenance and wages
         operatingCost = self.consumption_per_hour * hours_used * self.energy_source_cost[self.energy_source] * loading_factor * wearFactor
-        # print("Operating cost: " + str(operatingCost))
         operatingCost += self.wage * self.hours_used
-        return operatingCost
+
+        # Opportunity costs, the cost of using this machine instead of the second best option, due to: missed turnover and scarcity value of the machine
+        opportunityCost = self.expected_turnover_factors[self.machine_type] * self.hours_used
+        scarcity_factor = 1 / np.sqrt(self.number_of_this_type) # Make the simplification that the scarcity of a machine scales with 1 / sqrt(number of available machines)
+        opportunityCost *= scarcity_factor
+
+        # Check to see if machine is a truck carrying another vehicle, which also has associated opportunity costs
+        try:
+            if self.contents != None:
+                if self.contents.contents != []:
+                    truckContentOpportunityCost = self.expected_turnover_factors[self.contents.contents[0].machine_type] * self.hours_used
+                else: truckContentOpportunityCost = 0
+            else:
+                truckContentOpportunityCost = 0
+        except:
+            truckContentOpportunityCost = 0
+
+        return operatingCost + opportunityCost + truckContentOpportunityCost
 
     @Attribute
     def individualDepreciation(self) -> float:
