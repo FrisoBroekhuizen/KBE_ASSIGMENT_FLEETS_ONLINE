@@ -42,38 +42,38 @@ class Machine(Base):
         - CalculateIndividualCost()
     """
 
-    machine_id = Input("", widget=TextField(
+    machine_id = Input("", widget=TextField(autocompute=True,
             background_color=lambda self: "Red" if self.machine_id == "" else "White"
         ),)
-    machine_type = Input("", widget=TextField(
+    machine_type = Input("", widget=TextField(autocompute=True,
             background_color=lambda self: "Red" if self.machine_type not in ["Tractor", "Truck", "Crane", "Tool", "Pump"] else "White"
         ),)
-    build_year: int = Input(datetime.datetime.today().year) # default current year (new)
+    build_year: int = Input(datetime.datetime.today().year, widget=PyField(autocompute=True)) # default current year (new)
 
     # historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
-    emission_class: str = Input("StageIIIA", validator=OneOf(("StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")), widget=TextField)
-    worth: float = Input(1.0) # Million Euro's
-    energy_source: str = Input("Choose one of: diesel-(fossiel), biodiesel-(hvo), benzine-(e10-blend), Electric, Hybrid", widget=TextField(
+    emission_class: str = Input("StageIIIA", validator=OneOf(("StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")), widget=TextField(autocompute=True))
+    worth: float = Input(1.0, widget=PyField(autocompute=True)) # Million Euro's
+    energy_source: str = Input("Choose one of: diesel-(fossiel), biodiesel-(hvo), benzine-(e10-blend), Electric, Hybrid", widget=TextField(autocompute=True,
             background_color=lambda self: "Red" if self.energy_source not in ["diesel-(fossiel)", "biodiesel-(hvo)", "benzine-(e10-blend)", "Electric", "Hybrid"] else "White"
         )) # Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
-    mass: float = Input(0.0)
+    mass: float = Input(0.0, widget=PyField(autocompute=True))
     # Color used in visualizations (Depot, trailers, etc.).
     # None or "" means "use class-dependent default".
-    color: str = Input("Yellow", widget=TextField(
+    color: str = Input("Yellow", widget=TextField(autocompute=True,
             background_color=lambda self: self.color
         ),)
-    consumption_per_hour = Input(1.0) # (L or kW)/h
+    consumption_per_hour = Input(1.0, widget=PyField(autocompute=True)) # (L or kW)/h
 
     number_of_this_type = 1
 
     # overall_dimensions: array[x, y, z]
-    overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0), widget=PyField(
+    overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0), widget=PyField(autocompute=True,
             background_color=lambda self: "Red" if self.overall_dimensions == (0.0, 0.0, 0.0) else "White"
         ),)
     total_length = 0 # Only used for truck + tractor combinations
 
     # GPS location of the machine: (latitude [deg], longitude [deg])
-    gps_location: Tuple[float, float] = Input((0.0, 0.0), widget=PyField(
+    gps_location: Tuple[float, float] = Input((0.0, 0.0), widget=PyField(autocompute=True,
             background_color=lambda self: "Red" if self.gps_location == (0.0, 0.0) else "White"
         ),)
 

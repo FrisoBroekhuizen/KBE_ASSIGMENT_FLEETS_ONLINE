@@ -90,7 +90,7 @@ def NOxCalculator(
     headers = _get_auth_headers()
 
     body = {
-        "emissionClassVersion": emission_class_version,
+        "emissionClassVersion": emission_class,
         "kwh": 250,  # required — engine power in kW
         "usesAdblue": False,
         "adblueLiters": 6.2,

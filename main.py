@@ -11,7 +11,7 @@ from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf, all_is_number
-from parapy.core.widgets import PyField
+from parapy.core.widgets import PyField, CheckBox
 import copy
 from MissionGenerator import generate_missions
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
@@ -48,16 +48,14 @@ class MissionStrategyApp(Base):
                  - If time: combine multiple work jobs into one mission.
                  - Maximum vehicles in worksite is area worksite divided by area vehicle times a factor"""
 
-    # TODO: UPDATE ONCE WE HAVE THE EXAMPLE JSON FILE!!
-
-    use_FleetsOnline_data = Input(False)
+    use_FleetsOnline_data = Input(False, widget=CheckBox)
 
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
     # Mission attributes
-    needed_tools: str = Input("")
-    needed_machinery: str = Input("Tractor")
-    man_hours = Input(50)
+    needed_tools: str = Input("", widget=TextField(autocompute=True))
+    needed_machinery: str = Input("Tractor", widget=TextField(autocompute=True, background_color=lambda self: "Red" if self.needed_machinery not in self.possible_machinery and self.needed_machinery != "" else "White"))
+    man_hours = Input(0, widget=PyField(autocompute=True, background_color=lambda self: "Red" if self.man_hours == 0 else "White"))
 
     standard_locations = {"Eindhoven":(51.468288, 5.421365),
                           "Tilburg":(51.591433, 5.023739),
@@ -71,8 +69,8 @@ class MissionStrategyApp(Base):
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
     # Aggregations / associations
-    mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
-    strict_deadline: bool = Input(False)
+    mission_preferences: List[float] = Input([1.0, 1.0, 1.0], widget=PyField(autocompute=True), validator=all_is_number)  # List of weights for the different optimalisation goals
+    strict_deadline: bool = Input(False, widget=CheckBox())
 
     number_of_machines_per_type = {"Crane":0,
                                    "Tractor":0,
@@ -81,7 +79,6 @@ class MissionStrategyApp(Base):
                                    "Pump":0}
 
     # Aggregations / associations
-    fleet: Optional["Fleet"] = Input(None)
     machines: List[Machine] = Input([])
     trailers: List[Trailer] = Input([])
     depots: List[Depot] = Input([])
@@ -638,6 +635,15 @@ class MissionStrategyApp(Base):
         # Write FleetsOnline data to FleetsOnlineData.json file
         with open('CustomData.json', 'w') as f:
             json.dump(data, f, indent=4)
+
+    @action(button_label="Delete the last added machine", label="Delete machine")
+    def RemoveVehicle(self):
+        with open("CustomData.json", "r") as f:
+            data = json.load(f)
+        data = data[0:len(data)]
+        with open('CustomData.json', 'w') as f:
+            json.dump(data, f, indent=4)
+        generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
 
 
 class Mission(Base):

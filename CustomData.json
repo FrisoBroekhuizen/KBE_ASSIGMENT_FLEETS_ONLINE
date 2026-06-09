@@ -15,7 +15,11 @@
             "lat": 51.584217,
             "lon": 5.101924
         },
-        "overall_dimensions": [25, 25, 20]
+        "overall_dimensions": [
+            25,
+            25,
+            20
+        ]
     },
     {
         "type": "poi",
@@ -44,16 +48,15 @@
             "lat": 51.359188,
             "lon": 5.166491
         },
-        "overall_dimensions": [3, 2, 2],
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "consumption_per_hour": 100,
-        "color": "yellow",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.359188,
-            "lon": 5.166491
-        }
+        "color": "yellow"
     },
     {
         "type": "asset",
@@ -62,9 +65,13 @@
         "build_year": 2025,
         "gps_location": {
             "lat": 51.590574,
-            "lon": 4.921730
+            "lon": 4.92173
         },
-        "overall_dimensions": [3, 2, 2],
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "consumption_per_hour": 100,
@@ -79,16 +86,15 @@
             "lat": 51.584217,
             "lon": 5.101924
         },
-        "overall_dimensions": [4, 2, 3],
+        "overall_dimensions": [
+            4,
+            2,
+            3
+        ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Electric",
         "consumption_per_hour": 100,
-        "color": "yellow",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.584217,
-            "lon": 5.101924
-        }
+        "color": "yellow"
     },
     {
         "type": "asset",
@@ -99,7 +105,11 @@
             "lat": 51.638291,
             "lon": 5.357588
         },
-        "overall_dimensions": [3, 3, 2],
+        "overall_dimensions": [
+            3,
+            3,
+            2
+        ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Biodiesel (HVO)",
         "consumption_per_hour": 100,
@@ -114,7 +124,11 @@
             "lat": 51.720407,
             "lon": 5.269097
         },
-        "overall_dimensions": [3, 3, 2],
+        "overall_dimensions": [
+            3,
+            3,
+            2
+        ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Diesel (fossiel)",
         "consumption_per_hour": 100,
@@ -127,15 +141,38 @@
         "build_year": 2025,
         "gps_location": {
             "lat": 51.590574,
-            "lon": 4.921730
+            "lon": 4.92173
         },
-        "overall_dimensions": [3, 3, 2],
+        "overall_dimensions": [
+            3,
+            3,
+            2
+        ],
         "fuel_type": "Biodiesel (HVO)",
         "consumption_per_hour": 100,
         "emission_class_version": "StageIIIA",
         "color": "yellow"
     },
     {
+        "type": "asset",
+        "name": "Vrachtwagens",
+        "id": "Vrachtwagen 3",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.617221,
+            "lon": 5.436735
+        },
+        "overall_dimensions": [
+            3.5,
+            2,
+            2
+        ],
+        "fuel_type": "Diesel (fossiel)",
+        "consumption_per_hour": 100,
+        "emission_class_version": "StageIIIA",
+        "color": "yellow"
+    },
+     {
         "type": "asset",
         "name": "Vrachtwagens",
         "id": "Vrachtwagen 3",
