@@ -251,19 +251,9 @@ class MissionStrategyApp(Base):
     def standard_location(self):
         return self.standard_locations["Eindhoven"]
 
-    # Optional: declare these as Inputs so you can inspect them in the GUI
-    mission_time: float = Input(0.0)
-    mission_scalar: float = Input(0.0)
-
     all_generated_missions = Input([])
 
-    normalized_cost: float = Input(0.0)
-    normalized_time: float = Input(0.0)
-    normalized_emissions: float = Input(0.0)
-
-    @Attribute
-    def winning_mission(self):
-        return self.MissionIterator()
+    winning_mission = Input(None)
 
     # --- existing methods like NormalizePreferences(), etc. ---
 
@@ -301,6 +291,8 @@ class MissionStrategyApp(Base):
 
         toc = time.perf_counter()
         print(f"Took {toc - tic:0.4f} seconds")
+
+        self.winning_mission = winning_mission
 
         return winning_mission
 
@@ -480,10 +472,6 @@ class MissionStrategyApp(Base):
     # ------------------------------------------------------------------
     # Cost function
     # ------------------------------------------------------------------
-    def EvaluateCostFunction(self) -> float:
-        """Dot product of normalized preferences and normalized objectives."""
-        w_cost, w_time, w_emissions = self.mission_preferences
-        return (w_cost * self.normalized_cost + w_time * self.normalized_time + w_emissions * self.normalized_emissions)
 
     def PackagedVisualization(self):
         """Return the ParaPy model to visualize the packing. It visualizes the trailers, together with the packed tools, and vehicles
@@ -535,7 +523,7 @@ class MissionStrategyApp(Base):
         # Build the visualization model using your helper
         viz_model = self.PackagedVisualization()
         # Open in a new ParaPy window
-        display(viz_model)
+        display(viz_model, mainloop=False)
 
     def AllocateMachines(self):
         machines = self.machines
@@ -560,7 +548,7 @@ class MissionStrategyApp(Base):
             d.gps_location=(0, current_y)
             current_y += 10 + d.overall_dimensions[1]
             depots.append(d)
-        display(depots)
+        display(depots, mainloop=False)
 
     @action(button_label="MapMaker")
     def MapMaker(self):
@@ -603,7 +591,7 @@ class MissionStrategyApp(Base):
 
         # Display in a separate ParaPy viewer window
         from parapy.gui import display
-        display(map_obj)
+        display(map_obj, mainloop=False)
 
     @Attribute
     def job_trailers(self) -> List[object]:
