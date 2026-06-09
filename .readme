@@ -1,0 +1,28 @@
+-------------------------
+Logistical Mission Strategy Generator - In collaboration with Fleets-Online
+-------------------------
+Description
+This Knowledge-Based Engineering application can be used to generate the best strategy for logistical problems
+in for example the agricultural, construction and transportation industries. The application uses fleet data
+provided by the user and iterates over possible strategies to come up with a winning strategy based on one or more
+of the following goals: Time, Cost and/or Emissions (CO2 + NOx).
+-------------------------
+Usage
+To run the application, run the file 'main.py'. This file will instantiate the root object, called
+'MissionStrategyApp'. A ParaPy GUI will open, which contains buttons to run the mission generator, visualize
+different outputs and alter the used data.
+-------------------------
+Dependencies
+---
+APIs
+The FleetsOnline API is used by sending requests to 'https://api.v2.deepdigital.org', which requires a FleetsOnline
+account for authentication.
+The OpenRouteService API is used, which requires an ORS account for authentication.
+---
+Libraries
+parapy v1.15.1
+kbeutils v1.0
+routingpy v1.3.1
+numpy v2.4.6
+requests v2.34.2
+-------------------------
