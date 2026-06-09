@@ -97,15 +97,6 @@ def ComputeRoute(start, end, machine_type):
 
     return duration, distance, geometry
 
-
-    duration = route.duration
-    distance = route.distance
-    geometry = route.geometry
-
-    print("Time taken: {} seconds".format(duration))
-    print("Route distance: {} meters".format(distance))
-
-    return duration, distance, geometry
 # ---------------------------------------------------------------------
 # Helpers for map selection + projection
 # ---------------------------------------------------------------------

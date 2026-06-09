@@ -80,7 +80,7 @@ def CO2Calculator(
 def NOxCalculator(
     *,
     energy_source: str,
-    emission_class_version: str,
+    emission_class: str,
     fuel_liters: float | None = None,
     engine_hours: float | None = None,
 ) -> float:

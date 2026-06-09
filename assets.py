@@ -5,8 +5,9 @@ import requests
 
 from typing import Tuple, List
 from EmissionsExternalTool import CO2Calculator, NOxCalculator
-from parapy.core import Base, Input, Attribute
+from parapy.core import Base, Input, Attribute, action
 from parapy.core.validate import OneOf, GreaterThan
+from parapy.core.widgets import PyField, TextField
 
 import numpy as np
 
@@ -41,34 +42,44 @@ class Machine(Base):
         - CalculateIndividualCost()
     """
 
-    machine_id = Input("")
-    machine_type = Input("")
+    machine_id = Input("", widget=TextField(
+            background_color=lambda self: "Red" if self.machine_id == "" else "White"
+        ),)
+    machine_type = Input("", widget=TextField(
+            background_color=lambda self: "Red" if self.machine_type not in ["Tractor", "Truck", "Crane", "Tool", "Pump"] else "White"
+        ),)
     build_year: int = Input(datetime.datetime.today().year) # default current year (new)
 
-    prediction_tool: str = Input("")
-    historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
-    emission_class_version: str = Input("StageIIIA", validator=OneOf(("StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")),)
+    # historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
+    emission_class: str = Input("StageIIIA", validator=OneOf(("StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")), widget=TextField)
     worth: float = Input(1.0) # Million Euro's
-    energy_source: str = Input("diesel-(fossiel)") # Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
+    energy_source: str = Input("Choose one of: diesel-(fossiel), biodiesel-(hvo), benzine-(e10-blend), Electric, Hybrid", widget=TextField(
+            background_color=lambda self: "Red" if self.energy_source not in ["diesel-(fossiel)", "biodiesel-(hvo)", "benzine-(e10-blend)", "Electric", "Hybrid"] else "White"
+        )) # Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
     mass: float = Input(0.0)
     # Color used in visualizations (Depot, trailers, etc.).
     # None or "" means "use class-dependent default".
-    color: Any = Input(None)
+    color: str = Input("Yellow", widget=TextField(
+            background_color=lambda self: self.color
+        ),)
     consumption_per_hour = Input(1.0) # (L or kW)/h
 
     number_of_this_type = 1
 
     # overall_dimensions: array[x, y, z]
-    overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0))
-    total_length = Input(0) # Only used for truck + tractor combinations
+    overall_dimensions: Tuple[float, float, float] = Input((0.0, 0.0, 0.0), widget=PyField(
+            background_color=lambda self: "Red" if self.overall_dimensions == (0.0, 0.0, 0.0) else "White"
+        ),)
+    total_length = 0 # Only used for truck + tractor combinations
 
     # GPS location of the machine: (latitude [deg], longitude [deg])
-    gps_location: Tuple[float, float] = Input((0.0, 0.0))
-    availability: bool = Input(True)
+    gps_location: Tuple[float, float] = Input((0.0, 0.0), widget=PyField(
+            background_color=lambda self: "Red" if self.gps_location == (0.0, 0.0) else "White"
+        ),)
 
-    total_hours_used = Input(0.0)
+    total_hours_used = 0.0
 
-    hours_used = Input(0.0)
+    hours_used = 0.0
 
     operating_fraction = 8  # Assumed data contains hours/day
     idle_fraction = 2  # Assumed data contains hours/day
@@ -127,7 +138,7 @@ class Machine(Base):
         # fuel_usage = self.consumption_per_hour * self.hours_used
         fuel_usage = self.consumption_per_hour
         # UB mode: just fuel_liters and engine_hours
-        result = NOxCalculator(energy_source=self.energy_source, emission_class_version=self.emission_class_version,
+        result = NOxCalculator(energy_source=self.energy_source, emission_class=self.emission_class,
             fuel_liters=fuel_usage, engine_hours=self.hours_used,)
         return result
 
@@ -186,7 +197,6 @@ class Machine(Base):
 
         wearFactor = np.exp(decay_factor * self.age)
         return wearFactor
-
 
 class Vehicle(Machine):
     """
