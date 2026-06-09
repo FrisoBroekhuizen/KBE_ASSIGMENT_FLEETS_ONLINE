@@ -206,6 +206,7 @@ class MissionStrategyApp(Base):
                     m.overall_dimensions = l['overall_dimensions']
                 except:
                     m.overall_dimensions = (2, 2, 2)
+                    generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l["id"]}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
                 m.color = l['color']
@@ -215,8 +216,10 @@ class MissionStrategyApp(Base):
                     self.trailers.append(m)
                 else:
                     m.machine_id = l["id"]
-                    if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "Diesel"
-                    elif "Biodiesel" in l["fuel_type"]: m.energy_source = "Biodiesel"
+                    if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "diesel-(fossiel)"
+                    elif "Biodiesel" in l["fuel_type"]: m.energy_source = "biodiesel-(hvo)"
+                    elif "Electric" in l["fuel_type"]: m.energy_source = "Electric"
+                    m.emission_class = l["emission_class_version"]
                     self.machines.append(m)
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
