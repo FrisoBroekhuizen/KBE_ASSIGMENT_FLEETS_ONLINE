@@ -7,13 +7,14 @@ import sys
 import subprocess
 import datetime
 import time
+import numpy as np
 from parapy.gui import display
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf, all_is_number
 from parapy.core.widgets import PyField, CheckBox
 import copy
-from MissionGenerator import generate_missions
+from MissionGenerator import generate_missions, deadline_restricted_mission_generator
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
 from assets import *
 from Warning import generate_warning
@@ -70,8 +71,11 @@ class MissionStrategyApp(Base):
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
     # Aggregations / associations
-    mission_preferences: List[float] = Input([1.0, 1.0, 1.0], widget=PyField(autocompute=True), validator=all_is_number)  # List of weights for the different optimalisation goals
-    strict_deadline: bool = Input(False, widget=CheckBox())
+    mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
+
+    strict_deadline: bool = Input(False)  # default: no deadline restriction
+    # Only required / meaningful if strict_deadline is True
+    deadline_time: Optional[datetime.datetime] = Input(None)
 
     number_of_machines_per_type = {"Crane":0,
                                    "Tractor":0,
@@ -157,6 +161,17 @@ class MissionStrategyApp(Base):
 
     @action()
     def JSONReader(self):
+        # reset mutable state so we don't accumulate entries across runs
+        self.depots = []
+        self.machines = []
+        self.trailers = []
+        self.number_of_machines_per_type = {
+            "Crane": 0,
+            "Tractor": 0,
+            "Truck": 0,
+            "Tool": 0,
+            "Pump": 0,
+        }
         if not self.needed_machinery in self.possible_machinery:
             generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
             return
@@ -260,6 +275,19 @@ class MissionStrategyApp(Base):
 
     @action
     def MissionIterator(self) -> "MissionStrategyApp":
+        print("=== DEBUG: current machines ===")
+        print("Total machines:", len(self.machines))
+        for m in self.machines:
+            print(type(m).__name__, getattr(m, "machine_id", None))
+        # --- deadline consistency check (WARNING but no abort) ---
+        if self.strict_deadline and self.deadline_time is None:
+            generate_warning(
+                "Missing deadline",
+                "You enabled 'strict_deadline', but did not specify a 'deadline_time'.\n\n"
+                "The strategy will still be generated, but deadlines are ignored.\n"
+                "Please fill in 'deadline_time' if you want real deadline enforcement."
+            )
+            self.strict_deadline = False
         tic = time.perf_counter()
         """Top-level mission loop:
         1) Generate candidate missions
@@ -280,6 +308,19 @@ class MissionStrategyApp(Base):
             VehicleCls=Vehicle,
             TrailerCls=Trailer,
         )
+
+        # --- 1b) Deadline restriction (if enabled) ---
+        if self.strict_deadline and self.deadline_time is not None:
+            # Available total hours between start and deadline
+            deadline_delta = self.deadline_time - self.start_time
+            deadline_total_hours = deadline_delta.total_seconds() / 3600.0
+
+            # Call special deadline-aware mission generator / filter
+            self.all_generated_missions = deadline_restricted_mission_generator(
+                self,
+                self.all_generated_missions,
+                deadline_total_hours,
+            )
 
         if not self.all_generated_missions:
             raise RuntimeError("MissionGenerator produced no missions to evaluate.")
@@ -310,8 +351,9 @@ class MissionStrategyApp(Base):
                 job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1])
 
         job_area = self.site_dimensions[0] * self.site_dimensions[1]
-        average_job_machine_area = np.mean(job_machines_areas)
-        if average_job_machine_area == 0: average_job_machine_area = 1
+        average_job_machine_area = np.mean(job_machines_areas) if job_machines_areas else 0.0
+        if average_job_machine_area == 0:
+            average_job_machine_area = 1.0
 
         max_number_of_machines = area_factor * job_area / average_job_machine_area
 

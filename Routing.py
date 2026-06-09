@@ -11,7 +11,8 @@ from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf
 
 from routingpy import ORS
-from routingpy.exceptions import RouterApiError  # <<< MISSING IMPORT
+from routingpy.exceptions import RouterApiError
+from Warning import generate_warning
 
 maindir = os.path.dirname(__file__)
 
@@ -42,11 +43,14 @@ def HaversineDistance(
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
     return R * c
 
-
 def ComputeRoute(start, end, machine_type):
     """
     start, end: (lat, lon)
     machine_type: "Vehicle" -> driving-car, anything else -> driving-hgv
+
+    If ORS cannot be reached (rate limit, network issue, etc.), we fall back to a
+    straight-line route using Haversine distance and a constant average speed.
+    A warning is shown in the GUI so the user knows routes are approximate.
     """
     start_lat, start_lon = start
     end_lat, end_lon = end
@@ -57,45 +61,51 @@ def ComputeRoute(start, end, machine_type):
         [end_lon, end_lat],
     ]
 
-    # Option A: environment variable
     api_key = os.environ.get("ORS_API_KEY", None)
     if api_key is None:
-        # Option B: hard-code (use the SAME value as in your working test script)
+        # optionally still use your existing hard-coded token instead of "YOUR_KEY_HERE"
         api_key = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImY0OThhNGEyMGQwYjRmZjE5MDdmOGU2NjQzMDY0ZGVjIiwiaCI6Im11cm11cjY0In0="
 
-    client = ORS(api_key=api_key)
 
+    client = ORS(api_key=api_key)
     profile = "driving-car" if machine_type == "Vehicle" else "driving-hgv"
 
     try:
         route = client.directions(locations=coordinates, profile=profile)
+        duration = route.duration
+        distance = route.distance
+        geometry = route.geometry
+        return duration, distance, geometry
+
     except RouterApiError as e:
-        # Keep ParaPy running even if ORS fails: straight-line fallback
-        print(f"[ComputeRoute] ORS error: {e}")
+        # This includes OverQueryLimit(429) and other ORS errors.
+        msg = (
+            "The external routing service (OpenRouteService) returned an error:\n"
+            f"{e}\n\n"
+            "A simplified straight-line route is used instead with an approximate "
+            "travel time. Distances and times in this strategy are therefore only "
+            "approximate. Try again later or reduce the number of route requests."
+        )
+        print(f"[ComputeRoute] ORS error: {e} – using straight-line fallback")
+        generate_warning("Routing service unavailable – using fallback route", msg)
+
+        # Straight-line fallback using Haversine + constant average speed
         (lat1, lon1) = start
         (lat2, lon2) = end
 
         n = 20
-        geometry: List[List[float]] = []
+        geometry: list[list[float]] = []
         for i in range(n + 1):
             t = i / n
             lat = lat1 + t * (lat2 - lat1)
             lon = lon1 + t * (lon2 - lon1)
             geometry.append([lon, lat])  # [lon, lat]
 
-        total_dist = HaversineDistance(lat1, lon1, lat2, lon2)
+        total_dist = HaversineDistance(lat1, lon1, lat2, lon2)  # [m]
         avg_speed = 20.0  # m/s ~ 72 km/h
         duration = total_dist / avg_speed
+
         return duration, total_dist, geometry
-
-    duration = route.duration
-    distance = route.distance
-    geometry = route.geometry
-
-    # print("Time taken: {} seconds".format(duration))
-    # print("Route distance: {} meters".format(distance))
-
-    return duration, distance, geometry
 
 # ---------------------------------------------------------------------
 # Helpers for map selection + projection
