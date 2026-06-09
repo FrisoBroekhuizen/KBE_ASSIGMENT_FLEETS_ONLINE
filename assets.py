@@ -78,11 +78,13 @@ class Machine(Base):
 
     # Current energy prices in eur per kg, L or kW
     energy_source_cost = {"Diesel": 2.19, # /L
+                          "Biodiesel": 1.9,
                              "Gasoline": 2.31, # /L
                              "Electric": 0.8, # /kWh
                              "Hybrid": 1.4} # /Combo
 
     energy_source_factors = {"Diesel": 1.2,
+                             "Biodiesel": 1.3,
                              "Gasoline": 1.1,
                              "Electric": 0.8,
                              "Hybrid": 1.3}
@@ -334,6 +336,8 @@ class Trailer(Base):
     # Simple location if you still want to park them in depots / on sites
     # (you could also omit this if you only care about capacity)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
+
+    total_length = Input(0)  # Only used for truck + tractor combinations
 
     # Logical content (IDs, Machine references, or your packing Items)
     contents: List[object] = Input([None])

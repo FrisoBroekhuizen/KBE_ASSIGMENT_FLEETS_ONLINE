@@ -19,8 +19,8 @@ maindir = os.path.dirname(__file__)
 # Global map bounds (lat, lon) for your screenshots
 # ---------------------------------------------------------------------
 # Small MAP1:
-MAP1_CORNER_1: Tuple[float, float] = (51.084598, 4.216587)  # bottom-left (lat, lon)
-MAP1_CORNER_2: Tuple[float, float] = (51.95, 6.05)  # top-right (lat, lon) – adjust when you know it
+MAP1_CORNER_1: Tuple[float, float] = (51.084598, 4.210087)  # bottom-left (lat, lon)
+MAP1_CORNER_2: Tuple[float, float] = (51.95, 6.049)  # top-right (lat, lon) – adjust when you know it
 
 # Large MAP2:
 MAP2_CORNER_1: Tuple[float, float] = (43.312459, -1.987007)
