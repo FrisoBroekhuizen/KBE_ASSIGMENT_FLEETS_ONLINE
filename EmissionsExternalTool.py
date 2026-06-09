@@ -44,6 +44,7 @@ def CO2Calculator(
     year: int,
 ) -> float:
     if energy_source.strip().lower() == "electric":
+        print("machine was electric")
         return 0.0
     headers = _get_auth_headers()
 

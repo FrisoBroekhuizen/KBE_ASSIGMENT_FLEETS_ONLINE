@@ -370,6 +370,10 @@ class Depot(GeomBase):
             color=self.machine_colors[child.index],
         )
 
+    @action(label="Export", button_label="Export depot to STEP file")
+    def Export(self):
+        writer = STEPWriter(nodes=[self.Floor, self.Roof, self.PlaceMachines, self.NonAttachableToolStorage], filename="depots.stp")
+        writer.write()
     # Place ghost vehicles that indicate the vehicles that will collect the vehicle attached tools
     # Currently disabled as the exact dimensions of the collecting vehicle are not known
     # @Part

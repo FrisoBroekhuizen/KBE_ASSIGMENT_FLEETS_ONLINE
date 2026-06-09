@@ -24,6 +24,7 @@ import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
 import requests
 import json
+import PDFMaker
 
 maindir = os.path.dirname(__file__)
 
@@ -48,14 +49,14 @@ class MissionStrategyApp(Base):
                  - If time: combine multiple work jobs into one mission.
                  - Maximum vehicles in worksite is area worksite divided by area vehicle times a factor"""
 
-    use_FleetsOnline_data = Input(False, widget=CheckBox)
+    use_FleetsOnline_data = Input(False, widget=CheckBox())
 
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
     # Mission attributes
     needed_tools: str = Input("", widget=TextField(autocompute=True))
     needed_machinery: str = Input("Tractor", widget=TextField(autocompute=True, background_color=lambda self: "Red" if self.needed_machinery not in self.possible_machinery and self.needed_machinery != "" else "White"))
-    man_hours = Input(0, widget=PyField(autocompute=True, background_color=lambda self: "Red" if self.man_hours == 0 else "White"))
+    man_hours = Input(50, widget=PyField(autocompute=True, background_color=lambda self: "Red" if self.man_hours == 0 else "White"))
 
     standard_locations = {"Eindhoven":(51.468288, 5.421365),
                           "Tilburg":(51.591433, 5.023739),
@@ -142,10 +143,12 @@ class MissionStrategyApp(Base):
                 data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10]})
         for asset_type in assets: # Loop through the available assets
             for asset in asset_type:
+                if asset["averageConsumption"] == None: cons = 50
+                else: cons = asset["averageConsumption"]
                 if "Aanhanger" in asset["type"]["name"]:
                     data.append({"type": "asset", "id":asset["name"], "name": asset["type"]["name"], "build_year": asset["buildYear"],"gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]},"overall_dimensions": standard_dimensions[asset["type"]["name"]], "color": "yellow"})
                 else:
-                    data.append({"type":"asset", "id":asset["name"], "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":standard_dimensions[asset["type"]["name"]], "color":"yellow", "fuel_type":asset["fuelType"]["name"]})
+                    data.append({"type":"asset", "id":asset["name"], "name": asset["type"]["name"], "build_year":asset["buildYear"], "gps_location":{"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":standard_dimensions[asset["type"]["name"]], "color":"yellow", "fuel_type":asset["fuelType"]["name"], "emission_class_version":"StageIIIB", "consumption_per_hour":cons})
 
         # Write FleetsOnline data to FleetsOnlineData.json file
         with open('FleetsOnlineData.json', 'w') as f:
@@ -498,11 +501,6 @@ class MissionStrategyApp(Base):
     def generate_strategies(self):
         raise NotImplementedError
 
-    @action
-    def export_results(self):
-        # Export JSON results
-        raise NotImplementedError
-
     @action(button_label="Trailer Arrangements")
     def trailer_arrangement(self):
         """Open a ParaPy viewer window with the trailer packing visualization
@@ -645,6 +643,9 @@ class MissionStrategyApp(Base):
             json.dump(data, f, indent=4)
         generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
 
+    @action(label="Export strategy",button_label="Export strategy overview to .pdf")
+    def exportStrategy(self):
+        PDFMaker.export(self.winning_mission)
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
