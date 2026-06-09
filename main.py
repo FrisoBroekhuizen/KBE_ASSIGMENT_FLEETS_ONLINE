@@ -206,6 +206,7 @@ class MissionStrategyApp(Base):
                     generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l["id"]}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
+                m.color = l['color']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                 if "Aanhanger" in l["name"]:
                     m.trailer_id = l["id"]
