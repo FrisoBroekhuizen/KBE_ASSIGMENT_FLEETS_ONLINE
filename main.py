@@ -73,7 +73,7 @@ class MissionStrategyApp(Base):
     # Aggregations / associations
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
 
-    strict_deadline: bool = Input(False)  # default: no deadline restriction
+    strict_deadline: bool = Input(False, widget=CheckBox())  # default: no deadline restriction
     # Only required / meaningful if strict_deadline is True
     deadline_time: Optional[datetime.datetime] = Input(None)
 
@@ -204,6 +204,7 @@ class MissionStrategyApp(Base):
                         workjob.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                     workjob.needed_vehicles = self.needed_machinery
                     workjob.man_hours = self.man_hours
+                    workjob.name = l["name"]
                     self.work_job = workjob
                     self.gps_location = workjob.gps_location
             elif l["type"] == "asset":
@@ -288,6 +289,8 @@ class MissionStrategyApp(Base):
                 "Please fill in 'deadline_time' if you want real deadline enforcement."
             )
             self.strict_deadline = False
+
+        self.work_job.man_hours = self.man_hours
         tic = time.perf_counter()
         """Top-level mission loop:
         1) Generate candidate missions
@@ -377,6 +380,7 @@ class MissionStrategyApp(Base):
 
             # Transport jobs: assume TimeKeeper is mission time contribution
             for transport_job in transport_jobs:
+                transport_job.transporting_vehicle.hours_used = transport_job.routeDuration / 60
                 total_mission_NOx += transport_job.job_NOx
                 total_mission_CO2 += transport_job.job_CO2
                 total_mission_cost += transport_job.job_cost
@@ -384,6 +388,10 @@ class MissionStrategyApp(Base):
 
             # Work jobs: job_* are per tool/vehicle lists, TimeKeeper is duration
             for work_job in work_jobs:
+                for mach in work_job.assigned_vehicles:
+                    mach.hours_used = work_job.man_hours / len(work_job.assigned_vehicles)
+                for tool in work_job.assigned_tools:
+                    tool.hours_used = work_job.man_hours / len(work_job.assigned_tools)
                 total_mission_NOx += sum(work_job.job_NOx)
                 total_mission_CO2 += sum(work_job.job_CO2)
                 total_mission_cost += sum(work_job.job_cost)
@@ -687,7 +695,7 @@ class MissionStrategyApp(Base):
 
     @action(label="Export strategy",button_label="Export strategy overview to .pdf")
     def exportStrategy(self):
-        PDFMaker.export(self.winning_mission)
+        PDFMaker.Export(self.winning_mission, self.start_time)
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
@@ -790,7 +798,6 @@ class TransportJob(Base):
     # Talk to Arjan, depends on work hours, employees, machinery, historical data
     @Attribute
     def job_cost(self) -> float:
-        self.transporting_vehicle.hours_used = self.routeDuration / 60
         cost = self.transporting_vehicle.individualCost
         return cost
 
@@ -804,6 +811,7 @@ class WorkJob(Base):
     """
 
     # Can be a list if needed_machinery is also a list (when multiple machine types are used for a specific job)
+    name: str = ""
     man_hours: float = Input(0.0)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
     deadline: str = Input("")

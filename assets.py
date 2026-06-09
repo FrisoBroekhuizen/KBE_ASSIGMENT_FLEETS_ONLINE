@@ -77,9 +77,9 @@ class Machine(Base):
             background_color=lambda self: "Red" if self.gps_location == (0.0, 0.0) else "White"
         ),)
 
-    total_hours_used = 0.0
+    total_hours_used = Input(0.0)
 
-    hours_used = 0.0
+    hours_used = Input(0.0)
 
     operating_fraction = 8  # Assumed data contains hours/day
     idle_fraction = 2  # Assumed data contains hours/day
@@ -136,7 +136,7 @@ class Machine(Base):
     def individualNOX(self) -> float:
         """NOx [g] over self.hours_used using AUB method by default."""
         # fuel_usage = self.consumption_per_hour * self.hours_used
-        fuel_usage = self.consumption_per_hour
+        fuel_usage = self.consumption_per_hour * self.hours_used
         # UB mode: just fuel_liters and engine_hours
         result = NOxCalculator(energy_source=self.energy_source, emission_class=self.emission_class,
             fuel_liters=fuel_usage, engine_hours=self.hours_used,)
