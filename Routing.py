@@ -75,7 +75,6 @@ def ComputeRoute(start, end, machine_type):
 
     client = ORS(api_key=api_key)
     profile = "driving-car" if machine_type == "Vehicle" else "driving-hgv"
-
     try:
         # --- normal ORS call ---
         route = client.directions(locations=coordinates, profile=profile)

@@ -263,17 +263,6 @@ class MissionStrategyApp(Base):
         asset_overall_dimensions = (0.0, 0.0, 0.0)
         if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
 
-
-    @Attribute
-    def all_jobs(self) -> List[Base]:
-        # Later done to put jobs next to each other for time planning and mission generation
-        return [*self.transport_jobs, *self.work_jobs]
-
-    @Attribute
-    def number_of_machines_in_fleet(self) -> int:
-        # Later done to sum the machines for strategy evaluation
-        return len(self.fleet.machines) if self.fleet else 0
-
     @Attribute
     def standard_location(self):
         return self.standard_locations["Eindhoven"]
@@ -557,10 +546,6 @@ class MissionStrategyApp(Base):
     # ---------------------------------------------------------------------------------------------------------------------------
     # --- ACTIONS / BUTTONS --
     # --------------------------------------------------------------------------------------------------------------------------
-    @action(button_label="Generate Strategies")
-    def generate_strategies(self):
-        raise NotImplementedError
-
     @action(button_label="Trailer Arrangements")
     def trailer_arrangement(self):
         """Open a ParaPy viewer window with the trailer packing visualization
@@ -743,13 +728,10 @@ class TransportJob(Base):
              - Look at outputs of Valhalla and inputs needed for tools
     """
 
-    volume: float = Input(0.0)
-    weight: float = Input(0.0)
-
     begin_location_gps: Tuple[float, float] = Input((0.0, 0.0))
     end_location_gps: Tuple[float, float] = Input((0.0, 0.0))
 
-    routeDistance: float = Input(0.0)
+    route_distance: float = Input(0.0)
 
     needed_machinery: Machine = Input([])
     transporting_vehicle: Machine = Input(needed_machinery) # Almost always the needed_machinery, unless the needed_machinery is being transported by a truck or tractor
