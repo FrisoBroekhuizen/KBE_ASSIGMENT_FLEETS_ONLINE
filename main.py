@@ -142,9 +142,6 @@ class MissionStrategyApp(Base):
                                                                                      "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
-            # if poi["orientation"] == None: orientation = 0
-            # else: orientation = poi["orientation"]
-
             if poi["orientation"] == None: orientation = 0
             else: orientation = poi["orientation"]
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
@@ -178,15 +175,24 @@ class MissionStrategyApp(Base):
             "Tool": 0,
             "Pump": 0,
         }
-        if not self.needed_machinery in self.possible_machinery:
-            generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
+
+        if self.needed_machinery not in self.possible_machinery:
+            generate_warning(
+                "Warning: Machinery cannot be read",
+                "The selected machinery type can not be read, check for a typo or add "
+                "this machine to the machinery types list. If doubts about the application, "
+                "contact us.",
+            )
             return
         elif self.man_hours <= 0:
-            generate_warning("Warning: Man hours invalid", "The selected number of man hours is equal to or smaller than zero. Please choose a positive number of man hours.")
+            generate_warning(
+                "Warning: Man hours invalid",
+                "The selected number of man hours is equal to or smaller than zero. "
+                "Please choose a positive number of man hours.",
+            )
             return
 
         if self.use_FleetsOnline_data:
-            # self.GetFleetData()
             with open('FleetsOnlineData.json', 'r') as file:
                 data = json.load(file)
         else:
@@ -195,34 +201,52 @@ class MissionStrategyApp(Base):
 
         for l in data:
             if l["type"] == "poi":
+                # ---------------- Depots ----------------
                 if "Garage" in l["name"]:
                     depot = Depot()
                     depot.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                     depot.overall_dimensions = l["overall_dimensions"]
                     depot.name = l["name"]
                     self.depots.append(depot)
+
+                # ---------------- Work site ----------------
                 elif "Boomrooierij" in l["name"]:
                     workjob = WorkJob()
-                    if l["gps_location"] == None:
+                    if l["gps_location"] is None:
                         print("One of the worksites has no location data")
-                        workjob.gps_location = (self.standard_locations["Breda"][0], self.standard_locations["Breda"][1])
+                        workjob.gps_location = (
+                            self.standard_locations["Breda"][0],
+                            self.standard_locations["Breda"][1],
+                        )
                     else:
-                        workjob.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                        workjob.gps_location = (
+                            l["gps_location"]["lat"],
+                            l["gps_location"]["lon"],
+                        )
+
                     workjob.needed_vehicles = self.needed_machinery
                     workjob.man_hours = self.man_hours
                     workjob.name = l["name"]
+
                     self.work_job = workjob
                     self.gps_location = workjob.gps_location
-                    self.site_dimensions = l["overall_dimensions"]
-                    self.orientation = l["orientation"]
+
+                    # Use only L, W from overall_dimensions; ignore height for site area
+                    dims = l.get("overall_dimensions", [100.0, 100.0, 0.0])
+                    self.site_dimensions = (float(dims[0]), float(dims[1]))
+
+                    # Orientation is optional; default to 0 if not in JSON
+                    self.orientation = float(l.get("orientation", 0.0))
+
             elif l["type"] == "asset":
+                # --------- create correct machine/trailer type ----------
                 if l["name"] == "Tractor":
                     m = Tractor()
                     m.machine_type = "Tractor"
                 elif l["name"] == "Kranen":
                     m = Crane()
                     m.machine_type = "Crane"
-                elif l["name"] == "Vrachtwagens" or l["name"] == "Vrachtwagens ": # To account for issue stemming from FleetsOnline API data
+                elif l["name"] == "Vrachtwagens" or l["name"] == "Vrachtwagens ":
                     m = Truck()
                     m.machine_type = "Truck"
                 elif "Aanhanger" in l["name"]:
@@ -230,39 +254,82 @@ class MissionStrategyApp(Base):
                     m.overall_dimensions = l["overall_dimensions"]
                 else:
                     m = Vehicle()
+
+                # --------- generic machine properties ----------
                 try:
                     m.overall_dimensions = l['overall_dimensions']
-                except:
+                except Exception:
                     m.overall_dimensions = (2, 2, 2)
-                    generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l['id']}. Standard dimensions of [2 x 2 x 2] are used instead.")
+                    generate_warning(
+                        "Warning: Overall dimensions not specified",
+                        f"The overall dimensions were not provided for machine {l['id']}. "
+                        "Standard dimensions of [2 x 2 x 2] are used instead.",
+                    )
+
                 m.color = l['color']
                 m.build_year = l['build_year']
-                if m.build_year == None: m.build_year = 2026
-                elif m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
-                m.color = l['color']
-                m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
-                m.gps_location = self.depots[0].gps_location
+                if m.build_year is None:
+                    m.build_year = 2026
+                elif m.build_year < 2020:
+                    m.build_year = 2020  # limitation of CO2 calculator
+
+                m.gps_location = (
+                    l["gps_location"]["lat"],
+                    l["gps_location"]["lon"],
+                )
+
                 if "Aanhanger" in l["name"]:
                     m.trailer_id = l["id"]
                     self.trailers.append(m)
                 else:
                     m.machine_id = l["id"]
-                    if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "diesel-(fossiel)"
-                    elif "Biodiesel" in l["fuel_type"]: m.energy_source = "biodiesel-(hvo)"
-                    elif "Electric" in l["fuel_type"]: m.energy_source = "Electric"
+                    if "Diesel (fossiel)" in l["fuel_type"]:
+                        m.energy_source = "diesel-(fossiel)"
+                    elif "Biodiesel" in l["fuel_type"]:
+                        m.energy_source = "biodiesel-(hvo)"
+                    elif "Electric" in l["fuel_type"]:
+                        m.energy_source = "Electric"
+
                     m.emission_class = l["emission_class_version"]
                     m.consumption_per_hour = l["consumption_per_hour"]
                     self.machines.append(m)
                     self.number_of_machines_per_type[m.machine_type] += 1
-                gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
-                if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
-                elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
-                elif gps_check == 4: generate_warning("Warning: Coordinates not specified", "The coordinates are not specified. As such, the vehicle with GPS location (0.0, 0.0) will not be used. Please add vehicle coordinates or the coordinates of the depot where it is stored.")
-            else:
-                generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
-        asset_overall_dimensions = (0.0, 0.0, 0.0)
-        if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
 
+                gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
+                if gps_check == 2:
+                    generate_warning(
+                        "Warning: Coordinate outside of intended region",
+                        "The provided coordinate(s) fall outside of the intended region. "
+                        "A bigger map of western Europe is used. For a clearer resolution, "
+                        "add a local map with corner coordinates in Routing.py.",
+                    )
+                elif gps_check == 3:
+                    generate_warning(
+                        "Warning: Coordinate outside of intended region",
+                        "The provided coordinate(s) fall outside of available western Europe map. "
+                        "To use this route, add your own map for visibility with corner coordinates in Routing.py.",
+                    )
+                elif gps_check == 4:
+                    generate_warning(
+                        "Warning: Coordinates not specified",
+                        "The coordinates are not specified. As such, the vehicle with GPS "
+                        "location (0.0, 0.0) will not be used. Please add vehicle coordinates "
+                        "or the coordinates of the depot where it is stored.",
+                    )
+
+            else:
+                generate_warning(
+                    "Warning: Unknown data entry",
+                    "The provided FleetsOnlineData.json data file contains an entry of an "
+                    "unknown type, this entry will be ignored.",
+                )
+
+        asset_overall_dimensions = (0.0, 0.0, 0.0)
+        if np.any(asset_overall_dimensions == 0):
+            generate_warning(
+                "Warning: Dimension(s) missing",
+                "Add the (non-zero) dimensions in x, y and z.",
+            )
 
     @Attribute
     def all_jobs(self) -> List[Base]:
@@ -611,8 +678,8 @@ class MissionStrategyApp(Base):
         """
         Open a map showing:
         - all transport job routes,
-        - all depots as black cubes,
-        - all work sites as purple cubes.
+        - all depots with their actual sizes,
+        - all work sites with their JSON-based site_dimensions and orientation.
         """
 
         # --- build route list: (start, end, machine_type) ---
@@ -625,24 +692,48 @@ class MissionStrategyApp(Base):
             machine_type = type(job.transporting_vehicle).__name__
             routes.append((start, end, machine_type))
 
-        # --- depot GPS points ---
+        # --- depot GPS points + sizes ---
         depot_points: List[Tuple[float, float]] = []
+        depot_sizes: List[Tuple[float, float, float]] = []
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
+                # use actual depot bbox from Depot.overall_dimensions
+                L, W, H = dep.overall_dimensions
+                depot_sizes.append((float(L)*10, float(W)*10, float(H)*10))
             except AttributeError:
-                print(f"[MapMaker] Depot {dep} has no 'location_gps' attribute; skipping.")
+                print(f"[MapMaker] Depot {dep} missing gps_location / overall_dimensions; skipping.")
+            except Exception as e:
+                print(f"[MapMaker] Failed to read depot size for {dep}: {e}")
 
-        # --- work site GPS points (one per work job) ---
+        # --- work site GPS points ---
         worksite_points: List[Tuple[float, float]] = [
             wj.gps_location for wj in work_jobs
         ]
 
-        # Instantiate map object
+        # --- work site sizes + rotations from JSONReader ---
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
+
+        for _wj in work_jobs:
+            # Use app-level site_dimensions / orientation (set in JSONReader)
+            try:
+                L, W = self.site_dimensions*10
+            except Exception:
+                L, W = 2000.0, 2000.0  # fallback if something went wrong
+
+            H = 100.0  # choose a reasonable constant height for the beam
+            worksite_sizes.append((float(L), float(W), float(H)))
+            worksite_rotations.append(float(self.orientation))
+
+        # Instantiate map object with explicit sizes & rotations
         map_obj = MapMaker(
             routes=routes,
             depots=depot_points,
+            depot_sizes=depot_sizes,
             work_sites=worksite_points,
+            worksite_sizes=worksite_sizes,
+            worksite_rotations_deg=worksite_rotations,
         )
 
         # Display in a separate ParaPy viewer window
