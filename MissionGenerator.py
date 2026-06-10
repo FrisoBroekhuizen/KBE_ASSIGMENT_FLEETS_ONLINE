@@ -478,7 +478,7 @@ def generate_missions(app,
             if route_mat[idx_truck_origin][idx_machine_location] == 0:
                 route_distance = 0
             else:
-                route_distance = route_mat[idx_truck_origin][idx_truck_origin][1]
+                route_distance = route_mat[idx_truck_origin][idx_machine_location][1]
             transport_job_toDepot = TransportJobCls(
                 transporting_vehicle=empty_truck,
                 route_distance=route_distance,

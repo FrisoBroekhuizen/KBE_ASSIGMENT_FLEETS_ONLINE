@@ -187,13 +187,14 @@ class Depot(GeomBase):
         if len(self.sorted_machines) == 0:
             print(f"Warning: Depot {self.name} does not have any machines assigned to it.")
             return []
+        max_width = max([m.overall_dimensions[1] for m in self.sorted_machines]) + 2 * self.parking_gap
         row_height = 0
         longest_vehicle = None
         attachable_tool_index = 0
         trailers = []
         longest_vehicle_length = 0
         for i, vehicle in enumerate(self.sorted_machines):
-            if row_width + vehicle.overall_dimensions[1] + self.parking_gap < self.overall_dimensions[1]:
+            if row_width + vehicle.overall_dimensions[1] + self.parking_gap + max_width < self.overall_dimensions[1]:
                 # If the machine is a tool, it should be added to the attachable_tools list to create the ghost vehicle
                 if type(vehicle).__bases__[0].__name__ == "Tool" or type(vehicle).__name__ == "Tool":
                     positions.append([row_height, row_width + self.gps_location[1]])
@@ -241,7 +242,7 @@ class Depot(GeomBase):
                 longest_vehicle_length = 0
         for i, trailer in enumerate(self.trailers):
             self.sorted_machines.append(trailer)
-            if row_width + trailer.overall_dimensions[1] + self.parking_gap < self.overall_dimensions[1]:
+            if row_width + trailer.overall_dimensions[1] + self.parking_gap + max_width < self.overall_dimensions[1]:
                 positions.append([row_height, row_width + self.gps_location[1]])
                 row_width += trailer.overall_dimensions[1] + self.parking_gap
                 if longest_vehicle == None:

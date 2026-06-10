@@ -402,19 +402,19 @@ class MissionStrategyApp(Base):
         area and the site area, to not have an overcrowded work site.
         '''
         # TODO: Find better way to determine area_factor
-        area_factor = 0.2
+        area_factor = 0.1
         job_machines_areas = []
         for m in self.machines:
             if m.machine_type == self.work_job.needed_machines:
-                job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1])
+                job_machines_areas.append(np.pi * m.TurnRadius ** 2)
+                # job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1])
 
         job_area = self.site_dimensions[0] * self.site_dimensions[1]
         average_job_machine_area = np.mean(job_machines_areas) if job_machines_areas else 0.0
         if average_job_machine_area == 0:
             average_job_machine_area = 1.0
 
-        max_number_of_machines = area_factor * job_area / average_job_machine_area
-
+        max_number_of_machines = np.floor(area_factor * job_area / average_job_machine_area)
         return max(1, max_number_of_machines)
 
     # ------------------------------------------------------------------
