@@ -142,6 +142,9 @@ class MissionStrategyApp(Base):
                                                                                      "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
+            # if poi["orientation"] == None: orientation = 0
+            # else: orientation = poi["orientation"]
+
             if poi["orientation"] == None: orientation = 0
             else: orientation = poi["orientation"]
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
