@@ -27,8 +27,10 @@ from __future__ import annotations
 import random
 from typing import List, Tuple, Literal, Any
 
-from parapy.core import Base, Input, Attribute, Part, child
+from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.geom import Box, XOY
+
+from parapy.exchange import STEPWriter
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 3D PACKING CORE TYPES
@@ -877,6 +879,10 @@ class TrailerPackingVisualization(Base):
             color=self.cargo_colors[child.index],
         )
 
+    @action(label="Export", button_label="Export trailer arrangement to .stp")
+    def Export(self):
+        writer = STEPWriter(trees=[self], filename="trailers.stp")
+        writer.write()
 
 # ---------------------------------------------------------------------------
 # Helpers to integrate “machine-like” and “trailer-like” objects

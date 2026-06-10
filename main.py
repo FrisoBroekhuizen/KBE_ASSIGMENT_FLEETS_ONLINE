@@ -66,8 +66,8 @@ class MissionStrategyApp(Base):
                           "Waalwijk":(51.699574, 5.046544)
                         }
 
-    site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
-
+    site_dimensions: Tuple[float, float] = Input((100.0, 100.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
+    orientation: float = Input(0.0)
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
@@ -208,6 +208,8 @@ class MissionStrategyApp(Base):
                     workjob.name = l["name"]
                     self.work_job = workjob
                     self.gps_location = workjob.gps_location
+                    self.site_dimensions = l["overall_dimensions"]
+                    self.orientation = l["orientation"]
             elif l["type"] == "asset":
                 if l["name"] == "Tractor":
                     m = Tractor()
@@ -230,9 +232,11 @@ class MissionStrategyApp(Base):
                     generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l['id']}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
-                if m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
+                if m.build_year == None: m.build_year = 2026
+                elif m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
                 m.color = l['color']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                m.gps_location = self.depots[0].gps_location
                 if "Aanhanger" in l["name"]:
                     m.trailer_id = l["id"]
                     self.trailers.append(m)
@@ -602,8 +606,8 @@ class MissionStrategyApp(Base):
         """
         Open a map showing:
         - all transport job routes,
-        - all depots as oriented boxes (using overall_dimensions + rotation),
-        - all work sites as oriented boxes (using site_dimensions, rotation=0 by default).
+        - all depots as black cubes,
+        - all work sites as purple cubes.
         """
 
         # --- build route list: (start, end, machine_type) ---
@@ -616,45 +620,24 @@ class MissionStrategyApp(Base):
             machine_type = type(job.transporting_vehicle).__name__
             routes.append((start, end, machine_type))
 
-        # --- depot GPS points + sizes + rotations ---
+        # --- depot GPS points ---
         depot_points: List[Tuple[float, float]] = []
-        depot_sizes: List[Tuple[float, float, float]] = []
-        depot_rotations: List[float] = []
-
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
-                depot_sizes.append(tuple(dep.overall_dimensions))
-                depot_rotations.append(float(getattr(dep, "rotation", 0.0)))
             except AttributeError:
-                print(f"[MapMaker] Depot {dep} missing gps_location or overall_dimensions; skipping.")
+                print(f"[MapMaker] Depot {dep} has no 'location_gps' attribute; skipping.")
 
-        # --- work site GPS points + sizes + rotations ---
-        worksite_points: List[Tuple[float, float]] = []
-        worksite_sizes: List[Tuple[float, float, float]] = []
-        worksite_rotations: List[float] = []
-
-        for wj in work_jobs:
-            worksite_points.append(wj.gps_location)
-
-            # Example: use global site_dimensions for all jobs, height = depot_cube_size
-            L = self.site_dimensions[0] if len(self.site_dimensions) > 0 else 100.0
-            W = self.site_dimensions[1] if len(self.site_dimensions) > 1 else 100.0
-            H = 100.0  # arbitrary height for visualization; adapt if you have 3D data
-            worksite_sizes.append((L, W, H))
-
-            # If you later add a rotation per work job, use that here
-            worksite_rotations.append(0.0)
+        # --- work site GPS points (one per work job) ---
+        worksite_points: List[Tuple[float, float]] = [
+            wj.gps_location for wj in work_jobs
+        ]
 
         # Instantiate map object
         map_obj = MapMaker(
             routes=routes,
             depots=depot_points,
-            depot_sizes=depot_sizes,
-            depot_rotations_deg=depot_rotations,
             work_sites=worksite_points,
-            worksite_sizes=worksite_sizes,
-            worksite_rotations_deg=worksite_rotations,
         )
 
         # Display in a separate ParaPy viewer window

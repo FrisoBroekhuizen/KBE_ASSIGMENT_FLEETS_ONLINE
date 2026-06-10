@@ -25,4 +25,5 @@ kbeutils v1.0
 routingpy v1.3.1
 numpy v2.4.6
 requests v2.34.2
+reportlab v4.5.1
 -------------------------
