@@ -67,6 +67,7 @@ class MissionStrategyApp(Base):
                         }
 
     site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
+
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
@@ -601,8 +602,8 @@ class MissionStrategyApp(Base):
         """
         Open a map showing:
         - all transport job routes,
-        - all depots as black cubes,
-        - all work sites as purple cubes.
+        - all depots as oriented boxes (using overall_dimensions + rotation),
+        - all work sites as oriented boxes (using site_dimensions, rotation=0 by default).
         """
 
         # --- build route list: (start, end, machine_type) ---
@@ -615,24 +616,45 @@ class MissionStrategyApp(Base):
             machine_type = type(job.transporting_vehicle).__name__
             routes.append((start, end, machine_type))
 
-        # --- depot GPS points ---
+        # --- depot GPS points + sizes + rotations ---
         depot_points: List[Tuple[float, float]] = []
+        depot_sizes: List[Tuple[float, float, float]] = []
+        depot_rotations: List[float] = []
+
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
+                depot_sizes.append(tuple(dep.overall_dimensions))
+                depot_rotations.append(float(getattr(dep, "rotation", 0.0)))
             except AttributeError:
-                print(f"[MapMaker] Depot {dep} has no 'location_gps' attribute; skipping.")
+                print(f"[MapMaker] Depot {dep} missing gps_location or overall_dimensions; skipping.")
 
-        # --- work site GPS points (one per work job) ---
-        worksite_points: List[Tuple[float, float]] = [
-            wj.gps_location for wj in work_jobs
-        ]
+        # --- work site GPS points + sizes + rotations ---
+        worksite_points: List[Tuple[float, float]] = []
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
+
+        for wj in work_jobs:
+            worksite_points.append(wj.gps_location)
+
+            # Example: use global site_dimensions for all jobs, height = depot_cube_size
+            L = self.site_dimensions[0] if len(self.site_dimensions) > 0 else 100.0
+            W = self.site_dimensions[1] if len(self.site_dimensions) > 1 else 100.0
+            H = 100.0  # arbitrary height for visualization; adapt if you have 3D data
+            worksite_sizes.append((L, W, H))
+
+            # If you later add a rotation per work job, use that here
+            worksite_rotations.append(0.0)
 
         # Instantiate map object
         map_obj = MapMaker(
             routes=routes,
             depots=depot_points,
+            depot_sizes=depot_sizes,
+            depot_rotations_deg=depot_rotations,
             work_sites=worksite_points,
+            worksite_sizes=worksite_sizes,
+            worksite_rotations_deg=worksite_rotations,
         )
 
         # Display in a separate ParaPy viewer window

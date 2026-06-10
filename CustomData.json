@@ -35,21 +35,6 @@
     "color": "yellow"
   },
 
-  {
-    "type": "asset",
-    "name": "Tractor",
-    "id": "Tractor_Tilburg",
-    "build_year": 2021,
-    "gps_location": {
-      "lat": 51.591500,
-      "lon": 5.023800
-    },
-    "overall_dimensions": [3, 2.5, 3],
-    "emission_class_version": "StageIIIA",
-    "fuel_type": "Diesel (fossiel)",
-    "consumption_per_hour": 15,
-    "color": "yellow"
-  },
 
   {
     "type": "asset",
@@ -98,23 +83,6 @@
     "consumption_per_hour": 15,
     "color": "yellow"
   },
-
-  {
-    "type": "asset",
-    "name": "Tractor",
-    "id": "Tractor_DB_2",
-    "build_year": 2020,
-    "gps_location": {
-      "lat": 51.585310,
-      "lon": 4.732810
-    },
-    "overall_dimensions": [3, 2.5, 3],
-    "emission_class_version": "StageIIIA",
-    "fuel_type": "Biodiesel (HVO)",
-    "consumption_per_hour": 15,
-    "color": "yellow"
-  },
-
   {
     "type": "asset",
     "name": "Vrachtwagens",
