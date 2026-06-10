@@ -6,7 +6,8 @@
       "lat": 51.468300,
       "lon": 5.421400
     },
-    "overall_dimensions": [20, 20, 10]
+    "overall_dimensions": [200, 200, 10],
+    "orientation": 30.0
   },
 
   {
@@ -16,7 +17,15 @@
       "lat": 51.585300,
       "lon": 4.732800
     },
-    "overall_dimensions": [40, 30, 10]
+    "overall_dimensions": [400, 100, 30],
+    "orientation": 45
+  },
+  {
+    "type": "poi",
+    "name": "Garage X",
+    "gps_location": { "lat": 51.5, "lon": 5.1 },
+    "overall_dimensions": [600.0, 100.0, 15.0],
+    "orientation": 45.0
   },
 
   {
@@ -25,8 +34,8 @@
     "id": "Tractor_EHV_close",
     "build_year": 2022,
     "gps_location": {
-      "lat": 51.468350,
-      "lon": 5.421450
+      "lat": 51.468300,
+      "lon": 5.421400
     },
     "overall_dimensions": [3, 2.5, 3],
     "emission_class_version": "StageIIIA",
@@ -35,21 +44,6 @@
     "color": "yellow"
   },
 
-  {
-    "type": "asset",
-    "name": "Tractor",
-    "id": "Tractor_Tilburg",
-    "build_year": 2021,
-    "gps_location": {
-      "lat": 51.591500,
-      "lon": 5.023800
-    },
-    "overall_dimensions": [3, 2.5, 3],
-    "emission_class_version": "StageIIIA",
-    "fuel_type": "Diesel (fossiel)",
-    "consumption_per_hour": 15,
-    "color": "yellow"
-  },
 
   {
     "type": "asset",
@@ -98,23 +92,6 @@
     "consumption_per_hour": 15,
     "color": "yellow"
   },
-
-  {
-    "type": "asset",
-    "name": "Tractor",
-    "id": "Tractor_DB_2",
-    "build_year": 2020,
-    "gps_location": {
-      "lat": 51.585310,
-      "lon": 4.732810
-    },
-    "overall_dimensions": [3, 2.5, 3],
-    "emission_class_version": "StageIIIA",
-    "fuel_type": "Biodiesel (HVO)",
-    "consumption_per_hour": 15,
-    "color": "yellow"
-  },
-
   {
     "type": "asset",
     "name": "Vrachtwagens",

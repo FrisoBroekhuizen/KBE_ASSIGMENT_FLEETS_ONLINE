@@ -122,12 +122,12 @@ def route_matrix(filteredMatrix):
                 if i == j:
                     routeMatrix[i][j] = 0
                 else:
-                    routeDuration, routeDistance, _ = Routing.ComputeRoute(
+                    routeDuration, route_distance, _ = Routing.ComputeRoute(
                         filteredMatrix[i][j][0].gps_location,
                         filteredMatrix[i][j][1].gps_location,
                         machine_type="Truck",
                     )
-                    routeMatrix[i][j] = [routeDuration, routeDistance]
+                    routeMatrix[i][j] = [routeDuration, route_distance]
             else:
                 routeMatrix[i][j] = 1000000000
 
@@ -254,14 +254,10 @@ def generate_missions(app,
             energy_source=getattr(truck, "energy_source", None),
             contents=contents,
         )
-    # ------------------------------------------------------------------
-    # Use standalone helpers instead of methods on app
-    # ------------------------------------------------------------------
     preliminary_matrix, objects = construct_matrix(app)
     filtered_matrix, truck_indexes, direct_routes = filter_matrix(app, preliminary_matrix)
     route_mat = route_matrix(filtered_matrix)
     truck_routes = viable_mission_generator(app, route_mat, filtered_matrix, objects, truck_indexes, direct_routes)
-
     mission_list: List = []
 
     # ------------------------------------------------------------------
@@ -280,7 +276,7 @@ def generate_missions(app,
                         isinstance(machine, VehicleCls)):
                     transport_job = TransportJobCls(
                         transporting_vehicle=machine,
-                        routeDistance=route_mat[i][j][1],
+                        route_distance=route_mat[i][j][1],
                         begin_location_gps=machine.gps_location,
                         end_location_gps=app.gps_location,
                     )
@@ -298,7 +294,7 @@ def generate_missions(app,
               and isinstance(obj, VehicleCls)):
             transport_job = TransportJobCls(
                 transporting_vehicle=obj,
-                routeDistance=route_mat[i][j][1],
+                route_distance=route_mat[i][j][1],
                 begin_location_gps=obj.gps_location,
                 end_location_gps=app.gps_location,
             )
@@ -389,12 +385,12 @@ def generate_missions(app,
                     contents=best_truck_for_machine.contents,
                     gps_location=best_truck_for_machine.gps_location,
                 )
-                routeDistance = route_mat[idx_machine_location][idx_truck_origin]
-                if routeDistance != 0:
-                    routeDistance = routeDistance[1]  # depot-depot special case
+                route_distance = route_mat[idx_truck_origin][idx_machine_location]
+                if route_distance != 0:
+                    route_distance = route_distance[1]  # depot-depot special case
                 transport_job_toDepot = TransportJobCls(
                     transporting_vehicle=empty_truck,
-                    routeDistance=routeDistance,
+                    route_distance=route_distance,
                     begin_location_gps=empty_truck.gps_location,
                     end_location_gps=machine.gps_location,
                 )
@@ -407,7 +403,7 @@ def generate_missions(app,
                 )
                 transport_job_toWorksite = TransportJobCls(
                     transporting_vehicle=loaded_truck,
-                    routeDistance=route_mat[truck_route[1][0]][idx_worksite_from_machine][1],
+                    route_distance=route_mat[truck_route[1][0]][idx_worksite_from_machine][1],
                     begin_location_gps=loaded_truck.gps_location,
                     end_location_gps=app.gps_location,
                 )
@@ -479,13 +475,13 @@ def generate_missions(app,
                 contents=best_truck_for_machine.contents,
                 gps_location=best_truck_for_machine.gps_location,
             )
-            if route_mat[idx_machine_location][idx_truck_origin] == 0:
+            if route_mat[idx_truck_origin][idx_machine_location] == 0:
                 route_distance = 0
             else:
-                route_distance = route_mat[idx_machine_location][idx_truck_origin][1]
+                route_distance = route_mat[idx_truck_origin][idx_truck_origin][1]
             transport_job_toDepot = TransportJobCls(
                 transporting_vehicle=empty_truck,
-                routeDistance=route_distance,
+                route_distance=route_distance,
                 begin_location_gps=empty_truck.gps_location,
                 end_location_gps=machine.gps_location,
             )
@@ -502,11 +498,10 @@ def generate_missions(app,
                 route_distance = route_mat[truck_route[1][0]][idx_worksite_from_machine][1]
             transport_job_toWorksite = TransportJobCls(
                 transporting_vehicle=loaded_truck,
-                routeDistance=route_distance,
+                route_distance=route_distance,
                 begin_location_gps=loaded_truck.gps_location,
                 end_location_gps=app.gps_location,
             )
-
             work_job = app.work_job
 
             mission = MissionCls(

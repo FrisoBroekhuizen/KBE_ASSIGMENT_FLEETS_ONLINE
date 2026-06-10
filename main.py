@@ -20,7 +20,7 @@ from assets import *
 from Warning import generate_warning
 # from DepotArrangement import *
 from Depot import Depot
-from MapMaker import MapMaker
+from MapMaker import MapMaker, FleetMapMaker
 import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
 import requests
@@ -66,7 +66,7 @@ class MissionStrategyApp(Base):
                           "Waalwijk":(51.699574, 5.046544)
                         }
 
-    site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
+    site_dimensions: Tuple[float, float] = Input((100.0, 100.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
     orientation: float = Input(0.0)
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
@@ -142,9 +142,6 @@ class MissionStrategyApp(Base):
                                                                                      "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
-            # if poi["orientation"] == None: orientation = 0
-            # else: orientation = poi["orientation"]
-
             if poi["orientation"] == None: orientation = 0
             else: orientation = poi["orientation"]
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
@@ -178,15 +175,24 @@ class MissionStrategyApp(Base):
             "Tool": 0,
             "Pump": 0,
         }
-        if not self.needed_machinery in self.possible_machinery:
-            generate_warning("Warning: Machinery cannot be read", "The selected machinery type can not be read, check for a typo or add this machine to the machinery types list. If doubts about the application, contact us.")
+
+        if self.needed_machinery not in self.possible_machinery:
+            generate_warning(
+                "Warning: Machinery cannot be read",
+                "The selected machinery type can not be read, check for a typo or add "
+                "this machine to the machinery types list. If doubts about the application, "
+                "contact us.",
+            )
             return
         elif self.man_hours <= 0:
-            generate_warning("Warning: Man hours invalid", "The selected number of man hours is equal to or smaller than zero. Please choose a positive number of man hours.")
+            generate_warning(
+                "Warning: Man hours invalid",
+                "The selected number of man hours is equal to or smaller than zero. "
+                "Please choose a positive number of man hours.",
+            )
             return
 
         if self.use_FleetsOnline_data:
-            # self.GetFleetData()
             with open('FleetsOnlineData.json', 'r') as file:
                 data = json.load(file)
         else:
@@ -195,34 +201,57 @@ class MissionStrategyApp(Base):
 
         for l in data:
             if l["type"] == "poi":
+                # ---------------- Depots ----------------
                 if "Garage" in l["name"]:
                     depot = Depot()
                     depot.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                     depot.overall_dimensions = l["overall_dimensions"]
                     depot.name = l["name"]
+
+                    # NEW: read rotation (in degrees) from JSON, default to 0.0 if missing
+                    depot.rotation = float(l.get("orientation", 0.0))
+
                     self.depots.append(depot)
+
+
+                # ---------------- Work site ----------------
                 elif "Boomrooierij" in l["name"]:
                     workjob = WorkJob()
-                    if l["gps_location"] == None:
+                    if l["gps_location"] is None:
                         print("One of the worksites has no location data")
-                        workjob.gps_location = (self.standard_locations["Breda"][0], self.standard_locations["Breda"][1])
+                        workjob.gps_location = (
+                            self.standard_locations["Breda"][0],
+                            self.standard_locations["Breda"][1],
+                        )
                     else:
-                        workjob.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                        workjob.gps_location = (
+                            l["gps_location"]["lat"],
+                            l["gps_location"]["lon"],
+                        )
+
                     workjob.needed_vehicles = self.needed_machinery
                     workjob.man_hours = self.man_hours
                     workjob.name = l["name"]
+
                     self.work_job = workjob
                     self.gps_location = workjob.gps_location
-                    self.site_dimensions = l["overall_dimensions"]
-                    self.orientation = l["orientation"]
+
+                    # Use only L, W from overall_dimensions; ignore height for site area
+                    dims = l.get("overall_dimensions", [100.0, 100.0, 0.0])
+                    self.site_dimensions = (float(dims[0]), float(dims[1]))
+
+                    # Orientation is optional; default to 0 if not in JSON
+                    self.orientation = float(l.get("orientation", 0.0))
+
             elif l["type"] == "asset":
+                # --------- create correct machine/trailer type ----------
                 if l["name"] == "Tractor":
                     m = Tractor()
                     m.machine_type = "Tractor"
                 elif l["name"] == "Kranen":
                     m = Crane()
                     m.machine_type = "Crane"
-                elif l["name"] == "Vrachtwagens" or l["name"] == "Vrachtwagens ": # To account for issue stemming from FleetsOnline API data
+                elif l["name"] == "Vrachtwagens" or l["name"] == "Vrachtwagens ":
                     m = Truck()
                     m.machine_type = "Truck"
                 elif "Aanhanger" in l["name"]:
@@ -230,30 +259,47 @@ class MissionStrategyApp(Base):
                     m.overall_dimensions = l["overall_dimensions"]
                 else:
                     m = Vehicle()
+
+                # --------- generic machine properties ----------
                 try:
                     m.overall_dimensions = l['overall_dimensions']
-                except:
+                except Exception:
                     m.overall_dimensions = (2, 2, 2)
-                    generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l['id']}. Standard dimensions of [2 x 2 x 2] are used instead.")
+                    generate_warning(
+                        "Warning: Overall dimensions not specified",
+                        f"The overall dimensions were not provided for machine {l['id']}. "
+                        "Standard dimensions of [2 x 2 x 2] are used instead.",
+                    )
+
                 m.color = l['color']
                 m.build_year = l['build_year']
-                if m.build_year == None: m.build_year = 2026
-                elif m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
-                m.color = l['color']
-                m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
-                m.gps_location = self.depots[0].gps_location
+                if m.build_year is None:
+                    m.build_year = 2026
+                elif m.build_year < 2020:
+                    m.build_year = 2020  # limitation of CO2 calculator
+
+                m.gps_location = (
+                    l["gps_location"]["lat"],
+                    l["gps_location"]["lon"],
+                )
+
                 if "Aanhanger" in l["name"]:
                     m.trailer_id = l["id"]
                     self.trailers.append(m)
                 else:
                     m.machine_id = l["id"]
-                    if "Diesel (fossiel)" in l["fuel_type"]: m.energy_source = "diesel-(fossiel)"
-                    elif "Biodiesel" in l["fuel_type"]: m.energy_source = "biodiesel-(hvo)"
-                    elif "Electric" in l["fuel_type"]: m.energy_source = "Electric"
+                    if "Diesel (fossiel)" in l["fuel_type"]:
+                        m.energy_source = "diesel-(fossiel)"
+                    elif "Biodiesel" in l["fuel_type"]:
+                        m.energy_source = "biodiesel-(hvo)"
+                    elif "Electric" in l["fuel_type"]:
+                        m.energy_source = "Electric"
+
                     m.emission_class = l["emission_class_version"]
                     m.consumption_per_hour = l["consumption_per_hour"]
                     self.machines.append(m)
                     self.number_of_machines_per_type[m.machine_type] += 1
+
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
@@ -262,6 +308,16 @@ class MissionStrategyApp(Base):
                 generate_warning("Warning: Unknown data entry", "The provided FleetsOnlineData.json data file contains an entry of an unknown type, this entry will be ignored.")
         asset_overall_dimensions = (0.0, 0.0, 0.0)
         if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
+
+    @Attribute
+    def all_jobs(self) -> List[Base]:
+        # Later done to put jobs next to each other for time planning and mission generation
+        return [*self.transport_jobs, *self.work_jobs]
+
+    @Attribute
+    def number_of_machines_in_fleet(self) -> int:
+        # Later done to sum the machines for strategy evaluation
+        return len(self.fleet.machines) if self.fleet else 0
 
     @Attribute
     def standard_location(self):
@@ -590,14 +646,91 @@ class MissionStrategyApp(Base):
             current_y += 10 + d.overall_dimensions[1]
             depots.append(d)
         display(depots, mainloop=False)
+    @action(button_label="Fleet overview map")
+    def FleetOverviewMap(self):
+        """
+        Visualize the *initial* fleet on a map:
+        - background map (MAP1 / MAP2),
+        - depots with actual sizes & rotation,
+        - work site(s) with JSON-based site_dimensions & orientation,
+        - all machines & trailers as stacked boxes on their gps_location.
+
+        Assets stacked:
+        - if multiple objects share same gps_location (road-parked),
+          they are stacked in +Z.
+        - if gps_location coincides with a depot, they appear stacked on
+          that depot position as well.
+        """
+
+        # --- depot GPS points + sizes + rotations (same logic as MapMaker action) ---
+        depot_points: List[Tuple[float, float]] = []
+        depot_sizes: List[Tuple[float, float, float]] = []
+        depot_rotations: List[float] = []
+
+        for dep in self.depots:
+            try:
+                depot_points.append(dep.gps_location)
+                L, W, H = dep.overall_dimensions
+                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
+                angle = float(getattr(dep, "rotation", 0.0))
+                depot_rotations.append(angle)
+            except Exception as e:
+                print(f"[FleetOverviewMap] Failed to read depot data for {dep}: {e}")
+                # simple fallback depot
+                depot_points.append(dep.gps_location)
+                depot_sizes.append((2000.0, 1000.0, 500.0))
+                depot_rotations.append(0.0)
+
+        # --- worksite GPS points + sizes + rotations ---
+        worksite_points: List[Tuple[float, float]] = []
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
+
+        # Single work_job in your model; if you later add more, this still works.
+        if self.work_job is not None:
+            worksite_points.append(self.work_job.gps_location)
+
+            try:
+                L, W = self.site_dimensions
+                L *= 10.0
+                W *= 10.0
+            except Exception:
+                L, W = 2000.0, 2000.0
+
+            H = 100.0
+            worksite_sizes.append((float(L), float(W), float(H)))
+            worksite_rotations.append(float(self.orientation))
+
+        # --- assets: initial fleet: all machines + all trailers ---
+        assets: List[object] = []
+        assets.extend(self.machines)
+        assets.extend(self.trailers)
+
+        # Instantiate FleetMapMaker with:
+        # - no routes (so no polylines),
+        # - same depots & worksites as MapMaker,
+        # - plus the assets list.
+        map_obj = FleetMapMaker(
+            routes=[],
+            depots=depot_points,
+            depot_sizes=depot_sizes,
+            depot_rotations_deg=depot_rotations,
+            work_sites=worksite_points,
+            worksite_sizes=worksite_sizes,
+            worksite_rotations_deg=worksite_rotations,
+            assets=assets,
+        )
+
+        from parapy.gui import display
+        display(map_obj, mainloop=False)
 
     @action(button_label="MapMaker")
     def MapMaker(self):
         """
         Open a map showing:
         - all transport job routes,
-        - all depots as black cubes,
-        - all work sites as purple cubes.
+        - all depots with their actual sizes and rotation,
+        - all work sites with their JSON-based site_dimensions and orientation.
         """
 
         # --- build route list: (start, end, machine_type) ---
@@ -610,27 +743,58 @@ class MissionStrategyApp(Base):
             machine_type = type(job.transporting_vehicle).__name__
             routes.append((start, end, machine_type))
 
-        # --- depot GPS points ---
+        # --- depot GPS points + sizes + rotations ---
         depot_points: List[Tuple[float, float]] = []
+        depot_sizes: List[Tuple[float, float, float]] = []
+        depot_rotations: List[float] = []
+
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
+                L, W, H = dep.overall_dimensions
+                # scale as you do now:
+                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
+                # get rotation from Depot.rotation (set in JSONReader)
+                angle = float(getattr(dep, "rotation", 0.0))
+                depot_rotations.append(angle)
             except AttributeError:
-                print(f"[MapMaker] Depot {dep} has no 'location_gps' attribute; skipping.")
+                print(f"[MapMaker] Depot {dep} missing gps_location / overall_dimensions; skipping.")
+            except Exception as e:
+                print(f"[MapMaker] Failed to read depot size/rotation for {dep}: {e}")
 
-        # --- work site GPS points (one per work job) ---
+        # --- work site GPS points ---
         worksite_points: List[Tuple[float, float]] = [
             wj.gps_location for wj in work_jobs
         ]
 
-        # Instantiate map object
+        # --- work site sizes + rotations from JSONReader ---
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
+
+        for _wj in work_jobs:
+            try:
+                # self.site_dimensions is a tuple; multiply each component, not the tuple
+                L, W = self.site_dimensions
+                L *= 10.0
+                W *= 10.0
+            except Exception:
+                L, W = 2000.0, 2000.0  # fallback
+
+            H = 100.0
+            worksite_sizes.append((float(L), float(W), float(H)))
+            worksite_rotations.append(float(self.orientation))
+
+        # Instantiate map object with explicit sizes & rotations
         map_obj = MapMaker(
             routes=routes,
             depots=depot_points,
+            depot_sizes=depot_sizes,
+            depot_rotations_deg=depot_rotations,  # <<< IMPORTANT
             work_sites=worksite_points,
+            worksite_sizes=worksite_sizes,
+            worksite_rotations_deg=worksite_rotations,
         )
 
-        # Display in a separate ParaPy viewer window
         from parapy.gui import display
         display(map_obj, mainloop=False)
 
@@ -746,48 +910,39 @@ class TransportJob(Base):
     fleet: Optional["Fleet"] = Input(None)
 
     # As long as Valhalla is not used, if a route is planned for a tractor, we will determine the routeDuration
-    # using the computed routeDistance and an average speed for a tractor.
+    # using the computed route_distance and an average speed for a tractor.
     # @Attribute
     # def Route(self) -> List[float]:
-    #     self.routeDuration, self.routeDistance, _ = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
-    #     return[self.routeDuration, self.routeDistance]
+    #     self.routeDuration, self.route_distance, _ = Routing.ComputeRoute(self.begin_location_gps, self.end_location_gps, type(self.needed_machinery).__name__)
+    #     return[self.routeDuration, self.route_distance]
 
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
     # downtimes, maintenance, ..., which can be used later in the cost function evaluation
 
+    # Duration of the route (scaled by speed of vehicle) in minutes
     @Attribute
     def routeDuration(self) -> float:
-        routeDistance = self.routeDistance / 1000 # Route distance in km
+        route_distance = self.route_distance / 1000 # Route distance in km
 
         if str(type(self.transporting_vehicle).__name__) == "Truck" or str(type(self.transporting_vehicle).__name__) == "Vehicle":
-            routeDuration = self.routeDistance / 1000 / (self.max_speeds[str(type(self.transporting_vehicle).__name__)] * 0.8) * 3600
+            routeDuration = self.route_distance / 1000 / (self.max_speeds[str(type(self.transporting_vehicle).__name__)] * 0.8) * 3600
         else:
             max_speed = self.max_speeds[str(type(self.transporting_vehicle).__name__)] * 0.8 # Factor for not always driving at the maximum speeds due to rural roads, traffic, etc.
-            routeDuration = routeDistance / max_speed * 3600
+            routeDuration = route_distance / max_speed * 3600
         routeDuration = round(routeDuration/60)
         return routeDuration
 
-    # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
-    # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
-    # Maintenance threshold is placed in the Pareto distribution for maintenance
-    # @Attribute
-    # def job_maintenance(self):
-    #     maintenance = self.transporting_vehicle.CalculateIndividualMaintenance()
-    #     return maintenance
-
-    # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
+        self.transporting_vehicle.hours_used = self.routeDuration / 60
         NOx = self.transporting_vehicle.individualNOX
         return NOx
 
-    # Talk to Arjan -> External tool
     @Attribute
     def job_CO2(self) -> float:
         CO2 = self.transporting_vehicle.individualCO2
         return CO2
 
-    # Talk to Arjan, depends on work hours, employees, machinery, historical data
     @Attribute
     def job_cost(self) -> float:
         cost = self.transporting_vehicle.individualCost
@@ -829,38 +984,22 @@ class WorkJob(Base):
     @Attribute
     def TimeKeeper(self):
         job_duration = self.man_hours / (len(self.assigned_tools) + len(self.assigned_vehicles))
-
         return job_duration
 
-    # Using age and type of vehicle, a Pareto distribution can be used to predict if maintenance is required.
-    # Expected inputs: decay factor (vehicle specific), age of vehicle and hours the vehicle is used.
-    # Maintenance threshold is placed in the Pareto distribution for maintenance
-    # @Attribute
-    # def job_maintenance(self):
-    #     maintenance_list = []
-    #     for tool in self.assigned_tools:
-    #         maintenance = tool.CalculateIndividualMaintenance()
-    #         maintenance_list.append(maintenance)
-    #     for vehicle in self.assigned_vehicles:
-    #         maintenance = vehicle.CalculateIndividualMaintenance()
-    #         maintenance_list.append(maintenance)
-    #
-    #     return maintenance_list
-
-    # Talk to Arjan -> External tool
     @Attribute
     def job_NOx(self) -> float:
         NOx_list = []
         for tool in self.assigned_tools:
+            tool.hours_used = self.TimeKeeper
             NOx = tool.individualNOX
             NOx_list.append(NOx)
         for vehicle in self.assigned_vehicles:
+            vehicle.hours_used = self.TimeKeeper
             NOx = vehicle.individualNOX
             NOx_list.append(NOx)
 
         return NOx_list
 
-    # Talk to Arjan -> External tool
     @Attribute
     def job_CO2(self) -> float:
         CO2_list = []
@@ -873,7 +1012,6 @@ class WorkJob(Base):
 
         return CO2_list
 
-    # Talk to Arjan, depends on work hours, employees, machinery, historical data
     @Attribute
     def job_cost(self) -> float:
         cost_list = []
