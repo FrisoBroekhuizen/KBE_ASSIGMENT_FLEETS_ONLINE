@@ -34,8 +34,8 @@
     "id": "Tractor_EHV_close",
     "build_year": 2022,
     "gps_location": {
-      "lat": 51.46030,
-      "lon": 5.42940
+      "lat": 51.468300,
+      "lon": 5.421400
     },
     "overall_dimensions": [3, 2.5, 3],
     "emission_class_version": "StageIIIA",

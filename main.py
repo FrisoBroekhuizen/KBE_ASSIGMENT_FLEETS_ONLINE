@@ -20,7 +20,7 @@ from assets import *
 from Warning import generate_warning
 # from DepotArrangement import *
 from Depot import Depot
-from MapMaker import MapMaker
+from MapMaker import MapMaker, FleetMapMaker
 import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
 import requests
@@ -677,6 +677,83 @@ class MissionStrategyApp(Base):
             current_y += 10 + d.overall_dimensions[1]
             depots.append(d)
         display(depots, mainloop=False)
+    @action(button_label="Fleet overview map")
+    def FleetOverviewMap(self):
+        """
+        Visualize the *initial* fleet on a map:
+        - background map (MAP1 / MAP2),
+        - depots with actual sizes & rotation,
+        - work site(s) with JSON-based site_dimensions & orientation,
+        - all machines & trailers as stacked boxes on their gps_location.
+
+        Assets stacked:
+        - if multiple objects share same gps_location (road-parked),
+          they are stacked in +Z.
+        - if gps_location coincides with a depot, they appear stacked on
+          that depot position as well.
+        """
+
+        # --- depot GPS points + sizes + rotations (same logic as MapMaker action) ---
+        depot_points: List[Tuple[float, float]] = []
+        depot_sizes: List[Tuple[float, float, float]] = []
+        depot_rotations: List[float] = []
+
+        for dep in self.depots:
+            try:
+                depot_points.append(dep.gps_location)
+                L, W, H = dep.overall_dimensions
+                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
+                angle = float(getattr(dep, "rotation", 0.0))
+                depot_rotations.append(angle)
+            except Exception as e:
+                print(f"[FleetOverviewMap] Failed to read depot data for {dep}: {e}")
+                # simple fallback depot
+                depot_points.append(dep.gps_location)
+                depot_sizes.append((2000.0, 1000.0, 500.0))
+                depot_rotations.append(0.0)
+
+        # --- worksite GPS points + sizes + rotations ---
+        worksite_points: List[Tuple[float, float]] = []
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
+
+        # Single work_job in your model; if you later add more, this still works.
+        if self.work_job is not None:
+            worksite_points.append(self.work_job.gps_location)
+
+            try:
+                L, W = self.site_dimensions
+                L *= 10.0
+                W *= 10.0
+            except Exception:
+                L, W = 2000.0, 2000.0
+
+            H = 100.0
+            worksite_sizes.append((float(L), float(W), float(H)))
+            worksite_rotations.append(float(self.orientation))
+
+        # --- assets: initial fleet: all machines + all trailers ---
+        assets: List[object] = []
+        assets.extend(self.machines)
+        assets.extend(self.trailers)
+
+        # Instantiate FleetMapMaker with:
+        # - no routes (so no polylines),
+        # - same depots & worksites as MapMaker,
+        # - plus the assets list.
+        map_obj = FleetMapMaker(
+            routes=[],
+            depots=depot_points,
+            depot_sizes=depot_sizes,
+            depot_rotations_deg=depot_rotations,
+            work_sites=worksite_points,
+            worksite_sizes=worksite_sizes,
+            worksite_rotations_deg=worksite_rotations,
+            assets=assets,
+        )
+
+        from parapy.gui import display
+        display(map_obj, mainloop=False)
 
     @action(button_label="MapMaker")
     def MapMaker(self):

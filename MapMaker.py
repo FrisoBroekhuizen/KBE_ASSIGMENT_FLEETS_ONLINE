@@ -298,6 +298,167 @@ class MapMaker(Base):
             transparency=0.3,
         )
 
+class FleetMapMaker(MapMaker):
+    """
+    Fleet overview map:
+    - shows background map (same as MapMaker),
+    - shows depots and work sites (same as MapMaker),
+    - DOES NOT show route polylines,
+    - additionally shows all assets (machines + trailers) as stacked boxes.
+
+    Assets are:
+        - positioned at their gps_location,
+        - dimensions = overall_dimensions * 100 (for visibility),
+        - grouped by identical gps_location and stacked in +Z,
+        - colored from the asset's .color attribute (fallback: 'gray').
+
+    Inputs
+    ------
+    assets:
+        List of objects that at least have:
+            - gps_location: (lat, lon)
+            - overall_dimensions: (L, W, H)
+            - color (optional)
+    """
+
+    # All routes are ignored visually, but keep the attribute for completeness
+    assets: List[object] = Input([])
+
+    # ------------------------------------------------------------------
+    # Override all_points so map selection also considers assets
+    # ------------------------------------------------------------------
+    @Attribute
+    def all_points(self):
+        """All relevant GPS points: routes, depots, work sites AND assets."""
+        pts: List[Tuple[float, float]] = []
+        # routes
+        for start, end, _ in self.routes:
+            pts.append(start)
+            pts.append(end)
+        # depots & worksites
+        pts.extend(self.depots)
+        pts.extend(self.work_sites)
+        # assets
+        for obj in self.assets:
+            latlon = getattr(obj, "gps_location", None)
+            if latlon is not None:
+                pts.append(tuple(latlon))
+        return pts
+
+    # ------------------------------------------------------------------
+    # Disable red polylines
+    # ------------------------------------------------------------------
+    @Part(parse=False)
+    def route_polylines(self):
+        """No route polylines for the fleet overview."""
+        return []
+
+    # ------------------------------------------------------------------
+    # Asset grouping & stacking
+    # ------------------------------------------------------------------
+    @Attribute
+    def _asset_infos(self):
+        """
+        Flattened list of asset descriptors:
+        [
+          {
+            'lat': float,
+            'lon': float,
+            'x': float,
+            'y': float,
+            'L': float,   # extent in x (Box.width)
+            'W': float,   # extent in y (Box.length)
+            'H': float,   # box height
+            'color': Any,
+            'z_center': float,
+          },
+          ...
+        ]
+
+        Assets are stacked vertically whenever their projected XY
+        boxes intersect on the map.
+        """
+
+        def overlap_1d(c1, size1, c2, size2):
+            """Check 1D interval overlap, center + full size."""
+            return abs(c1 - c2) < 0.5 * (size1 + size2)
+
+        from collections import deque
+
+        origin_lat, origin_lon = self.map_origin_lat_lon
+
+        # --- build raw list with projected XY and scaled sizes ---
+        raw = []
+        for obj in self.assets:
+            latlon = getattr(obj, "gps_location", None)
+            if latlon is None:
+                continue
+
+            lat, lon = latlon
+            x, y = Routing._latlon_to_xy(lat, lon, origin_lat, origin_lon)
+
+            dims = getattr(obj, "overall_dimensions", None)
+            if not dims or len(dims) != 3:
+                dims = (2.0, 2.0, 2.0)  # fallback cube
+
+            scale = 500.0
+            L = float(dims[0]) * scale  # x-extent  (Box.width)
+            W = float(dims[1]) * scale  # y-extent  (Box.length)
+            H = float(dims[2]) * scale
+
+            color = getattr(obj, "color", "gray")
+
+            raw.append({
+                "lat": float(lat),
+                "lon": float(lon),
+                "x": x,
+                "y": y,
+                "L": L,
+                "W": W,
+                "H": H,
+                "color": color,
+                # z_center will be filled in during stacking
+            })
+
+        # Stable ordering: bottom‑to‑top in some deterministic way
+        raw.sort(key=lambda d: (d["y"], d["x"]))
+
+        placed = []
+
+        # --- stacking logic: stack on top of any overlapping XY boxes ---
+        for info in raw:
+            base_z = 0.0  # bottom of this box
+
+            for other in placed:
+                # Check intersection in XY (axis‑aligned boxes)
+                if (overlap_1d(info["x"], info["L"], other["x"], other["L"])
+                        and overlap_1d(info["y"], info["W"], other["y"], other["W"])):
+                    top_other = other["z_center"] + 0.5 * other["H"]
+                    if top_other > base_z:
+                        base_z = top_other
+
+            info["z_center"] = base_z + 0.5 * info["H"]
+            placed.append(info)
+
+        return placed
+
+    @Part
+    def asset_boxes(self):
+        """Stacked boxes for all machines / tools / trailers."""
+        return Box(
+            quantify=len(self._asset_infos),
+            width=self._asset_infos[child.index]["L"],
+            length=self._asset_infos[child.index]["W"],
+            height=self._asset_infos[child.index]["H"],
+            position=XOY.translate(
+                'x', self._asset_infos[child.index]["x"],
+                'y', self._asset_infos[child.index]["y"],
+                'z', self._asset_infos[child.index]["z_center"],
+            ),
+            color=self._asset_infos[child.index]["color"],
+            transparency=0.1,
+        )
+
 
 if __name__ == "__main__":
     from parapy.gui import display
