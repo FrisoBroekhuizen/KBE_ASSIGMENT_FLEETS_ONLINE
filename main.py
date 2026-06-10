@@ -67,6 +67,7 @@ class MissionStrategyApp(Base):
                         }
 
     site_dimensions: Tuple[float, float] = Input((0.0, 0.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
+    orientation: float = Input(0.0)
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
     start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
@@ -141,10 +142,12 @@ class MissionStrategyApp(Base):
                                                                                      "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
+            if poi["orientation"] == None: orientation = 0
+            else: orientation = poi["orientation"]
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
-                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10]})
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10], "orientation":orientation})
             else:
-                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10]})
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10], "orientation":orientation})
         for asset_type in assets: # Loop through the available assets
             for asset in asset_type:
                 if asset["averageConsumption"] == None: cons = 50
@@ -207,6 +210,8 @@ class MissionStrategyApp(Base):
                     workjob.name = l["name"]
                     self.work_job = workjob
                     self.gps_location = workjob.gps_location
+                    self.site_dimensions = l["overall_dimensions"]
+                    self.orientation = l["orientation"]
             elif l["type"] == "asset":
                 if l["name"] == "Tractor":
                     m = Tractor()
@@ -229,9 +234,11 @@ class MissionStrategyApp(Base):
                     generate_warning("Warning: Overall dimensions not specified", f"The overall dimensions were not provided for machine {l['id']}. Standard dimensions of [2 x 2 x 2] are used instead.")
                 m.color = l['color']
                 m.build_year = l['build_year']
-                if m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
+                if m.build_year == None: m.build_year = 2026
+                elif m.build_year < 2020: m.build_year = 2020 # A limitation of the CO2 calculator of Fleets-Online
                 m.color = l['color']
                 m.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
+                m.gps_location = self.depots[0].gps_location
                 if "Aanhanger" in l["name"]:
                     m.trailer_id = l["id"]
                     self.trailers.append(m)
