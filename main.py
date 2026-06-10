@@ -142,10 +142,15 @@ class MissionStrategyApp(Base):
                                                                                      "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
+            # if poi["orientation"] == None: orientation = 0
+            # else: orientation = poi["orientation"]
+
+            if poi["orientation"] == None: orientation = 0
+            else: orientation = poi["orientation"]
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
-                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10]})
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10], "orientation":orientation})
             else:
-                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10]})
+                data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10], "orientation":orientation})
         for asset_type in assets: # Loop through the available assets
             for asset in asset_type:
                 if asset["averageConsumption"] == None: cons = 50
