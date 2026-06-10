@@ -207,7 +207,12 @@ class MissionStrategyApp(Base):
                     depot.gps_location = (l["gps_location"]["lat"], l["gps_location"]["lon"])
                     depot.overall_dimensions = l["overall_dimensions"]
                     depot.name = l["name"]
+
+                    # NEW: read rotation (in degrees) from JSON, default to 0.0 if missing
+                    depot.rotation = float(l.get("orientation", 0.0))
+
                     self.depots.append(depot)
+
 
                 # ---------------- Work site ----------------
                 elif "Boomrooierij" in l["name"]:
@@ -678,7 +683,7 @@ class MissionStrategyApp(Base):
         """
         Open a map showing:
         - all transport job routes,
-        - all depots with their actual sizes,
+        - all depots with their actual sizes and rotation,
         - all work sites with their JSON-based site_dimensions and orientation.
         """
 
@@ -692,19 +697,24 @@ class MissionStrategyApp(Base):
             machine_type = type(job.transporting_vehicle).__name__
             routes.append((start, end, machine_type))
 
-        # --- depot GPS points + sizes ---
+        # --- depot GPS points + sizes + rotations ---
         depot_points: List[Tuple[float, float]] = []
         depot_sizes: List[Tuple[float, float, float]] = []
+        depot_rotations: List[float] = []
+
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
-                # use actual depot bbox from Depot.overall_dimensions
                 L, W, H = dep.overall_dimensions
-                depot_sizes.append((float(L)*10, float(W)*10, float(H)*10))
+                # scale as you do now:
+                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
+                # get rotation from Depot.rotation (set in JSONReader)
+                angle = float(getattr(dep, "rotation", 0.0))
+                depot_rotations.append(angle)
             except AttributeError:
                 print(f"[MapMaker] Depot {dep} missing gps_location / overall_dimensions; skipping.")
             except Exception as e:
-                print(f"[MapMaker] Failed to read depot size for {dep}: {e}")
+                print(f"[MapMaker] Failed to read depot size/rotation for {dep}: {e}")
 
         # --- work site GPS points ---
         worksite_points: List[Tuple[float, float]] = [
@@ -716,13 +726,15 @@ class MissionStrategyApp(Base):
         worksite_rotations: List[float] = []
 
         for _wj in work_jobs:
-            # Use app-level site_dimensions / orientation (set in JSONReader)
             try:
-                L, W = self.site_dimensions*10
+                # self.site_dimensions is a tuple; multiply each component, not the tuple
+                L, W = self.site_dimensions
+                L *= 10.0
+                W *= 10.0
             except Exception:
-                L, W = 2000.0, 2000.0  # fallback if something went wrong
+                L, W = 2000.0, 2000.0  # fallback
 
-            H = 100.0  # choose a reasonable constant height for the beam
+            H = 100.0
             worksite_sizes.append((float(L), float(W), float(H)))
             worksite_rotations.append(float(self.orientation))
 
@@ -731,12 +743,12 @@ class MissionStrategyApp(Base):
             routes=routes,
             depots=depot_points,
             depot_sizes=depot_sizes,
+            depot_rotations_deg=depot_rotations,  # <<< IMPORTANT
             work_sites=worksite_points,
             worksite_sizes=worksite_sizes,
             worksite_rotations_deg=worksite_rotations,
         )
 
-        # Display in a separate ParaPy viewer window
         from parapy.gui import display
         display(map_obj, mainloop=False)
 

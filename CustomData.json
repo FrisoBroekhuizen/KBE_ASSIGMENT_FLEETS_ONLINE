@@ -6,7 +6,8 @@
       "lat": 51.468300,
       "lon": 5.421400
     },
-    "overall_dimensions": [200, 200, 10]
+    "overall_dimensions": [200, 200, 10],
+    "orientation": 30.0
   },
 
   {
@@ -16,7 +17,15 @@
       "lat": 51.585300,
       "lon": 4.732800
     },
-    "overall_dimensions": [400, 100, 30]
+    "overall_dimensions": [400, 100, 30],
+    "orientation": 45
+  },
+  {
+    "type": "poi",
+    "name": "Garage X",
+    "gps_location": { "lat": 51.5, "lon": 5.1 },
+    "overall_dimensions": [600.0, 100.0, 15.0],
+    "orientation": 45.0
   },
 
   {
