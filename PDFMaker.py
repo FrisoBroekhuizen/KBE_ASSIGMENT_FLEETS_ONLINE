@@ -13,7 +13,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-def Export(mission, startTime):
+def Export(mission, startTime, timelines):
         doc = SimpleDocTemplate(
             "FinalStrategy.pdf",
             leftMargin=20 * mm,
@@ -340,6 +340,58 @@ def Export(mission, startTime):
         )
 
         story.append(work_table)
+
+
+        # ================
+        # PLANNING
+        # ================
+
+        story.append(
+            Paragraph(
+                "Planning",
+                styles["SectionTitle"],
+            )
+        )
+
+        planning_data = [
+            [
+                "Machine",
+                "Job",
+                "Start",
+                "Finish",
+                # "Hours used"
+            ]
+        ]
+
+        for action in timelines:
+            if action[0].machine_type == "Truck":
+                try:
+                    if action[0].contents.contents != []:
+                        planning_data.append([action[0].machine_id, f"Truck moving {action[0].contents.contents[0].machine_type} to worksite", action[1], action[2]])
+                    else:
+                        planning_data.append([action[0].machine_id, f"Truck picking up needed machine", action[1], action[2]])
+                except:
+                    planning_data.append([action[0].machine_id, f"Truck picking up needed machine", action[1], action[2]])
+            elif action[3] == "transport":
+                planning_data.append([action[0].machine_id, f"{action[0].machine_type} moving to worksite", action[1], action[2]])
+            else:
+                planning_data.append([action[0].machine_id, f"{action[0].machine_type} working", action[1], action[2]])
+
+        planning_table = Table(planning_data, repeatRows=1)
+
+        planning_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ]
+            )
+        )
+
+        story.append(planning_table)
+
+
 
         story.append(PageBreak())
 

@@ -26,7 +26,7 @@ import Routing
 from TrailerArrangement import Item, TrailerPackingVisualization, item_from_machine, TrailerAdapter
 import requests
 import json
-
+import PDFMaker
 
 maindir = os.path.dirname(__file__)
 
@@ -564,49 +564,39 @@ class MissionStrategyApp(Base):
         return normalized
 
     # Function that builds the final mission planning
-    def Planner(self):
+    @Attribute
+    def timelines(self):
         timelines = []
-        for work_job in self.work_jobs:
-            for vehicle in work_job.assigned_vehicles:
-                timelines.append([vehicle.machine_id, self.start_time])
-        timelines = np.array(timelines)
-        # print("Starting point timeline:")
-        # print(timelines)
-        for transport_job in self.transport_jobs:
+        for transport_job in self.winning_mission.transport_jobs:
             vehicle = transport_job.transporting_vehicle
-            try:
-                index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
-            except:
-                continue
-                # print("No index could be found for this vehicle: " + str(vehicle.machine_id))
             if type(vehicle).__name__ == "Truck":
+                timelines.append([vehicle, self.start_time, self.start_time + datetime.timedelta(minutes = transport_job.routeDuration), "transport"])
                 trailer = vehicle.contents
                 if trailer != None:
                     for item in trailer.contents:
                         if item != None:
                             try:
                                 index_content = np.where(timelines[:, 0] == item.machine_id)[0][0]
-                                timelines[index_content][1] += datetime.timedelta(minutes=transport_job.routeDuration)
                             except:
                                 continue
-                                # print("No index could be found for the vehicle " + str(
-                            #     item.machine_id) + " inside trailer " + str(trailer.trailer_id))
-            timelines[index][1] += datetime.timedelta(minutes=transport_job.routeDuration)
-            vehicle.total_hours_used += transport_job.routeDuration / 60
-        # print("Timeline after transport jobs:")
-        # print(timelines)
-        for work_job in self.work_jobs:
+        timelines = np.array(timelines)
+        for work_job in self.winning_mission.work_jobs:
             vehicles = work_job.assigned_vehicles
             for vehicle in vehicles:
-                try:
-                    index = np.where(timelines[:, 0] == vehicle.machine_id)[0][0]
-                except:
-                    continue
-                    # print("No index could be found for this vehicle: " + str(vehicle.machine_id))
-                timelines[index][1] += datetime.timedelta(hours=(work_job.man_hours / len(vehicles)))
-                vehicle.total_hours_used = work_job.man_hours / len(vehicles)
-            # print("Timeline after work jobs:")
-            print(timelines)
+                index = None
+                for i, transported_vehicle in enumerate(timelines[:, 0]):
+                    if transported_vehicle == vehicle:
+                        index = i
+                    else:
+                        try:
+                            if transported_vehicle.contents.contents[0] == vehicle:
+                                index = i
+                        except:
+                            continue
+                if index == None: print(f"Warning: workjob assigned vehicle {vehicle.machine_id} has not been transported there.")
+                timelines = np.vstack((timelines, np.array([vehicle, timelines[index][2], timelines[index][2] + datetime.timedelta(hours = work_job.man_hours / len(vehicles)), "work"])))
+        return timelines
+
     # ------------------------------------------------------------------
     # Cost function
     # ------------------------------------------------------------------
@@ -875,7 +865,7 @@ class MissionStrategyApp(Base):
 
     @action(label="Export strategy", button_label="Export strategy overview to .pdf")
     def exportStrategy(self):
-        PDFMaker.Export(self.winning_mission, self.start_time)
+        PDFMaker.Export(self.winning_mission, self.start_time, self.timelines)
 
     @action(button_label="Add vehicle to JSON data file", label="Add vehicle")
     def AddVehicle(self):
