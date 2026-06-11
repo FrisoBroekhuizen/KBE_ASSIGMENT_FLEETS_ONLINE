@@ -352,8 +352,6 @@ class MissionStrategyApp(Base):
         2) Evaluate raw metrics per mission
         3) Normalize & pick mission with lowest scalar cost
         """
-        # 0) Ensure preferences are normalized before evaluation
-        self.NormalizePreferences()
 
         # Allocate machines to depots / road-side
         self.road_parked = self.AllocateMachines()
@@ -492,7 +490,7 @@ class MissionStrategyApp(Base):
                 if (max_NOx - min_NOx) != 0 else 0.0)
             m.normalized_emissions = alpha * norm_CO2 + (1.0 - alpha) * norm_NOx
 
-            m.mission_preferences = self.mission_preferences
+            m.mission_preferences = self.NormalizePreferences
 
             # Scalar cost function for this mission
             m.mission_scalar = m.EvaluateCostFunction()
@@ -502,7 +500,7 @@ class MissionStrategyApp(Base):
         return winning_mission
 
     # Define (normalized) preferences function
-    @action()
+    @attribute
     def NormalizePreferences(self) -> List[float]:
         """Normalize mission_preferences:
         - Negative values => 0 (user really doesn't want that objective)
