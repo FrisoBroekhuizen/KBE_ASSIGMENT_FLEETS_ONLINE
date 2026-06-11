@@ -461,7 +461,7 @@ class MissionStrategyApp(Base):
                 total_mission_NOx += sum(work_job.job_NOx)
                 total_mission_CO2 += sum(work_job.job_CO2)
                 total_mission_cost += sum(work_job.job_cost)
-                total_mission_time += work_job.job_duration
+                # total_mission_time += work_job.job_duration
 
             m.mission_NOx = total_mission_NOx
             m.mission_CO2 = total_mission_CO2
@@ -939,6 +939,7 @@ class Mission(Base):
     mission_NOx = Input(0.0)
     mission_CO2 = Input(0.0)
     mission_cost = Input(0.0)
+    mission_time = Input(0.0)
 
     normalized_time = Input(0.0)
     normalized_cost = Input(0.0)
