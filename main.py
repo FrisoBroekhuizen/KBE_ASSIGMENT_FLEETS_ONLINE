@@ -53,8 +53,6 @@ class MissionStrategyApp(Base):
     # Aggregations / associations
     mission_preferences: List[float] = Input([1.0, 1.0, 1.0], label="Mission preferences (cost, time, emissions)", validator=all_is_number)  # List of weights for the different optimalisation goals
 
-    use_FleetsOnline_data = Input(False, widget=CheckBox())
-
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
     strict_deadline: bool = Input(False, widget=CheckBox())  # default: no deadline restriction
@@ -92,6 +90,15 @@ class MissionStrategyApp(Base):
     work_job = Input(None)
 
     @action(label = "Use Fleets-Online Data", button_label = "Read")
+    def ReadFleetsData(self):
+        self.FleetsOnlineData()
+        self.ReadData(True)
+
+    @action(label="Use Custom Data", button_label="Read")
+    def ReadCustomData(self):
+        self.ReadData(False)
+
+
     def FleetsOnlineData(self):
         # API Authentication Header
         BASE_URL = "https://api.v2.deepdigital.org"
@@ -142,8 +149,10 @@ class MissionStrategyApp(Base):
                                                                                      "searchTerm": "Aanhanger zwaar"}).json()["value"])
         data = [] # Keep track of all pois and assets to write to the json file
         for poi in pois: # Loop through the available points of interest
-            if poi["orientation"] == None: orientation = 0
-            else: orientation = poi["orientation"]
+            # -- The following can be added if Fleets-Online adds orientation to their POI data --
+            # if poi["orientation"] == None: orientation = 0
+            # else: orientation = poi["orientation"]
+            orientation = 0
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
                 data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10], "orientation":orientation})
             else:
@@ -162,8 +171,8 @@ class MissionStrategyApp(Base):
             json.dump(data, f, indent=4)
         return pois, assets
 
-    @action(label = "Use Custom Data", button_label = "Read")
-    def CustomData(self):
+
+    def ReadData(self, use_fleets_data = False):
         # reset mutable state so we don't accumulate entries across runs
         self.depots = []
         self.machines = []
@@ -192,7 +201,7 @@ class MissionStrategyApp(Base):
             )
             return
 
-        if self.use_FleetsOnline_data:
+        if use_fleets_data:
             with open('FleetsOnlineData.json', 'r') as file:
                 data = json.load(file)
         else:
@@ -257,6 +266,12 @@ class MissionStrategyApp(Base):
                 elif "Aanhanger" in l["name"]:
                     m = Trailer()
                     m.overall_dimensions = l["overall_dimensions"]
+                elif "Tool" in l["name"]:
+                    m = Tool()
+                    m.machine_type = "Tool"
+                elif "Pump" in l["name"]:
+                    m = Pump()
+                    m.machine_type = "Pump"
                 else:
                     m = Vehicle()
 
@@ -270,8 +285,6 @@ class MissionStrategyApp(Base):
                         f"The overall dimensions were not provided for machine {l['id']}. "
                         "Standard dimensions of [2 x 2 x 2] are used instead.",
                     )
-
-                m.color = l['color']
                 m.build_year = l['build_year']
                 if m.build_year is None:
                     m.build_year = 2026
@@ -283,10 +296,16 @@ class MissionStrategyApp(Base):
                     l["gps_location"]["lon"],
                 )
 
+                try:
+                    m.color = l["color"]
+                except:
+                    m.color = None
+
                 if "Aanhanger" in l["name"]:
                     m.trailer_id = l["id"]
+                    if m.color == None: m.color = "Orange"
                     self.trailers.append(m)
-                else:
+                elif m.machine_type not in ["Tool", "Pump"]:
                     m.machine_id = l["id"]
                     if "Diesel (fossiel)" in l["fuel_type"]:
                         m.energy_source = "diesel-(fossiel)"
@@ -297,9 +316,13 @@ class MissionStrategyApp(Base):
 
                     m.emission_class = l["emission_class_version"]
                     m.consumption_per_hour = l["consumption_per_hour"]
+                    if m.color == None: m.color = "Yellow"
                     self.machines.append(m)
                     self.number_of_machines_per_type[m.machine_type] += 1
-
+                else:
+                    m.machine_id = l["id"]
+                    if m.color == None: m.color = "Blue"
+                    self.machines.append(m)
                 gps_check = Routing.gps_checker([m.gps_location[0], m.gps_location[1]])
                 if gps_check == 2:generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of the intended region. A bigger map of western Europe is used. For a clearer resolution, add a local map with corner coordinates in Routing.py.")
                 elif gps_check == 3: generate_warning("Warning: Coordinate outside of intended region", "The provided coordinate(s) fall outside of available western Europe map. To use this route, add your own map for visibility with corner coordinates in Routing.py.")
@@ -867,6 +890,53 @@ class MissionStrategyApp(Base):
         with open('CustomData.json', 'w') as f:
             json.dump(data, f, indent=4)
         generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
+
+    @action(button_label="Export", label="Export Fleet")
+    def ExportFleet(self):
+        data = []  # Keep track of all pois and assets to write to the json file
+        # Add work job
+        data.append({"type":"poi", "name":self.work_job.name, "gps_location":{"lat":self.work_job.gps_location[0], "lon":self.work_job.gps_location[1]},
+                    "overall_dimensions":self.site_dimensions, "orientation":self.orientation})
+        # Add depots
+        for depot in self.depots:
+            data.append({"type":"poi", "name":depot.name, "gps_location":{"lat":depot.gps_location[0], "lon":depot.gps_location[1]},
+                         "overall_dimensions":depot.overall_dimensions, "orientation":depot.rotation})
+        # Add trailers
+        for asset in self.trailers:
+            data.append({"type": "asset", "id": asset.trailer_id, "name": "Aanhanger zwaar", "build_year":asset.build_year,
+                         "gps_location": {"lat":asset.gps_location[0], "lon":asset.gps_location[1]},
+                         "overall_dimensions":asset.overall_dimensions, "color":asset.color})
+        # Add machines
+        for asset in self.machines:
+            if asset.machine_type in ["Tool", "Pump"]:
+                data.append({"type": "asset", "id": asset.machine_id, "name": type(asset).__name__, "build_year": asset.build_year,
+                             "gps_location": {"lat": asset.gps_location[0], "lon": asset.gps_location[1]},
+                             "overall_dimensions": asset.overall_dimensions, "color": asset.color})
+            else:
+                if asset.energy_source == "diesel-(fossiel)":
+                    fuel_type = "Diesel (fossiel)"
+                elif asset.energy_source == "biodiesel-(hvo)":
+                    fuel_type = "Biodiesel"
+                elif asset.energy_source == "Electric":
+                    fuel_type = "Electric"
+                else:
+                    fuel_type = "Diesel (fossiel)"
+                if type(asset).__name__ == "Truck":
+                    machine_type = "Vrachtwagens"
+                elif type(asset).__name__ == "Crane":
+                    machine_type = "Kranen"
+                else:
+                    machine_type = type(asset).__name__
+                data.append({"type": "asset", "id": asset.machine_id, "name": machine_type,
+                             "build_year": asset.build_year,
+                             "gps_location": {"lat": asset.gps_location[0], "lon": asset.gps_location[1]},
+                             "overall_dimensions": asset.overall_dimensions, "color": asset.color,
+                             "fuel_type":fuel_type, "emission_class_version":asset.emission_class, "consumption_per_hour":asset.consumption_per_hour})
+
+        # Write FleetsOnline data to FleetsOnlineData.json file
+        with open('CustomData.json', 'w') as f:
+            json.dump(data, f, indent=4)
+
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])

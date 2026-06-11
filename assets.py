@@ -218,7 +218,7 @@ class Vehicle(Machine):
     wheelbase_track: float = Input(2)
     number_of_axles: int = Input(2)
     max_steering_angle: float = Input(20.0)
-    color = Input("yellow")
+    color = Input("Yellow")
     dimensions: Tuple[float, float, float] = Input((1, 2, 2))
     dimensions_rear: Tuple[float, float, float] = Input((5, 2, 2))
 
@@ -326,7 +326,7 @@ class Tool(Machine):
 
     tool_id: str = Input("")
     vehicle_attachable: bool = Input(False)
-    color = Input("blue")
+    color = Input("Blue")
     upright_only: bool = Input(False)
 
 class Pump(Tool):
