@@ -560,7 +560,6 @@ class MissionStrategyApp(Base):
             n = len(prefs)
             normalized = [1.0 / n] * n
 
-        self.mission_preferences = normalized
         return normalized
 
     # Function that builds the final mission planning
