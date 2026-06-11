@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Any
 
 from parapy.core import Base, Input, Attribute, Part, child
 from parapy.geom import Point, Position, Polyline, Box, XOY
@@ -82,6 +82,104 @@ class WorksiteMarker(Base):
         )
 
 
+class RouteMarker(Base):
+    """Visual marker for a transport route, keeps a reference to the
+    main vehicle and (indirectly) everything it is carrying.
+    """
+
+    # The main moving object: typically job.transporting_vehicle
+    vehicle: object = Input(None)
+
+    # ORS geometry in [ [lon, lat], ... ] format
+    geometry_latlon: List[Tuple[float, float]] = Input([])
+
+    # Map origin used for lat/lon -> XY
+    origin_lat: float = Input()
+    origin_lon: float = Input()
+
+    color: Any = Input((255, 0, 0))
+    line_thickness: float = Input(4.0)
+
+    @Attribute
+    def objects(self) -> List[object]:
+        """All logical objects involved in this leg:
+        [truck] or [truck, trailer] or [truck, trailer, tractor], ...
+        """
+        objs: List[object] = []
+        v = self.vehicle
+        if v is None:
+            return objs
+
+        objs.append(v)
+
+        cont = getattr(v, "contents", None)
+        if cont is not None:
+            objs.append(cont)
+            inner = getattr(cont, "contents", None)
+            if isinstance(inner, list):
+                for m in inner:
+                    if m is not None:
+                        objs.append(m)
+
+        return objs
+
+    @Attribute
+    def label(self) -> str:
+        """Human-readable description, shown when you click the polyline."""
+        if self.vehicle is None:
+            return "Route"
+
+        names: List[str] = []
+
+        # main vehicle
+        v = self.vehicle
+        v_type = getattr(v, "machine_type", None) or type(v).__name__
+        v_id = getattr(v, "machine_id", None)
+        names.append(f"{v_type} {v_id}" if v_id else v_type)
+
+        # trailer (if any)
+        cont = getattr(v, "contents", None)
+        if cont is not None:
+            c_type = type(cont).__name__
+            c_id = getattr(cont, "machine_id", None)
+            if hasattr(cont, "trailer_id"):
+                c_id = getattr(cont, "trailer_id")
+            names.append(f"{c_type} {c_id}" if c_id else c_type)
+
+            inner = getattr(cont, "contents", None)
+            if isinstance(inner, list):
+                for m in inner:
+                    if m is None:
+                        continue
+                    m_type = getattr(m, "machine_type", None) or type(m).__name__
+                    m_id = getattr(m, "machine_id", None)
+                    names.append(f"{m_type} {m_id}" if m_id else m_type)
+
+        return " + ".join(names)
+
+    @Attribute
+    def _points_xy(self) -> List[Point]:
+        """Convert ORS geometry [lon, lat] to local XY points."""
+        pts: List[Point] = []
+        for lon, lat in self.geometry_latlon:
+            x, y = Routing._latlon_to_xy(
+                lat, lon,
+                self.origin_lat,
+                self.origin_lon,
+            )
+            pts.append(Point(x, y, 0.0))
+        return pts
+
+    @Part
+    def polyline(self):
+        return Polyline(
+            points=self._points_xy,
+            color=self.color,
+            line_thickness=self.line_thickness,
+            label=self.label,
+        )
+
+
 # ---------------------------------------------------------------------------
 # MapMaker
 # ---------------------------------------------------------------------------
@@ -92,46 +190,12 @@ class MapMaker(Base):
     - multiple transport routes
     - depot locations
     - work site locations
-
-    routes:
-        List of (start, end, machine_type) tuples.
-        start, end: (lat, lon)
-        machine_type: e.g. "Truck", "Tractor", "Vehicle".
-
-    depots:
-        List of depot GPS points (lat, lon).
-
-    depot_sizes:
-        Optional per‑depot box sizes (L, W, H) in meters.
-        If empty or shorter than depots, a default cube_size is used.
-
-    depot_rotations_deg:
-        Optional per‑depot rotation around Z in degrees.
-        Angle is applied in map XY, positive = CCW.
-
-    depot_objects:
-        Optional list of actual Depot objects in same order as `depots`.
-        Used only for selection / inspection in the GUI.
-
-    work_sites:
-        List of work site GPS points (lat, lon).
-
-    worksite_sizes:
-        Optional per‑worksite box sizes (L, W, H) in meters.
-
-    worksite_rotations_deg:
-        Optional per‑worksite rotation around Z in degrees.
-
-    worksite_objects:
-        Optional list of actual WorkJob objects in same order as `work_sites`.
-
-    depot_cube_size:
-        Fallback size if no specific size is given.
     """
 
-    # (lat, lon, machine_type_str)
+    # (lat, lon, owner) where owner is either a machine_type string
+    # or the actual transporting_vehicle object
     routes: List[
-        Tuple[Tuple[float, float], Tuple[float, float], str]
+        Tuple[Tuple[float, float], Tuple[float, float], Any]
     ] = Input([])
 
     # (lat, lon)
@@ -145,7 +209,7 @@ class MapMaker(Base):
     worksite_sizes: List[Tuple[float, float, float]] = Input([])
     worksite_rotations_deg: List[float] = Input([])
 
-    # NEW: references to actual objects
+    # references to actual objects
     depot_objects: List[object] = Input([])
     worksite_objects: List[object] = Input([])
 
@@ -157,11 +221,26 @@ class MapMaker(Base):
     @Attribute
     def route_results(self):
         """
-        List of (start, end, duration, distance, geometry) for each route.
-        geometry: [[lon, lat], ...] in ORS format.
+        List of per-route dicts:
+        {
+          'start': (lat, lon),
+          'end': (lat, lon),
+          'machine_type': str,
+          'vehicle': object | None,
+          'duration': float,   # seconds
+          'distance': float,   # meters
+          'geometry': [[lon, lat], ...],
+        }
         """
         results = []
-        for start, end, machine_type in self.routes:
+        for start, end, owner in self.routes:
+            vehicle = None
+            if isinstance(owner, str):
+                machine_type = owner
+            else:
+                vehicle = owner
+                machine_type = type(owner).__name__
+
             duration, distance, geometry = Routing.ComputeRoute(
                 start, end, machine_type
             )
@@ -169,16 +248,23 @@ class MapMaker(Base):
                 f"Route {start} -> {end} ({machine_type}): "
                 f"duration [s]: {duration}, distance [m]: {distance}"
             )
-            results.append((start, end, duration, distance, geometry))
+            results.append({
+                "start": start,
+                "end": end,
+                "machine_type": machine_type,
+                "vehicle": vehicle,
+                "duration": duration,
+                "distance": distance,
+                "geometry": geometry,
+            })
         return results
 
     @Attribute
-    def route_geometries(self):
-        """List of geometries [[lon, lat], ...], one per *non-degenerate* route."""
+    def route_results_filtered(self):
+        """Filter out degenerate / zero-length routes."""
         return [
-            geometry
-            for start, end, duration, distance, geometry in self.route_results
-            if geometry and (distance is not None and distance >= 1.0)
+            r for r in self.route_results
+            if r["geometry"] and (r["distance"] is None or r["distance"] >= 1.0)
         ]
 
     # ------------------------------------------------------------------
@@ -188,9 +274,9 @@ class MapMaker(Base):
     def all_points(self):
         """All relevant GPS points: route endpoints + depots + work sites."""
         pts: List[Tuple[float, float]] = []
-        for start, end, _ in self.routes:
-            pts.append(start)
-            pts.append(end)
+        for r in self.route_results:
+            pts.append(r["start"])
+            pts.append(r["end"])
         pts.extend(self.depots)
         pts.extend(self.work_sites)
         return pts
@@ -287,28 +373,16 @@ class MapMaker(Base):
             ),
         )
 
-    @Part(parse=False)
-    def route_polylines(self):
-        """One Polyline per route, projected into XY using the chosen map."""
-        return [
-            Polyline(
-                points=[
-                    Point(
-                        *Routing._latlon_to_xy(
-                            lat,
-                            lon,
-                            self.map_origin_lat_lon[0],
-                            self.map_origin_lat_lon[1],
-                        ),
-                        0.0,
-                    )
-                    for lon, lat in geometry
-                ],
-                color=(255, 0, 0),
-                line_thickness=8,
-            )
-            for geometry in self.route_geometries
-        ]
+    @Part
+    def route_markers(self):
+        """One RouteMarker per (non-degenerate) route, clickable in the GUI."""
+        return RouteMarker(
+            quantify=len(self.route_results_filtered),
+            vehicle=self.route_results_filtered[child.index]["vehicle"],
+            geometry_latlon=self.route_results_filtered[child.index]["geometry"],
+            origin_lat=self.map_origin_lat_lon[0],
+            origin_lon=self.map_origin_lat_lon[1],
+        )
 
     @Part
     def depot_markers(self):
@@ -407,95 +481,42 @@ class AssetMarker(Base):
 class FleetMapMaker(MapMaker):
     """
     Fleet overview map:
-    - shows background map (same as MapMaker),
-    - shows depots and work sites (same as MapMaker),
-    - DOES NOT show route polylines,
-    - additionally shows all assets (machines + trailers) as stacked boxes.
-
-    Assets are:
-        - positioned at their gps_location,
-        - dimensions = overall_dimensions * 100 (for visibility),
-        - grouped by identical gps_location and stacked in +Z,
-        - colored from the asset's .color attribute (fallback: 'gray').
-
-    Inputs
-    ------
-    assets:
-        List of objects that at least have:
-            - gps_location: (lat, lon)
-            - overall_dimensions: (L, W, H)
-            - color (optional)
+    - background map (same as MapMaker),
+    - depots and worksites (same as MapMaker),
+    - no route polylines,
+    - plus all assets as stacked boxes.
     """
 
-    # All routes are ignored visually, but keep the attribute for completeness
     assets: List[object] = Input([])
 
-    # ------------------------------------------------------------------
-    # Override all_points so map selection also considers assets
-    # ------------------------------------------------------------------
     @Attribute
     def all_points(self):
         """All relevant GPS points: routes, depots, work sites AND assets."""
         pts: List[Tuple[float, float]] = []
-        # routes
-        for start, end, _ in self.routes:
-            pts.append(start)
-            pts.append(end)
-        # depots & worksites
+        for r in self.route_results:
+            pts.append(r["start"])
+            pts.append(r["end"])
         pts.extend(self.depots)
         pts.extend(self.work_sites)
-        # assets
         for obj in self.assets:
             latlon = getattr(obj, "gps_location", None)
             if latlon is not None:
                 pts.append(tuple(latlon))
         return pts
 
-    # ------------------------------------------------------------------
-    # Disable red polylines
-    # ------------------------------------------------------------------
     @Part(parse=False)
-    def route_polylines(self):
-        """No route polylines for the fleet overview."""
+    def route_markers(self):
+        """No route markers for the fleet overview."""
         return []
 
-    # ------------------------------------------------------------------
-    # Asset grouping & stacking
-    # ------------------------------------------------------------------
     @Attribute
     def _asset_infos(self):
-        """
-        Flattened list of asset descriptors:
-        [
-          {
-            'lat': float,
-            'lon': float,
-            'x': float,
-            'y': float,
-            'L': float,   # extent in x (Box.width)
-            'W': float,   # extent in y (Box.length)
-            'H': float,   # box height
-            'color': Any,
-            'id': str,
-            'obj': object,
-            'z_center': float,
-          },
-          ...
-        ]
-
-        Assets are stacked vertically whenever their projected XY
-        boxes intersect on the map.
-        """
-
+        """Stacking info for all assets."""
         def overlap_1d(c1, size1, c2, size2):
-            """Check 1D interval overlap, center + full size."""
             return abs(c1 - c2) < 0.5 * (size1 + size2)
-
-        from collections import deque  # noqa: F401  # kept if you add logic later
 
         origin_lat, origin_lon = self.map_origin_lat_lon
 
-        # --- build raw list with projected XY and scaled sizes ---
         raw = []
         for obj in self.assets:
             latlon = getattr(obj, "gps_location", None)
@@ -507,11 +528,11 @@ class FleetMapMaker(MapMaker):
 
             dims = getattr(obj, "overall_dimensions", None)
             if not dims or len(dims) != 3:
-                dims = (2.0, 2.0, 2.0)  # fallback cube
+                dims = (2.0, 2.0, 2.0)
 
             scale = 500.0
-            L = float(dims[0]) * scale  # x-extent  (Box.width)
-            W = float(dims[1]) * scale  # y-extent  (Box.length)
+            L = float(dims[0]) * scale
+            W = float(dims[1]) * scale
             H = float(dims[2]) * scale
 
             color = getattr(obj, "color", "gray")
@@ -528,20 +549,14 @@ class FleetMapMaker(MapMaker):
                 "color": color,
                 "id": mid,
                 "obj": obj,
-                # z_center will be filled in during stacking
             })
 
-        # Stable ordering: bottom‑to‑top in some deterministic way
         raw.sort(key=lambda d: (d["y"], d["x"]))
-
         placed = []
 
-        # --- stacking logic: stack on top of any overlapping XY boxes ---
         for info in raw:
-            base_z = 0.0  # bottom of this box
-
+            base_z = 0.0
             for other in placed:
-                # Check intersection in XY (axis‑aligned boxes)
                 if (overlap_1d(info["x"], info["L"], other["x"], other["L"])
                         and overlap_1d(info["y"], info["W"], other["y"], other["W"])):
                     top_other = other["z_center"] + 0.5 * other["H"]
@@ -589,4 +604,5 @@ if __name__ == "__main__":
         worksite_rotations_deg=[-15.0],
     )
     display(obj)
+
 

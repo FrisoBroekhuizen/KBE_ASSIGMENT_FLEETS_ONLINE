@@ -50,9 +50,15 @@ class MissionStrategyApp(Base):
                  also the option to define own preferences and normalize within function.
                  - If time: combine multiple work jobs into one mission.
                  - Maximum vehicles in worksite is area worksite divided by area vehicle times a factor"""
+    # Aggregations / associations
+    mission_preferences: List[float] = Input([1.0, 1.0, 1.0], label="Mission preferences (cost, time, emissions)", validator=all_is_number)  # List of weights for the different optimalisation goals
 
     possible_machinery = ["Crane", "Truck", "Vehicle", "Tool", "Tractor", "Machine", "Pump"]
 
+    strict_deadline: bool = Input(False, widget=CheckBox())  # default: no deadline restriction
+    start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
+    # Only required / meaningful if strict_deadline is True
+    deadline_time: Optional[datetime.datetime] = Input(None)
     # Mission attributes
     needed_tools: str = Input("", widget=TextField(autocompute=True))
     needed_machinery: str = Input("Tractor", widget=TextField(autocompute=True, background_color=lambda self: "Red" if self.needed_machinery not in self.possible_machinery and self.needed_machinery != "" else "White"))
@@ -68,14 +74,7 @@ class MissionStrategyApp(Base):
     site_dimensions: Tuple[float, float] = Input((100.0, 100.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
     orientation: float = Input(0.0)
     gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
-    start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
 
-    # Aggregations / associations
-    mission_preferences: List[float] = Input([1.0, 1.0, 1.0], validator=all_is_number)  # List of weights for the different optimalisation goals
-
-    strict_deadline: bool = Input(False, widget=CheckBox())  # default: no deadline restriction
-    # Only required / meaningful if strict_deadline is True
-    deadline_time: Optional[datetime.datetime] = Input(None)
 
     number_of_machines_per_type = {"Crane":0,
                                    "Tractor":0,
@@ -645,15 +644,16 @@ class MissionStrategyApp(Base):
         - and keep references to the actual Depot / WorkJob objects for selection.
         """
 
-        # --- build route list: (start, end, machine_type) ---
+        # --- build route list: (start, end, vehicle) ---
         routes = []
         transport_jobs = self.winning_mission.transport_jobs
-        work_jobs = self.winning_mission.work_jobs
+        work_jobs = self.winning_mission.work_jobs  # <-- this was missing
+
         for job in transport_jobs:
             start = job.begin_location_gps
             end = job.end_location_gps
-            machine_type = type(job.transporting_vehicle).__name__
-            routes.append((start, end, machine_type))
+            vehicle = job.transporting_vehicle  # object, not string
+            routes.append((start, end, vehicle))
 
         # --- depot GPS points + sizes + rotations + objects ---
         depot_points: List[Tuple[float, float]] = []
