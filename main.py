@@ -91,8 +91,8 @@ class MissionStrategyApp(Base):
 
     work_job = Input()
 
-    @action
-    def GetFleetData(self):
+    @action(label = "Use Fleets-Online Data", button_label = "Read")
+    def FleetsOnlineData(self):
         # API Authentication Header
         BASE_URL = "https://api.v2.deepdigital.org"
         token_response = requests.post(f"{BASE_URL}/oauth/token",
@@ -162,8 +162,8 @@ class MissionStrategyApp(Base):
             json.dump(data, f, indent=4)
         return pois, assets
 
-    @action()
-    def JSONReader(self):
+    @action(label = "Use Custom Data", button_label = "Read")
+    def CustomData(self):
         # reset mutable state so we don't accumulate entries across runs
         self.depots = []
         self.machines = []
@@ -329,7 +329,7 @@ class MissionStrategyApp(Base):
 
     # --- existing methods like NormalizePreferences(), etc. ---
 
-    @action
+    @action(label = "Generate Strategy", button_label = "Generate")
     def MissionIterator(self) -> "MissionStrategyApp":
         print("=== DEBUG: current machines ===")
         print("Total machines:", len(self.machines))
@@ -500,7 +500,7 @@ class MissionStrategyApp(Base):
         return winning_mission
 
     # Define (normalized) preferences function
-    @attribute
+    @Attribute
     def NormalizePreferences(self) -> List[float]:
         """Normalize mission_preferences:
         - Negative values => 0 (user really doesn't want that objective)
@@ -529,7 +529,6 @@ class MissionStrategyApp(Base):
         return normalized
 
     # Function that builds the final mission planning
-    @action()
     def Planner(self):
         timelines = []
         for work_job in self.work_jobs:
@@ -600,7 +599,92 @@ class MissionStrategyApp(Base):
     # ---------------------------------------------------------------------------------------------------------------------------
     # --- ACTIONS / BUTTONS --
     # --------------------------------------------------------------------------------------------------------------------------
-    @action(button_label="Trailer Arrangements")
+    @action(label = "Visualise Routes" , button_label="Visualise")
+    def MapMaker(self):
+        """
+        Open a map showing:
+        - all transport job routes,
+        - all depots with their actual sizes and rotation,
+        - all work sites with their JSON-based site_dimensions and orientation.
+        """
+
+        # --- build route list: (start, end, machine_type) ---
+        routes = []
+        transport_jobs = self.winning_mission.transport_jobs
+        work_jobs = self.winning_mission.work_jobs
+        for job in transport_jobs:
+            start = job.begin_location_gps
+            end = job.end_location_gps
+            machine_type = type(job.transporting_vehicle).__name__
+            routes.append((start, end, machine_type))
+
+        # --- depot GPS points + sizes + rotations ---
+        depot_points: List[Tuple[float, float]] = []
+        depot_sizes: List[Tuple[float, float, float]] = []
+        depot_rotations: List[float] = []
+
+        for dep in self.depots:
+            try:
+                depot_points.append(dep.gps_location)
+                L, W, H = dep.overall_dimensions
+                # scale as you do now:
+                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
+                # get rotation from Depot.rotation (set in JSONReader)
+                angle = float(getattr(dep, "rotation", 0.0))
+                depot_rotations.append(angle)
+            except AttributeError:
+                print(f"[MapMaker] Depot {dep} missing gps_location / overall_dimensions; skipping.")
+            except Exception as e:
+                print(f"[MapMaker] Failed to read depot size/rotation for {dep}: {e}")
+
+        # --- work site GPS points ---
+        worksite_points: List[Tuple[float, float]] = [
+            wj.gps_location for wj in work_jobs
+        ]
+
+        # --- work site sizes + rotations from JSONReader ---
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
+
+        for _wj in work_jobs:
+            try:
+                # self.site_dimensions is a tuple; multiply each component, not the tuple
+                L, W = self.site_dimensions
+                L *= 10.0
+                W *= 10.0
+            except Exception:
+                L, W = 2000.0, 2000.0  # fallback
+
+            H = 100.0
+            worksite_sizes.append((float(L), float(W), float(H)))
+            worksite_rotations.append(float(self.orientation))
+
+        # Instantiate map object with explicit sizes & rotations
+        map_obj = MapMaker(
+            routes=routes,
+            depots=depot_points,
+            depot_sizes=depot_sizes,
+            depot_rotations_deg=depot_rotations,  # <<< IMPORTANT
+            work_sites=worksite_points,
+            worksite_sizes=worksite_sizes,
+            worksite_rotations_deg=worksite_rotations,
+        )
+
+        from parapy.gui import display
+        display(map_obj, mainloop=False)
+
+    @action(label = "Visualise Depots", button_label="Visualise")
+    def DepotMaker(self):
+        depots = []
+        current_y = 0
+        road_parked = self.AllocateMachines() # road_parked unused, still trigger AllocateMachines() to compute only once for entire MissionStrategyApp
+        for i, d in enumerate(self.depots):
+            d.gps_location=(0, current_y)
+            current_y += 10 + d.overall_dimensions[1]
+            depots.append(d)
+        display(depots, mainloop=False)
+
+    @action(label="Visualise Trailer Arrangements", button_label="Visualise")
     def trailer_arrangement(self):
         """Open a ParaPy viewer window with the trailer packing visualization
         for this mission.
@@ -632,18 +716,6 @@ class MissionStrategyApp(Base):
             _, road_parked = depot.DepotMachineAllocation()
             machines = road_parked
         return road_parked
-
-    # TODO: Need to only take the machines that are allocated to this depot, but that can only be done once the fleet reader is set up.
-    @action(button_label="DepotMaker")
-    def DepotMaker(self):
-        depots = []
-        current_y = 0
-        road_parked = self.AllocateMachines() # road_parked unused, still trigger AllocateMachines() to compute only once for entire MissionStrategyApp
-        for i, d in enumerate(self.depots):
-            d.gps_location=(0, current_y)
-            current_y += 10 + d.overall_dimensions[1]
-            depots.append(d)
-        display(depots, mainloop=False)
 
     # @action(button_label="Fleet overview map")
     @Part(parse=False)
@@ -723,79 +795,6 @@ class MissionStrategyApp(Base):
         # from parapy.gui import display
         # display(map_obj, mainloop=False)
         return map_obj
-    @action(button_label="MapMaker")
-    def MapMaker(self):
-        """
-        Open a map showing:
-        - all transport job routes,
-        - all depots with their actual sizes and rotation,
-        - all work sites with their JSON-based site_dimensions and orientation.
-        """
-
-        # --- build route list: (start, end, machine_type) ---
-        routes = []
-        transport_jobs = self.winning_mission.transport_jobs
-        work_jobs = self.winning_mission.work_jobs
-        for job in transport_jobs:
-            start = job.begin_location_gps
-            end = job.end_location_gps
-            machine_type = type(job.transporting_vehicle).__name__
-            routes.append((start, end, machine_type))
-
-        # --- depot GPS points + sizes + rotations ---
-        depot_points: List[Tuple[float, float]] = []
-        depot_sizes: List[Tuple[float, float, float]] = []
-        depot_rotations: List[float] = []
-
-        for dep in self.depots:
-            try:
-                depot_points.append(dep.gps_location)
-                L, W, H = dep.overall_dimensions
-                # scale as you do now:
-                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
-                # get rotation from Depot.rotation (set in JSONReader)
-                angle = float(getattr(dep, "rotation", 0.0))
-                depot_rotations.append(angle)
-            except AttributeError:
-                print(f"[MapMaker] Depot {dep} missing gps_location / overall_dimensions; skipping.")
-            except Exception as e:
-                print(f"[MapMaker] Failed to read depot size/rotation for {dep}: {e}")
-
-        # --- work site GPS points ---
-        worksite_points: List[Tuple[float, float]] = [
-            wj.gps_location for wj in work_jobs
-        ]
-
-        # --- work site sizes + rotations from JSONReader ---
-        worksite_sizes: List[Tuple[float, float, float]] = []
-        worksite_rotations: List[float] = []
-
-        for _wj in work_jobs:
-            try:
-                # self.site_dimensions is a tuple; multiply each component, not the tuple
-                L, W = self.site_dimensions
-                L *= 10.0
-                W *= 10.0
-            except Exception:
-                L, W = 2000.0, 2000.0  # fallback
-
-            H = 100.0
-            worksite_sizes.append((float(L), float(W), float(H)))
-            worksite_rotations.append(float(self.orientation))
-
-        # Instantiate map object with explicit sizes & rotations
-        map_obj = MapMaker(
-            routes=routes,
-            depots=depot_points,
-            depot_sizes=depot_sizes,
-            depot_rotations_deg=depot_rotations,  # <<< IMPORTANT
-            work_sites=worksite_points,
-            worksite_sizes=worksite_sizes,
-            worksite_rotations_deg=worksite_rotations,
-        )
-
-        from parapy.gui import display
-        display(map_obj, mainloop=False)
 
     @Attribute
     def job_trailers(self) -> List[object]:
@@ -825,6 +824,10 @@ class MissionStrategyApp(Base):
     def New_Vehicle(self):
         return Machine()
 
+    @action(label="Export strategy", button_label="Export strategy overview to .pdf")
+    def exportStrategy(self):
+        PDFMaker.Export(self.winning_mission, self.start_time)
+
     @action(button_label="Add vehicle to JSON data file", label="Add vehicle")
     def AddVehicle(self):
         m = self.New_Vehicle
@@ -850,10 +853,6 @@ class MissionStrategyApp(Base):
         with open('CustomData.json', 'w') as f:
             json.dump(data, f, indent=4)
         generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
-
-    @action(label="Export strategy",button_label="Export strategy overview to .pdf")
-    def exportStrategy(self):
-        PDFMaker.Export(self.winning_mission, self.start_time)
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
