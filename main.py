@@ -529,27 +529,25 @@ class MissionStrategyApp(Base):
         - Negative values => 0 (user really doesn't want that objective)
         - Non-negative values are scaled so sum == 1
         - If all are <= 0, fall back to equal weights.
-        - Cost, Emmisions , Time
+        - Order: [cost, time, emissions]
         """
+        # 1) read raw preferences as floats
         prefs = [float(p) for p in self.mission_preferences]
         if not prefs:
-            return []
+            # sensible fallback if user deletes the list entirely
+            return [1.0, 0.0, 0.0]
 
-        # Clamp negatives to 0 (completely unwanted)
+        # 2) clamp negatives to 0
         clamped = [p if p > 0.0 else 0.0 for p in prefs]
 
         total = sum(clamped)
 
+        # 3) normalize or fall back to equal weights
         if total > 0.0:
-            normalized = [p / total for p in clamped]
+            return [p / total for p in clamped]
         else:
-            # all preferences <= 0 -> no clear preference,
-            # fall back to equal weights
             n = len(prefs)
-            normalized = [1.0 / n] * n
-
-        self.mission_preferences = normalized
-        return normalized
+            return [1.0 / n] * n
 
     # Function that builds the final mission planning
     def Planner(self):
