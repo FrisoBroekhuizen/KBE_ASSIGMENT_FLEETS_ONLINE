@@ -408,6 +408,8 @@ class FleetMapMaker(MapMaker):
 
             color = getattr(obj, "color", "gray")
 
+            id = getattr(obj, "machine_id", "Unlabeled")
+
             raw.append({
                 "lat": float(lat),
                 "lon": float(lon),
@@ -417,6 +419,7 @@ class FleetMapMaker(MapMaker):
                 "W": W,
                 "H": H,
                 "color": color,
+                "id": id
                 # z_center will be filled in during stacking
             })
 
@@ -456,7 +459,8 @@ class FleetMapMaker(MapMaker):
                 'z', self._asset_infos[child.index]["z_center"],
             ),
             color=self._asset_infos[child.index]["color"],
-            transparency=0.1,
+            label=self._asset_infos[child.index]["id"],
+            transparency=0,
         )
 
 

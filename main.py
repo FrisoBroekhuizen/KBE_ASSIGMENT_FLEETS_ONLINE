@@ -9,6 +9,7 @@ import datetime
 import time
 import numpy as np
 from parapy.gui import display
+from parapy.geom import Box
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.exchange import STEPWriter
 from parapy.core.validate import OneOf, all_is_number
@@ -89,7 +90,7 @@ class MissionStrategyApp(Base):
     trailers: List[Trailer] = Input([])
     depots: List[Depot] = Input([])
 
-    work_job = Input()
+    work_job = Input(None)
 
     @action
     def GetFleetData(self):
@@ -492,7 +493,7 @@ class MissionStrategyApp(Base):
                 if (max_NOx - min_NOx) != 0 else 0.0)
             m.normalized_emissions = alpha * norm_CO2 + (1.0 - alpha) * norm_NOx
 
-            m.mission_preferences = self.mission_preferences
+            m.mission_preferences = self.NormalizePreferences
 
             # Scalar cost function for this mission
             m.mission_scalar = m.EvaluateCostFunction()
@@ -663,7 +664,26 @@ class MissionStrategyApp(Base):
         - if gps_location coincides with a depot, they appear stacked on
           that depot position as well.
         """
+        # --- worksite GPS points + sizes + rotations ---
+        worksite_points: List[Tuple[float, float]] = []
+        worksite_sizes: List[Tuple[float, float, float]] = []
+        worksite_rotations: List[float] = []
         # --- depot GPS points + sizes + rotations (same logic as MapMaker action) ---
+        if self.work_job != None:
+            worksite_points.append(self.work_job.gps_location)
+        else:
+            worksite_points.append([0, 0])
+        try:
+            L, W = self.site_dimensions
+            L *= 10.0
+            W *= 10.0
+        except Exception:
+            L, W = 2000.0, 2000.0
+
+        H = 100.0
+        worksite_sizes.append((float(L), float(W), float(H)))
+        worksite_rotations.append(float(self.orientation))
+
         depot_points: List[Tuple[float, float]] = []
         depot_sizes: List[Tuple[float, float, float]] = []
         depot_rotations: List[float] = []
@@ -681,26 +701,6 @@ class MissionStrategyApp(Base):
                 depot_points.append(dep.gps_location)
                 depot_sizes.append((2000.0, 1000.0, 500.0))
                 depot_rotations.append(0.0)
-
-        # --- worksite GPS points + sizes + rotations ---
-        worksite_points: List[Tuple[float, float]] = []
-        worksite_sizes: List[Tuple[float, float, float]] = []
-        worksite_rotations: List[float] = []
-
-        # Single work_job in your model; if you later add more, this still works.
-        if self.work_job is not None:
-            worksite_points.append(self.work_job.gps_location)
-
-            try:
-                L, W = self.site_dimensions
-                L *= 10.0
-                W *= 10.0
-            except Exception:
-                L, W = 2000.0, 2000.0
-
-            H = 100.0
-            worksite_sizes.append((float(L), float(W), float(H)))
-            worksite_rotations.append(float(self.orientation))
 
         # --- assets: initial fleet: all machines + all trailers ---
         assets: List[object] = []
@@ -848,7 +848,7 @@ class MissionStrategyApp(Base):
     def RemoveVehicle(self):
         with open("CustomData.json", "r") as f:
             data = json.load(f)
-        data = data[0:len(data)]
+        data = data[0:len(data) - 1]
         with open('CustomData.json', 'w') as f:
             json.dump(data, f, indent=4)
         generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
