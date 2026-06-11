@@ -490,27 +490,39 @@ class MissionStrategyApp(Base):
         CO2s = [m.mission_CO2 for m in missions]
         NOxs = [m.mission_NOx for m in missions]
 
-        min_cost, max_cost = min(costs), max(costs)
-        min_time, max_time = min(times), max(times)
-        min_CO2, max_CO2 = min(CO2s), max(CO2s)
-        min_NOx, max_NOx = min(NOxs), max(NOxs)
+        mean_cost = np.mean(costs)
+        std_cost = np.std(costs)
+        mean_time = np.mean(times)
+        std_time = np.std(times)
+        mean_CO2 = np.mean(CO2s)
+        std_CO2 = np.std(CO2s)
+        mean_NOx = np.mean(NOxs)
+        std_NOx = np.std(NOxs)
 
         alpha = 0.25  # weight CO2 vs NOx inside "emissions" metric
 
         for m in missions:
             # Normalized cost
-            m.normalized_cost = ((m.mission_cost - min_cost) / (max_cost - min_cost)
-                if (max_cost - min_cost) != 0 else 0.0)
+            if std_cost != 0:
+                m.normalized_cost = (m.mission_cost - mean_cost) / std_cost
+            else: m.normalized_cost = 0
 
             # Normalized time
-            m.normalized_time = ((m.mission_time - min_time) / (max_time - min_time)
-                if (max_time - min_time) != 0 else 0.0)
+            if std_time != 0:
+                m.normalized_time = (m.mission_time - mean_time) / std_time
+            else: m.normalized_time = 0
 
-            # Normalized emissions (CO2 + NOx combined)
-            norm_CO2 = ((m.mission_CO2 - min_CO2) / (max_CO2 - min_CO2)
-                if (max_CO2 - min_CO2) != 0 else 0.0)
-            norm_NOx = ((m.mission_NOx - min_NOx) / (max_NOx - min_NOx)
-                if (max_NOx - min_NOx) != 0 else 0.0)
+            # Normalized Emissions
+            if std_CO2 != 0:
+                norm_CO2 = (m.mission_CO2 - mean_CO2) / std_CO2
+            else:
+                norm_CO2 = 0
+                # Normalized time
+            if std_NOx != 0:
+                norm_NOx = (m.mission_NOx - mean_NOx) / std_NOx
+            else:
+                norm_NOx = 0
+
             m.normalized_emissions = alpha * norm_CO2 + (1.0 - alpha) * norm_NOx
 
             m.mission_preferences = self.NormalizePreferences
@@ -547,7 +559,9 @@ class MissionStrategyApp(Base):
             return [p / total for p in clamped]
         else:
             n = len(prefs)
-            return [1.0 / n] * n
+            normalized = [1.0 / n] * n
+
+        return normalized
 
     # Function that builds the final mission planning
     def Planner(self):
