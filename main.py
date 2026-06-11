@@ -646,7 +646,9 @@ class MissionStrategyApp(Base):
             current_y += 10 + d.overall_dimensions[1]
             depots.append(d)
         display(depots, mainloop=False)
-    @action(button_label="Fleet overview map")
+
+    # @action(button_label="Fleet overview map")
+    @Part(parse=False)
     def FleetOverviewMap(self):
         """
         Visualize the *initial* fleet on a map:
@@ -661,7 +663,6 @@ class MissionStrategyApp(Base):
         - if gps_location coincides with a depot, they appear stacked on
           that depot position as well.
         """
-
         # --- depot GPS points + sizes + rotations (same logic as MapMaker action) ---
         depot_points: List[Tuple[float, float]] = []
         depot_sizes: List[Tuple[float, float, float]] = []
@@ -721,9 +722,9 @@ class MissionStrategyApp(Base):
             assets=assets,
         )
 
-        from parapy.gui import display
-        display(map_obj, mainloop=False)
-
+        # from parapy.gui import display
+        # display(map_obj, mainloop=False)
+        return map_obj
     @action(button_label="MapMaker")
     def MapMaker(self):
         """
