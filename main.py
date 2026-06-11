@@ -600,13 +600,14 @@ class MissionStrategyApp(Base):
     # ---------------------------------------------------------------------------------------------------------------------------
     # --- ACTIONS / BUTTONS --
     # --------------------------------------------------------------------------------------------------------------------------
-    @action(label = "Visualise Routes" , button_label="Visualise")
+    @action(label="Visualise Routes", button_label="Visualise")
     def MapMaker(self):
         """
         Open a map showing:
         - all transport job routes,
         - all depots with their actual sizes and rotation,
-        - all work sites with their JSON-based site_dimensions and orientation.
+        - all work sites with their JSON-based site_dimensions and orientation,
+        - and keep references to the actual Depot / WorkJob objects for selection.
         """
 
         # --- build route list: (start, end, machine_type) ---
@@ -619,37 +620,33 @@ class MissionStrategyApp(Base):
             machine_type = type(job.transporting_vehicle).__name__
             routes.append((start, end, machine_type))
 
-        # --- depot GPS points + sizes + rotations ---
+        # --- depot GPS points + sizes + rotations + objects ---
         depot_points: List[Tuple[float, float]] = []
         depot_sizes: List[Tuple[float, float, float]] = []
         depot_rotations: List[float] = []
+        depot_objects: List[Depot] = []
 
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
                 L, W, H = dep.overall_dimensions
-                # scale as you do now:
                 depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
-                # get rotation from Depot.rotation (set in JSONReader)
                 angle = float(getattr(dep, "rotation", 0.0))
                 depot_rotations.append(angle)
+                depot_objects.append(dep)
             except AttributeError:
                 print(f"[MapMaker] Depot {dep} missing gps_location / overall_dimensions; skipping.")
             except Exception as e:
                 print(f"[MapMaker] Failed to read depot size/rotation for {dep}: {e}")
 
-        # --- work site GPS points ---
-        worksite_points: List[Tuple[float, float]] = [
-            wj.gps_location for wj in work_jobs
-        ]
-
-        # --- work site sizes + rotations from JSONReader ---
+        # --- work site GPS points + sizes + rotations + objects ---
+        worksite_points: List[Tuple[float, float]] = [wj.gps_location for wj in work_jobs]
         worksite_sizes: List[Tuple[float, float, float]] = []
         worksite_rotations: List[float] = []
+        worksite_objects: List[WorkJob] = list(work_jobs)
 
         for _wj in work_jobs:
             try:
-                # self.site_dimensions is a tuple; multiply each component, not the tuple
                 L, W = self.site_dimensions
                 L *= 10.0
                 W *= 10.0
@@ -660,15 +657,17 @@ class MissionStrategyApp(Base):
             worksite_sizes.append((float(L), float(W), float(H)))
             worksite_rotations.append(float(self.orientation))
 
-        # Instantiate map object with explicit sizes & rotations
+        # Instantiate map object with explicit sizes & rotations + object refs
         map_obj = MapMaker(
             routes=routes,
             depots=depot_points,
             depot_sizes=depot_sizes,
-            depot_rotations_deg=depot_rotations,  # <<< IMPORTANT
+            depot_rotations_deg=depot_rotations,
+            depot_objects=depot_objects,
             work_sites=worksite_points,
             worksite_sizes=worksite_sizes,
             worksite_rotations_deg=worksite_rotations,
+            worksite_objects=worksite_objects,
         )
 
         from parapy.gui import display
@@ -733,16 +732,27 @@ class MissionStrategyApp(Base):
           they are stacked in +Z.
         - if gps_location coincides with a depot, they appear stacked on
           that depot position as well.
+
+        Each visual element keeps a reference to the actual object:
+        - depot markers -> DepotMarker.depot
+        - work site markers -> WorksiteMarker.worksite
+        - asset markers -> AssetMarker.asset
         """
-        # --- worksite GPS points + sizes + rotations ---
+
+        # --- worksite GPS points + sizes + rotations + objects ---
         worksite_points: List[Tuple[float, float]] = []
         worksite_sizes: List[Tuple[float, float, float]] = []
         worksite_rotations: List[float] = []
-        # --- depot GPS points + sizes + rotations (same logic as MapMaker action) ---
-        if self.work_job != None:
+        worksite_objects: List[object] = []
+
+        if self.work_job is not None:
             worksite_points.append(self.work_job.gps_location)
+            worksite_objects.append(self.work_job)
         else:
-            worksite_points.append([0, 0])
+            # dummy point if no work_job defined
+            worksite_points.append((0.0, 0.0))
+            worksite_objects.append(None)
+
         try:
             L, W = self.site_dimensions
             L *= 10.0
@@ -754,23 +764,27 @@ class MissionStrategyApp(Base):
         worksite_sizes.append((float(L), float(W), float(H)))
         worksite_rotations.append(float(self.orientation))
 
+        # --- depot GPS points + sizes + rotations + objects ---
         depot_points: List[Tuple[float, float]] = []
         depot_sizes: List[Tuple[float, float, float]] = []
         depot_rotations: List[float] = []
+        depot_objects: List[Depot] = []
 
         for dep in self.depots:
             try:
                 depot_points.append(dep.gps_location)
-                L, W, H = dep.overall_dimensions
-                depot_sizes.append((float(L) * 10, float(W) * 10, float(H) * 10))
+                Ld, Wd, Hd = dep.overall_dimensions
+                depot_sizes.append((float(Ld) * 10, float(Wd) * 10, float(Hd) * 10))
                 angle = float(getattr(dep, "rotation", 0.0))
                 depot_rotations.append(angle)
+                depot_objects.append(dep)
             except Exception as e:
                 print(f"[FleetOverviewMap] Failed to read depot data for {dep}: {e}")
                 # simple fallback depot
                 depot_points.append(dep.gps_location)
                 depot_sizes.append((2000.0, 1000.0, 500.0))
                 depot_rotations.append(0.0)
+                depot_objects.append(dep)
 
         # --- assets: initial fleet: all machines + all trailers ---
         assets: List[object] = []
@@ -780,20 +794,20 @@ class MissionStrategyApp(Base):
         # Instantiate FleetMapMaker with:
         # - no routes (so no polylines),
         # - same depots & worksites as MapMaker,
-        # - plus the assets list.
+        # - plus the assets list and object references.
         map_obj = FleetMapMaker(
             routes=[],
             depots=depot_points,
             depot_sizes=depot_sizes,
             depot_rotations_deg=depot_rotations,
+            depot_objects=depot_objects,
             work_sites=worksite_points,
             worksite_sizes=worksite_sizes,
             worksite_rotations_deg=worksite_rotations,
+            worksite_objects=worksite_objects,
             assets=assets,
         )
 
-        # from parapy.gui import display
-        # display(map_obj, mainloop=False)
         return map_obj
 
     @Attribute

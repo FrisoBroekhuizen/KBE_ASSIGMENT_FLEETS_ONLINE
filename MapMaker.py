@@ -1,8 +1,7 @@
-# MapMaker.py
 from __future__ import annotations
 
 import os
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Any
 
 from parapy.core import Base, Input, Attribute, Part, child
 from parapy.geom import Point, Position, Polyline, Box, XOY
@@ -12,6 +11,80 @@ import Routing
 
 maindir = os.path.dirname(__file__)
 
+
+# ---------------------------------------------------------------------------
+# Marker objects that wrap geometry + keep a reference to real objects
+# ---------------------------------------------------------------------------
+
+class DepotMarker(Base):
+    """Visual marker for a Depot on the map, keeps a reference to the Depot."""
+    depot: object = Input()
+    size: Tuple[float, float, float] = Input()
+    x: float = Input(0.0)
+    y: float = Input(0.0)
+    z: float = Input(0.0)
+    rotation_deg: float = Input(0.0)
+
+    @Attribute
+    def label(self) -> str:
+        name = getattr(self.depot, "name", None) if self.depot is not None else None
+        return f"Depot: {name}" if name not in (None, "") else "Depot"
+
+    @Part
+    def box(self):
+        return Box(
+            width=self.size[0],
+            length=self.size[1],
+            height=self.size[2],
+            position=XOY.translate(
+                "x", self.x,
+                "y", self.y,
+                "z", self.z,
+            ).rotate(
+                "z", self.rotation_deg, deg=True,
+            ),
+            color="black",
+            transparency=0.2,
+            label=self.label,
+        )
+
+
+class WorksiteMarker(Base):
+    """Visual marker for a WorkJob / work site, keeps a reference to the WorkJob."""
+    worksite: object = Input()
+    size: Tuple[float, float, float] = Input()
+    x: float = Input(0.0)
+    y: float = Input(0.0)
+    z: float = Input(0.0)
+    rotation_deg: float = Input(0.0)
+
+    @Attribute
+    def label(self) -> str:
+        name = getattr(self.worksite, "name", None) if self.worksite is not None else None
+        return f"Work site: {name}" if name not in (None, "") else "Work site"
+
+    @Part
+    def box(self):
+        return Box(
+            width=self.size[0],
+            length=self.size[1],
+            height=self.size[2],
+            position=XOY.translate(
+                "x", self.x,
+                "y", self.y,
+                "z", self.z,
+            ).rotate(
+                "z", self.rotation_deg, deg=True,
+            ),
+            color="purple",
+            transparency=0.3,
+            label=self.label,
+        )
+
+
+# ---------------------------------------------------------------------------
+# MapMaker
+# ---------------------------------------------------------------------------
 
 class MapMaker(Base):
     """
@@ -36,6 +109,10 @@ class MapMaker(Base):
         Optional per‑depot rotation around Z in degrees.
         Angle is applied in map XY, positive = CCW.
 
+    depot_objects:
+        Optional list of actual Depot objects in same order as `depots`.
+        Used only for selection / inspection in the GUI.
+
     work_sites:
         List of work site GPS points (lat, lon).
 
@@ -44,6 +121,9 @@ class MapMaker(Base):
 
     worksite_rotations_deg:
         Optional per‑worksite rotation around Z in degrees.
+
+    worksite_objects:
+        Optional list of actual WorkJob objects in same order as `work_sites`.
 
     depot_cube_size:
         Fallback size if no specific size is given.
@@ -64,6 +144,10 @@ class MapMaker(Base):
 
     worksite_sizes: List[Tuple[float, float, float]] = Input([])
     worksite_rotations_deg: List[float] = Input([])
+
+    # NEW: references to actual objects
+    depot_objects: List[object] = Input([])
+    worksite_objects: List[object] = Input([])
 
     depot_cube_size: float = Input(2000.0)
 
@@ -227,76 +311,98 @@ class MapMaker(Base):
         ]
 
     @Part
-    def depot_boxes(self):
-        """Oriented Boxes at each depot location, using depot_sizes and
-        depot_rotations_deg.
-        """
-        return Box(
+    def depot_markers(self):
+        """Depot markers that keep a reference to the actual Depot object."""
+        return DepotMarker(
             quantify=len(self.depots),
-            width=self._depot_sizes_effective[child.index][0],
-            length=self._depot_sizes_effective[child.index][1],
-            height=self._depot_sizes_effective[child.index][2],
-            position=XOY.translate(
-                'x',
-                Routing._latlon_to_xy(
-                    self.depots[child.index][0],
-                    self.depots[child.index][1],
-                    self.map_origin_lat_lon[0],
-                    self.map_origin_lat_lon[1],
-                )[0],
-                'y',
-                Routing._latlon_to_xy(
-                    self.depots[child.index][0],
-                    self.depots[child.index][1],
-                    self.map_origin_lat_lon[0],
-                    self.map_origin_lat_lon[1],
-                )[1],
-                'z',
-                self._depot_sizes_effective[child.index][2] / 2.0,
-            ).rotate(
-                'z',
-                self._depot_rot_effective[child.index],
-                deg=True,
+            depot=(
+                self.depot_objects[child.index]
+                if len(self.depot_objects) > child.index
+                else None
             ),
-            color="black",
-            transparency=0.2,
+            size=self._depot_sizes_effective[child.index],
+            x=Routing._latlon_to_xy(
+                self.depots[child.index][0],
+                self.depots[child.index][1],
+                self.map_origin_lat_lon[0],
+                self.map_origin_lat_lon[1],
+            )[0],
+            y=Routing._latlon_to_xy(
+                self.depots[child.index][0],
+                self.depots[child.index][1],
+                self.map_origin_lat_lon[0],
+                self.map_origin_lat_lon[1],
+            )[1],
+            z=self._depot_sizes_effective[child.index][2] / 2.0,
+            rotation_deg=self._depot_rot_effective[child.index],
         )
 
     @Part
-    def worksite_boxes(self):
-        """Oriented Boxes at each worksite location, using worksite_sizes and
-        worksite_rotations_deg. Colored purple.
-        """
-        return Box(
+    def worksite_markers(self):
+        """Work site markers that keep a reference to the actual WorkJob."""
+        return WorksiteMarker(
             quantify=len(self.work_sites),
-            width=self._worksite_sizes_effective[child.index][0],
-            length=self._worksite_sizes_effective[child.index][1],
-            height=self._worksite_sizes_effective[child.index][2],
-            position=XOY.translate(
-                'x',
-                Routing._latlon_to_xy(
-                    self.work_sites[child.index][0],
-                    self.work_sites[child.index][1],
-                    self.map_origin_lat_lon[0],
-                    self.map_origin_lat_lon[1],
-                )[0],
-                'y',
-                Routing._latlon_to_xy(
-                    self.work_sites[child.index][0],
-                    self.work_sites[child.index][1],
-                    self.map_origin_lat_lon[0],
-                    self.map_origin_lat_lon[1],
-                )[1],
-                'z',
-                self._worksite_sizes_effective[child.index][2] / 2.0,
-            ).rotate(
-                'z',
-                self._worksite_rot_effective[child.index],
-                deg=True,
+            worksite=(
+                self.worksite_objects[child.index]
+                if len(self.worksite_objects) > child.index
+                else None
             ),
-            color="purple",
-            transparency=0.3,
+            size=self._worksite_sizes_effective[child.index],
+            x=Routing._latlon_to_xy(
+                self.work_sites[child.index][0],
+                self.work_sites[child.index][1],
+                self.map_origin_lat_lon[0],
+                self.map_origin_lat_lon[1],
+            )[0],
+            y=Routing._latlon_to_xy(
+                self.work_sites[child.index][0],
+                self.work_sites[child.index][1],
+                self.map_origin_lat_lon[0],
+                self.map_origin_lat_lon[1],
+            )[1],
+            z=self._worksite_sizes_effective[child.index][2] / 2.0,
+            rotation_deg=self._worksite_rot_effective[child.index],
         )
+
+
+# ---------------------------------------------------------------------------
+# FleetMapMaker
+# ---------------------------------------------------------------------------
+
+class AssetMarker(Base):
+    """Visual marker for a fleet asset, keeps a reference to the Machine/Trailer."""
+    asset: object = Input()
+    L: float = Input()
+    W: float = Input()
+    H: float = Input()
+    x: float = Input()
+    y: float = Input()
+    z: float = Input()
+    color: Any = Input("gray")
+
+    @Attribute
+    def label(self) -> str:
+        mid = getattr(self.asset, "machine_id", None)
+        mtype = getattr(self.asset, "machine_type", None) or type(self.asset).__name__
+        if mid not in (None, "") and mid is not None:
+            return f"{mtype} {mid}"
+        return mtype
+
+    @Part
+    def box(self):
+        return Box(
+            width=self.L,
+            length=self.W,
+            height=self.H,
+            position=XOY.translate(
+                "x", self.x,
+                "y", self.y,
+                "z", self.z,
+            ),
+            color=self.color,
+            label=self.label,
+        )
+
 
 class FleetMapMaker(MapMaker):
     """
@@ -370,6 +476,8 @@ class FleetMapMaker(MapMaker):
             'W': float,   # extent in y (Box.length)
             'H': float,   # box height
             'color': Any,
+            'id': str,
+            'obj': object,
             'z_center': float,
           },
           ...
@@ -383,7 +491,7 @@ class FleetMapMaker(MapMaker):
             """Check 1D interval overlap, center + full size."""
             return abs(c1 - c2) < 0.5 * (size1 + size2)
 
-        from collections import deque
+        from collections import deque  # noqa: F401  # kept if you add logic later
 
         origin_lat, origin_lon = self.map_origin_lat_lon
 
@@ -407,8 +515,7 @@ class FleetMapMaker(MapMaker):
             H = float(dims[2]) * scale
 
             color = getattr(obj, "color", "gray")
-
-            id = getattr(obj, "machine_id", "Unlabeled")
+            mid = getattr(obj, "machine_id", "Unlabeled")
 
             raw.append({
                 "lat": float(lat),
@@ -419,7 +526,8 @@ class FleetMapMaker(MapMaker):
                 "W": W,
                 "H": H,
                 "color": color,
-                "id": id
+                "id": mid,
+                "obj": obj,
                 # z_center will be filled in during stacking
             })
 
@@ -447,20 +555,17 @@ class FleetMapMaker(MapMaker):
 
     @Part
     def asset_boxes(self):
-        """Stacked boxes for all machines / tools / trailers."""
-        return Box(
+        """Stacked boxes for all machines / tools / trailers, with back‑reference."""
+        return AssetMarker(
             quantify=len(self._asset_infos),
-            width=self._asset_infos[child.index]["L"],
-            length=self._asset_infos[child.index]["W"],
-            height=self._asset_infos[child.index]["H"],
-            position=XOY.translate(
-                'x', self._asset_infos[child.index]["x"],
-                'y', self._asset_infos[child.index]["y"],
-                'z', self._asset_infos[child.index]["z_center"],
-            ),
+            asset=self._asset_infos[child.index]["obj"],
+            L=self._asset_infos[child.index]["L"],
+            W=self._asset_infos[child.index]["W"],
+            H=self._asset_infos[child.index]["H"],
+            x=self._asset_infos[child.index]["x"],
+            y=self._asset_infos[child.index]["y"],
+            z=self._asset_infos[child.index]["z_center"],
             color=self._asset_infos[child.index]["color"],
-            label=self._asset_infos[child.index]["id"],
-            transparency=0,
         )
 
 
@@ -484,3 +589,4 @@ if __name__ == "__main__":
         worksite_rotations_deg=[-15.0],
     )
     display(obj)
+
