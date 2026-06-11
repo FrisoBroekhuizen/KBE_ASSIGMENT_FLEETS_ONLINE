@@ -130,7 +130,7 @@ def ComputeRoute(start, end, machine_type):
 
     d_ns = HaversineDistance(lat1, lon1, corner_lat, corner_lon)  # N/S leg
     d_ew = HaversineDistance(corner_lat, corner_lon, lat2, lon2)  # E/W leg
-    total_dist = d_ns + d_ew
+    total_dist = (d_ns + d_ew) * 1.5 # 1.5 factor in order to be more conservative (if vehicle right above or next to site, its distance would be way to short without 1.5 factor)
 
     # 3-point polyline: start -> corner -> end
     geometry = [
