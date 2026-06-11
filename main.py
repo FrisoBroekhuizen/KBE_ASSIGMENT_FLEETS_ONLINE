@@ -891,6 +891,53 @@ class MissionStrategyApp(Base):
             json.dump(data, f, indent=4)
         generate_warning("Success", "The last added machine was successfully deleted from the JSON file.")
 
+    @action(button_label="Export", label="Export Fleet")
+    def ExportFleet(self):
+        data = []  # Keep track of all pois and assets to write to the json file
+        # Add work job
+        data.append({"type":"poi", "name":self.work_job.name, "gps_location":{"lat":self.work_job.gps_location[0], "lon":self.work_job.gps_location[1]},
+                    "overall_dimensions":self.site_dimensions, "orientation":self.orientation})
+        # Add depots
+        for depot in self.depots:
+            data.append({"type":"poi", "name":depot.name, "gps_location":{"lat":depot.gps_location[0], "lon":depot.gps_location[1]},
+                         "overall_dimensions":depot.overall_dimensions, "orientation":depot.rotation})
+        # Add trailers
+        for asset in self.trailers:
+            data.append({"type": "asset", "id": asset.trailer_id, "name": "Aanhanger zwaar", "build_year":asset.build_year,
+                         "gps_location": {"lat":asset.gps_location[0], "lon":asset.gps_location[1]},
+                         "overall_dimensions":asset.overall_dimensions, "color":asset.color})
+        # Add machines
+        for asset in self.machines:
+            if asset.machine_type in ["Tool", "Pump"]:
+                data.append({"type": "asset", "id": asset.machine_id, "name": type(asset).__name__, "build_year": asset.build_year,
+                             "gps_location": {"lat": asset.gps_location[0], "lon": asset.gps_location[1]},
+                             "overall_dimensions": asset.overall_dimensions, "color": asset.color})
+            else:
+                if asset.energy_source == "diesel-(fossiel)":
+                    fuel_type = "Diesel (fossiel)"
+                elif asset.energy_source == "biodiesel-(hvo)":
+                    fuel_type = "Biodiesel"
+                elif asset.energy_source == "Electric":
+                    fuel_type = "Electric"
+                else:
+                    fuel_type = "Diesel (fossiel)"
+                if type(asset).__name__ == "Truck":
+                    machine_type = "Vrachtwagens"
+                elif type(asset).__name__ == "Crane":
+                    machine_type = "Kranen"
+                else:
+                    machine_type = type(asset).__name__
+                data.append({"type": "asset", "id": asset.machine_id, "name": machine_type,
+                             "build_year": asset.build_year,
+                             "gps_location": {"lat": asset.gps_location[0], "lon": asset.gps_location[1]},
+                             "overall_dimensions": asset.overall_dimensions, "color": asset.color,
+                             "fuel_type":fuel_type, "emission_class_version":asset.emission_class, "consumption_per_hour":asset.consumption_per_hour})
+
+        # Write FleetsOnline data to FleetsOnlineData.json file
+        with open('CustomData.json', 'w') as f:
+            json.dump(data, f, indent=4)
+
+
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
