@@ -272,7 +272,7 @@ class Depot(GeomBase):
             m = Truck(overall_dimensions=[4, 2, 2], contents=longest_vehicle)
             longest_vehicle = m
             has_trailer = True
-        turn_radius = longest_vehicle.TurnRadius
+        turn_radius = longest_vehicle.turn_radius
         offset = [0, turn_radius, 0]
         offset_trailer = [0, 0, 0]
         try:
@@ -288,7 +288,7 @@ class Depot(GeomBase):
             longest_vehicle.number_of_axles = 3
             longest_vehicle.dimensions = longest_vehicle.overall_dimensions # TODO: Remove once this information is read from JSON
             longest_vehicle.dimensions_rear = trailer.overall_dimensions
-            turn_radius = longest_vehicle.TurnRadius
+            turn_radius = longest_vehicle.turn_radius
             R_tractor = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2)
             R_trailer = np.sqrt(turn_radius ** 2 - longest_vehicle.overall_dimensions[0] ** 2) # - trailer.overall_dimensions[0] ** 2)
             offset = [0, R_tractor, R_trailer - R_tractor]

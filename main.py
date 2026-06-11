@@ -333,16 +333,6 @@ class MissionStrategyApp(Base):
         if np.any(asset_overall_dimensions == 0): generate_warning("Warning: Dimension(s) missing", "Add the (non-zero) dimensions in x, y and z.")
 
     @Attribute
-    def all_jobs(self) -> List[Base]:
-        # Later done to put jobs next to each other for time planning and mission generation
-        return [*self.transport_jobs, *self.work_jobs]
-
-    @Attribute
-    def number_of_machines_in_fleet(self) -> int:
-        # Later done to sum the machines for strategy evaluation
-        return len(self.fleet.machines) if self.fleet else 0
-
-    @Attribute
     def standard_location(self):
         return self.standard_locations["Eindhoven"]
 
@@ -427,7 +417,7 @@ class MissionStrategyApp(Base):
         job_machines_areas = []
         for m in self.machines:
             if m.machine_type == self.work_job.needed_machines:
-                job_machines_areas.append(np.pi * m.TurnRadius ** 2)
+                job_machines_areas.append(np.pi * m.turn_radius ** 2)
                 # job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1])
 
         job_area = self.site_dimensions[0] * self.site_dimensions[1]
@@ -471,7 +461,7 @@ class MissionStrategyApp(Base):
                 total_mission_NOx += sum(work_job.job_NOx)
                 total_mission_CO2 += sum(work_job.job_CO2)
                 total_mission_cost += sum(work_job.job_cost)
-                total_mission_time += work_job.TimeKeeper
+                total_mission_time += work_job.job_duration
 
             m.mission_NOx = total_mission_NOx
             m.mission_CO2 = total_mission_CO2
@@ -528,7 +518,7 @@ class MissionStrategyApp(Base):
             m.mission_preferences = self.NormalizePreferences
 
             # Scalar cost function for this mission
-            m.mission_scalar = m.EvaluateCostFunction()
+            m.mission_scalar = m.cost_function
 
         # Pick the mission with the lowest scalar score
         winning_mission = min(missions, key=lambda mm: mm.mission_scalar)
@@ -954,7 +944,8 @@ class Mission(Base):
     normalized_cost = Input(0.0)
     normalized_emissions = Input(0.0)
 
-    def EvaluateCostFunction(self) -> float:
+    @Attribute
+    def cost_function(self) -> float:
         """Dot product of normalized preferences and normalized objectives."""
         w_cost, w_time, w_emissions = self.mission_preferences
         return (w_cost * self.normalized_cost + w_time * self.normalized_time + w_emissions * self.normalized_emissions)
@@ -1066,7 +1057,7 @@ class WorkJob(Base):
     # Using travel times from Valhalla together with work hours to determine total mission time with margins, idle times,
     # downtimes, maintenance, ..., which can be used later in the cost function evaluation
     @Attribute
-    def TimeKeeper(self):
+    def job_duration(self):
         job_duration = self.man_hours / (len(self.assigned_tools) + len(self.assigned_vehicles))
         return job_duration
 
@@ -1074,11 +1065,11 @@ class WorkJob(Base):
     def job_NOx(self) -> float:
         NOx_list = []
         for tool in self.assigned_tools:
-            tool.hours_used = self.TimeKeeper
+            tool.hours_used = self.job_duration
             NOx = tool.individualNOX
             NOx_list.append(NOx)
         for vehicle in self.assigned_vehicles:
-            vehicle.hours_used = self.TimeKeeper
+            vehicle.hours_used = self.job_duration
             NOx = vehicle.individualNOX
             NOx_list.append(NOx)
 

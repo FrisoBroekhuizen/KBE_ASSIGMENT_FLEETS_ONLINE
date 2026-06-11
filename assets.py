@@ -145,7 +145,7 @@ class Machine(Base):
     @Attribute
     def individualCost(self) -> float:
         hours_used = self.hours_used
-        wearFactor = self.individualDepreciation # A factor to account for extra maintenance, inefficiency, extra emissions, reliability, etc...
+        wearFactor = self.individual_depreciation # A factor to account for extra maintenance, inefficiency, extra emissions, reliability, etc...
         try: # Check if vehicle is carrying any additional mass
             content_mass = self.contents.mass
             try: # Check if vehicle was carrying a trailer that is carrying additional mass
@@ -179,7 +179,7 @@ class Machine(Base):
         return operatingCost + opportunityCost + truckContentOpportunityCost
 
     @Attribute
-    def individualDepreciation(self) -> float:
+    def individual_depreciation(self) -> float:
         # Normalize hours spend by the machine as a base decay_factor
         total_hours = self.age * 365 * 24
         if total_hours == 0: total_hours = 1 # Fail-safe, difference is negligible
@@ -223,7 +223,7 @@ class Vehicle(Machine):
     dimensions_rear: Tuple[float, float, float] = Input((5, 2, 2))
 
     @Attribute
-    def TurnRadius(self):
+    def turn_radius(self):
         max_steering_angle = self.max_steering_angle * np.pi / 180
 
         # 2-axle vehicles (cars)
