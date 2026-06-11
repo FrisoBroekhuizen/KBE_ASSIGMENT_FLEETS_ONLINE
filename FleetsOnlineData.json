@@ -10,7 +10,8 @@
             50,
             25,
             10
-        ]
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -23,7 +24,8 @@
             50,
             25,
             10
-        ]
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -33,10 +35,11 @@
             "lon": 5.1432600664
         },
         "overall_dimensions": [
-            150,
-            60.0,
+            100,
+            50.0,
             10
-        ]
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -49,7 +52,8 @@
             50,
             25,
             10
-        ]
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -62,7 +66,8 @@
             200,
             100.0,
             10
-        ]
+        ],
+        "orientation": 0
     },
     {
         "type": "asset",

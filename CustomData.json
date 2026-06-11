@@ -57,8 +57,7 @@
         ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Biodiesel (HVO)",
-        "consumption_per_hour": 15,
-        "color": "yellow"
+        "consumption_per_hour": 15
     },
     {
         "type": "asset",
@@ -76,8 +75,7 @@
         ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 25,
-        "color": "yellow"
+        "consumption_per_hour": 25
     },
     {
         "type": "asset",
@@ -95,8 +93,7 @@
         ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 0,
-        "color": "yellow"
+        "consumption_per_hour": 0
     },
     {
         "type": "asset",
@@ -114,8 +111,7 @@
         ],
         "emission_class_version": "StageIIIA",
         "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 15,
-        "color": "yellow"
+        "consumption_per_hour": 15
     },
   {
     "type": "asset",
@@ -129,7 +125,17 @@
     "overall_dimensions": [4, 2.5, 3],
     "emission_class_version": "StageIIIA",
     "fuel_type": "Diesel (fossiel)",
-    "consumption_per_hour": 25,
-    "color": "yellow"
+    "consumption_per_hour": 25
+  },
+  {
+    "type": "asset",
+    "name": "Tool",
+    "id": "Hamer_1",
+    "build_year": 2020,
+    "gps_location": {
+      "lat": 51.585330,
+      "lon": 4.732830
+    },
+    "overall_dimensions": [4, 4, 4]
   }
 ]
