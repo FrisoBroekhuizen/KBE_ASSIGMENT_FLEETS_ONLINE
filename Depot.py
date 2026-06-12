@@ -333,7 +333,7 @@ class Depot(GeomBase):
         return CommonSolid(shape_in = stationary_vehicle, tool = turning_vehicle).volume
 
     @Part
-    def Floor(self):
+    def floor(self):
         return Box(width=self.overall_dimensions[0],
                    length=self.overall_dimensions[1],
                    height=0.1,
@@ -341,7 +341,7 @@ class Depot(GeomBase):
                    color=(143, 144, 150))
 
     @Part
-    def Roof(self):
+    def roof(self):
         return Box(width=self.overall_dimensions[0],
                    length=self.overall_dimensions[1],
                    height=self.overall_dimensions[2],
@@ -350,7 +350,7 @@ class Depot(GeomBase):
                    transparency=0.95)
 
     @Part
-    def NonAttachableToolStorage(self):
+    def tool_storage(self):
         return Box(width=np.sqrt(self.non_attachable_tools_storage),
                    length=np.sqrt(self.non_attachable_tools_storage),
                    height=0.1,
@@ -358,7 +358,7 @@ class Depot(GeomBase):
                    color="Green")
 
     @Part
-    def PlaceMachines(self):
+    def machines(self):
         return Box(
             quantify=len(self.machine_positions),
             width=self.sorted_machines[child.index].overall_dimensions[0],
