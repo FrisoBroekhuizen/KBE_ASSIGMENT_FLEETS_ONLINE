@@ -73,7 +73,6 @@ class MissionStrategyApp(Base):
 
     site_dimensions: Tuple[float, float] = Input((100.0, 100.0)) # overall_dimensions: array[x', y'], always a rectangle, in its own reference system
     orientation: float = Input(0.0)
-    gps_location: Tuple[float, float, float] = Input((0.0, 0.0, 0.0)) # [x', y' and north-rotation]
 
 
     number_of_machines_per_type = {"Crane":0,
@@ -88,6 +87,13 @@ class MissionStrategyApp(Base):
     depots: List[Depot] = Input([])
 
     work_job = Input(None)
+
+    @Input
+    def gps_location(self):
+        if self.work_job != None:
+            return self.work_job.gps_location
+        else:
+            return (0, 0)
 
     @action(label = "Use Fleets-Online Data", button_label = "Read")
     def ReadFleetsData(self):
@@ -154,6 +160,7 @@ class MissionStrategyApp(Base):
             # else: orientation = poi["orientation"]
             orientation = 0
             if poi["address"] != None and poi["shapeData"] != None: # Check if the location address and shapeData is defined
+                poi["address"]["lat"], poi["address"]["lat"] = self.standard_location # For the time being to put all FleetsOnline assets in the depot
                 data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat":poi["address"]["lat"], "lon":poi["address"]["lon"]}, "overall_dimensions":[poi["shapeData"]["radius"], 0.5* poi["shapeData"]["radius"], 10], "orientation":orientation})
             else:
                 data.append({"type":"poi", "name": poi["name"], "gps_location": {"lat": self.standard_location[0], "lon": self.standard_location[1]}, "overall_dimensions":[50, 25, 10], "orientation":orientation})
@@ -412,7 +419,6 @@ class MissionStrategyApp(Base):
         This function determines the maximum number of machines that can work on a work site, based on the machine
         area and the site area, to not have an overcrowded work site.
         '''
-        # TODO: Find better way to determine area_factor
         area_factor = 0.1
         job_machines_areas = []
         for m in self.machines:
@@ -850,7 +856,7 @@ class MissionStrategyApp(Base):
         return items
 
     @Part
-    def New_Vehicle(self):
+    def new_vehicle(self):
         return Machine()
 
     @action(label="Export strategy", button_label="Export strategy overview to .pdf")

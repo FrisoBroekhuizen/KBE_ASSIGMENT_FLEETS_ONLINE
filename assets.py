@@ -213,14 +213,47 @@ class Vehicle(Machine):
     vehicle_id: str = Input("")
 
     # Turning parameters for turning radius during depot arranging
-    wheelbase: float = Input(1)
-    wheelbase_rear: float = Input(5)
-    wheelbase_track: float = Input(2)
-    number_of_axles: int = Input(2)
     max_steering_angle: float = Input(20.0)
     color = Input("Yellow")
-    dimensions: Tuple[float, float, float] = Input((1, 2, 2))
-    dimensions_rear: Tuple[float, float, float] = Input((5, 2, 2))
+
+    @Input
+    def wheelbase(self):
+        return self.overall_dimensions[0]
+
+    @Input
+    def wheelbase_track(self):
+        return self.overall_dimensions[1]
+
+    @Input
+    def number_of_axles(self):
+        if self.machine_type == "Truck":
+            try:
+                if self.contents != None:
+                    return 3
+                else:
+                    return 2
+            except:
+                return 2
+        else:
+            return 2
+
+    @Input
+    def wheelbase_rear(self):
+        if self.number_of_axles > 2:
+            return self.contents[0].overall_dimensions[0]
+        else:
+            return 0
+
+    @Input
+    def dimensions(self):
+        return self.overall_dimensions
+
+    @Input
+    def dimensions_rear(self):
+        if self.number_of_axles > 2:
+            return self.contents[0].overall_dimensions
+        else:
+            return 0
 
     @Attribute
     def turn_radius(self):
