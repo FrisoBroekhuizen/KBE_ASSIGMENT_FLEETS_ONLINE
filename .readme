@@ -1,16 +1,21 @@
 -------------------------
-Logistical Mission Strategy Generator - In collaboration with Fleets-Online
+Logistical Mission Strategy Generator - In collaboration with Fleets-Online B.V. (https://fleets-online.com/)
 -------------------------
 Description
 This Knowledge-Based Engineering application can be used to generate the best strategy for logistical problems
 in for example the agricultural, construction and transportation industries. The application uses fleet data
-provided by the user and iterates over possible strategies to come up with a winning strategy based on one or more
-of the following goals: Time, Cost and/or Emissions (CO2 + NOx).
+provided by the user and iterates over possible strategies to come up with a winning strategy, based on a weighted function
+concerning one or more of the following goals: Time, Cost and/or Emissions (CO2 + NOx),
+including the possibility of strict deadlines.
 -------------------------
 Usage
-To run the application, run the file 'main.py'. This file will instantiate the root object, called
-'MissionStrategyApp'. A ParaPy GUI will open, which contains buttons to run the mission generator, visualize
-different outputs and alter the used data.
+To run the application, one should first specify its fleet, depot, and work site location in a JSON format.
+After that, the user should run the file 'main.py'. this file will instantiate the root object, called
+'MissionStrategyApp'. A ParaPy GUI will open, and the user can already look at a fleet visualisation on a map by pressing on 'root'
+on the upper left corner of the screen. The user should specify its mission preferences, needed machinery,
+amount of total man-hours corresponding to that needed machinery. In case there are strict deadlines (by pressing the check-box),
+the user should include the start time and deadline time. After that, to that which contains buttons to run the mission generator,
+visualize different outputs and alter the used data.
 -------------------------
 Dependencies
 ---
