@@ -364,7 +364,7 @@ def generate_missions(
                         end_location_gps=app.gps_location,
                     )
                     work_job = app.work_job
-                    # work_job.assigned_vehicles = [machine]
+                    work_job.assigned_vehicles = [machine]
                     mission = MissionCls(
                         transport_jobs=[transport_job],
                         work_jobs=[work_job],
@@ -384,7 +384,7 @@ def generate_missions(
                 end_location_gps=app.gps_location,
             )
             work_job = app.work_job
-            # work_job.assigned_vehicles = [obj]
+            work_job.assigned_vehicles = [obj]
             mission = MissionCls(
                 transport_jobs=[transport_job],
                 work_jobs=[work_job],
@@ -532,12 +532,12 @@ def generate_missions(
                 )
 
                 work_job = app.work_job
-                # if isinstance(machine, VehicleCls):
-                #     work_job.assigned_vehicles = [machine]
-                #     work_job.assigned_tools = []
-                # else:
-                #     work_job.assigned_tools = [machine]
-                #     work_job.assigned_vehicles = []
+                if isinstance(machine, VehicleCls):
+                    work_job.assigned_vehicles = [machine]
+                    work_job.assigned_tools = []
+                else:
+                    work_job.assigned_tools = [machine]
+                    work_job.assigned_vehicles = []
 
                 mission = MissionCls(
                     transport_jobs=[
@@ -663,7 +663,7 @@ def generate_missions(
                 end_location_gps=app.gps_location,
             )
             work_job = app.work_job
-
+            work_job.assigned_vehicles = [machine]
             mission = MissionCls(
                 transport_jobs=[
                     transport_job_toDepot,

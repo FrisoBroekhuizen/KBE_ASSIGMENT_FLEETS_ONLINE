@@ -855,6 +855,7 @@ class MissionStrategyApp(Base):
             vehicles = work_job.assigned_vehicles
             for vehicle in vehicles:
                 index = None
+                print(timelines)
                 for i, transported_vehicle in enumerate(
                     timelines[:, 0]
                 ):
@@ -869,6 +870,7 @@ class MissionStrategyApp(Base):
                                 index = i
                         except Exception:
                             continue
+                print(index)
                 if index is None:
                     print(
                         "Warning: workjob assigned vehicle "
@@ -1227,7 +1229,6 @@ class MissionStrategyApp(Base):
         with open("CustomData.json", "w") as f:
             json.dump(data, f, indent=4)
 
-    @action(button_label="Delete the last added machine", label="Delete Machine")
         generate_warning("Added machine", "Successfully added the machine to CustomData.json. Please reload the data file using the button in the property view.")
 
     @action(button_label="Delete the last added machine", label="Delete machine")
