@@ -438,7 +438,7 @@ class MissionStrategyApp(Base):
                             l["gps_location"]["lon"],
                         )
 
-                    workjob.needed_vehicles = self.needed_machinery
+                    workjob.needed_machine = self.needed_machinery
                     workjob.man_hours = self.man_hours
                     workjob.name = l["name"]
 
@@ -519,7 +519,7 @@ class MissionStrategyApp(Base):
                     if m.color is None:
                         m.color = "Orange"
                     self.trailers.append(m)
-                elif m.machine_type not in ["Tool", "Pump"]:
+                else:
                     m.machine_id = l["id"]
                     if "Diesel (fossiel)" in l["fuel_type"]:
                         m.energy_source = "diesel-(fossiel)"
@@ -536,11 +536,6 @@ class MissionStrategyApp(Base):
                         m.color = "Yellow"
                     self.machines.append(m)
                     self.number_of_machines_per_type[m.machine_type] += 1
-                else:
-                    m.machine_id = l["id"]
-                    if m.color is None:
-                        m.color = "Blue"
-                    self.machines.append(m)
 
                 gps_check = Routing.gps_checker(
                     [m.gps_location[0], m.gps_location[1]]
@@ -599,6 +594,13 @@ class MissionStrategyApp(Base):
         print("Total machines:", len(self.machines))
         for m in self.machines:
             print(type(m).__name__, getattr(m, "machine_id", None))
+
+        self.work_job.needed_machine = self.needed_machinery
+        self.work_job.man_hours = self.man_hours
+
+        if self.number_of_machines_per_type[self.needed_machinery] == 0:
+            generate_warning("No machines available", f"The chosen needed machinery type {self.needed_machinery} is not present in the provided fleet. Please ensure the right vehicle type is chosen and the fleet data JSON file is complete.")
+            return
 
         # --- deadline consistency check (WARNING but no abort) ---
         if self.strict_deadline and self.deadline_time is None:
@@ -675,8 +677,11 @@ class MissionStrategyApp(Base):
         job_machines_areas = []
 
         for m in self.machines:
-            if m.machine_type == self.work_job.needed_machines:
-                job_machines_areas.append(np.pi * m.turn_radius**2)
+            if m.machine_type == self.needed_machinery:
+                if m.machine_type not in ["Tool", "Pump"]:
+                    job_machines_areas.append(np.pi * m.turn_radius**2)
+                else:
+                    job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1] * 2)
                 # job_machines_areas.append(
                 #     m.overall_dimensions[0] * m.overall_dimensions[1]
                 # )
@@ -1204,6 +1209,8 @@ class MissionStrategyApp(Base):
             fuel_type = "Biodiesel"
         elif "Electric" == energy_source:
             fuel_type = "Electric"
+        elif "Manual" == energy_source:
+            fuel_type = "Manual"
         else:
             fuel_type = "diesel-(fossiel)"
         data.append(
@@ -1503,9 +1510,7 @@ class WorkJob(Base):
 
     # List specifying which type of machinery is required,
     # order is not important
-    needed_tools: str = Input("")
-    needed_vehicles: str = Input("")
-    needed_machines = needed_vehicles
+    needed_machine: str = Input("")
     # needed_machines = [needed_tools, needed_vehicles]
 
     # Resources actually assigned to this work job - Not in UML yet,
