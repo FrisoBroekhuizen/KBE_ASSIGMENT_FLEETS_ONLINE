@@ -1,23 +1,23 @@
--------------------------
+---------------------------------------------------------------------------------------------------------------
 Logistical Mission Strategy Generator - In collaboration with Fleets-Online B.V. (https://fleets-online.com/)
--------------------------
-Description
+---------------------------------------------------------------------------------------------------------------
+Description:
 This Knowledge-Based Engineering application can be used to generate the best strategy for logistical problems
 in for example the agricultural, construction and transportation industries. The application uses fleet data
 provided by the user and iterates over possible strategies to come up with a winning strategy, based on a weighted function
 concerning one or more of the following goals: Time, Cost and/or Emissions (CO2 + NOx),
 including the possibility of strict deadlines.
 -------------------------
-Usage
-To run the application, one should first specify its fleet, depot, and work site location in a JSON format.
-After that, the user should run the file 'main.py'. this file will instantiate the root object, called
-'MissionStrategyApp'. A ParaPy GUI will open, and the user can already look at a fleet visualisation on a map by pressing on 'root'
+Usage:
+To run the application, one should first specify its fleet, depot, and work site location in JSON format.
+After that, the user should run the file 'main.py'. This file will instantiate the root object, called 'MissionStrategyApp'.
+A ParaPy GUI will open, and the user can already look at a fleet visualisation on a map by pressing on 'root'
 on the upper left corner of the screen. The user should specify its mission preferences, needed machinery,
-amount of total man-hours corresponding to that needed machinery. In case there are strict deadlines (by pressing the check-box),
-the user should include the start time and deadline time. After that, to that which contains buttons to run the mission generator,
-visualize different outputs and alter the used data.
+amount of total man-hours corresponding to that needed machinery right below 'inputs on the bottom left of the GUI'.
+In case there are strict deadlines (by pressing the check-box), the user should include the start time and deadline time.
+After that, to that which contains buttons to run the mission generator, visualize different outputs and alter the used data.
 -------------------------
-Dependencies
+Dependencies:
 ---
 APIs
 The FleetsOnline API is used by sending requests to 'https://api.v2.deepdigital.org', which requires a FleetsOnline
@@ -31,4 +31,92 @@ routingpy v1.3.1
 numpy v2.4.6
 requests v2.34.2
 reportlab v4.5.1
--------------------------
+---------------------------------------------------------------------------------------------------------------
+
+================================================================================
+LOGISTICAL MISSION STRATEGY GENERATOR
+In collaboration with Fleets-Online B.V. (https://fleets-online.com/)
+================================================================================
+
+DESCRIPTION
+-----------
+This Knowledge-Based Engineering (KBE) application generates deterministic,
+optimized logistical strategies for the agricultural, construction, and heavy
+transportation industries. By instantiating parametric fleet data and
+evaluating spatial-temporal constraints, the application iterates over
+feasible transport missions to compute a winning strategy. Optimization is
+driven by a multi-objective scalar cost function balancing:
+
+  * Financial Cost (EUR)
+  * Environmental Emissions (CO2 and NOx)
+  * Operational Time (Hours)
+  * Strict Temporal Deadlines
+
+DEPENDENCIES & PREREQUISITES
+----------------------------
+1. External APIs
+The application relies on two external web services for routing and emission
+calculations. Users must possess valid authentication credentials for both:
+
+  * FleetsOnline API: Used for dynamic CO2 and NOx calculations. Requests
+    are routed to https://api.v2.deepdigital.org. Requires an active
+    FleetsOnline account.
+  * OpenRouteService (ORS) API: Used for geographic routing and distance
+    matrices. Requires an active ORS account and API key.
+
+2. Python Environment
+The system is built on the ParaPy framework. Ensure your environment matches
+the following specific library versions:
+  * parapy == 1.15.1
+  * kbeutils == 1.0
+  * routingpy == 1.3.1
+  * numpy == 2.4.6
+  * requests == 2.34.2
+  * reportlab == 4.5.1
+
+USAGE & EXECUTION
+-----------------
+1. Data Initialization
+Before executing the application, initialize the infrastructure and fleet
+inventory. Specify the available machinery, depot locations, and worksite
+boundaries in JSON format (CustomData.json or FleetsOnlineData.json).
+
+2. Launching the Application
+Execute the main script via your command line to instantiate the
+MissionStrategyApp root object and launch the ParaPy Graphical User Interface (GUI):
+
+    python main.py
+
+3. User Interface Interaction
+  * Initial Visualization: In the ParaPy GUI, click on the "root" node in
+    the upper left tree. This immediately renders a map visualization of the
+    initial spatial distribution of your fleet and depots. Machines that are
+    very close to each other are vertically stacked for visual purposes.
+  * Define Parameters: In the property window (bottom left), input your
+    specific mission constraints:
+      - Preferences: Weights for Cost, Emissions, and Time.
+      - Requirements: The needed machinery type and the total required
+        man-hours for the job.
+      - Deadlines: If temporal constraints apply, check the strict deadline
+        box and input the exact start and deadline times.
+  * Execute & Visualize: Navigate to the actions panel. Use the provided
+    'Generate Strategy' button to run the mission iterator, which calculates
+    the winning strategy. Dynamically visualize the various outputs or
+    alter the dataset.
+
+
+OUTPUTS & DELIVERABLES
+----------------------
+Upon generating a winning strategy, the system provides several outputs
+directly through the GUI actions panel:
+
+  * Interactive Mapping: Visualizes the specific transport routes of the
+    winning strategy.
+  * Trailer Arrangements: Opens a 3D visualization of the algorithmic
+    trailer packing.
+  * Geometry Export: Exports the 3D arrangements of depots or loaded
+    trailers as .stp files.
+  * Strategy Report: Generates a comprehensive PDF detailing the normalized
+    metrics and timeline of the selected logistical mission.
+
+================================================================================
