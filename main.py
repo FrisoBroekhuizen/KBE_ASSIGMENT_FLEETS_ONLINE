@@ -83,7 +83,7 @@ class MissionStrategyApp(Base):
     # Aggregations / associations
     mission_preferences: List[float] = Input(
         [1.0, 1.0, 1.0],
-        label="Mission preferences (cost, time, emissions)",
+        label="Mission Preferences (cost, time, emissions)",
         validator=all_is_number,
     )  # List of weights for the different optimisation goals
 
@@ -96,15 +96,8 @@ class MissionStrategyApp(Base):
         "Machine",
         "Pump",
     ]
-
-    # default: no deadline restriction
-    strict_deadline: bool = Input(False, widget=CheckBox())
-    start_time = Input(datetime.datetime(2026, 5, 27, 8, 0))
-    # Only required / meaningful if strict_deadline is True
-    deadline_time: Optional[datetime.datetime] = Input(None)
-
     # Mission attributes
-    needed_tools: str = Input("", widget=TextField(autocompute=True))
+    # needed_tools: str = Input("", widget=TextField(autocompute=True))
     needed_machinery: str = Input(
         "Tractor",
         widget=TextField(
@@ -112,10 +105,11 @@ class MissionStrategyApp(Base):
             background_color=lambda self: (
                 "Red"
                 if self.needed_machinery not in self.possible_machinery
-                and self.needed_machinery != ""
+                   and self.needed_machinery != ""
                 else "White"
             ),
         ),
+        label="Needed Machinery"
     )
     man_hours = Input(
         50,
@@ -125,7 +119,15 @@ class MissionStrategyApp(Base):
                 "Red" if self.man_hours == 0 else "White"
             ),
         ),
+        label="Man Hours"
     )
+    # default: no deadline restriction
+    strict_deadline: bool = Input(False, widget=CheckBox(), label="Strict Deadline?")
+    start_time = Input(datetime.datetime(2026, 5, 27, 8, 0), label="Start Time (yyyy, mm, dd, hrs, min)")
+    # Only required / meaningful if strict_deadline is True
+    deadline_time: Optional[datetime.datetime] = Input(None, label="Deadline Time (yyyy, mm, dd, hrs, min)")
+
+
 
     standard_locations = {
         "Eindhoven": (51.468288, 5.421365),
@@ -1175,8 +1177,8 @@ class MissionStrategyApp(Base):
         return Machine()
 
     @action(
-        label="Export strategy",
-        button_label="Export strategy overview to .pdf",
+        label="Export Strategy",
+        button_label="Export Strategy Overview to .pdf",
     )
     def exportStrategy(self):
         PDFMaker.Export(
@@ -1186,8 +1188,8 @@ class MissionStrategyApp(Base):
         )
 
     @action(
-        button_label="Add machine to JSON data file",
-        label="Add machine",
+        button_label="Add Vehicle to JSON Data File",
+        label="Add Vehicle",
     )
     def AddVehicle(self):
         m = self.new_vehicle
@@ -1225,6 +1227,7 @@ class MissionStrategyApp(Base):
         with open("CustomData.json", "w") as f:
             json.dump(data, f, indent=4)
 
+    @action(button_label="Delete the last added machine", label="Delete Machine")
         generate_warning("Added machine", "Successfully added the machine to CustomData.json. Please reload the data file using the button in the property view.")
 
     @action(button_label="Delete the last added machine", label="Delete machine")
