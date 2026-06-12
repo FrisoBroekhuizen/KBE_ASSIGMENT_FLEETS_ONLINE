@@ -21,8 +21,9 @@ Dependencies:
 ---
 APIs
 The FleetsOnline API is used by sending requests to 'https://api.v2.deepdigital.org', which requires a FleetsOnline
-account for authentication.
-The OpenRouteService API is used, which requires an ORS account for authentication.
+account for authentication. The credentials should be placed in the file 'EmissionsExternalTool.py'.
+The OpenRouteService API is used, which requires an ORS account for authentication. The key should be placed in the
+file 'Routing.py'.
 ---
 Libraries
 parapy v1.15.1

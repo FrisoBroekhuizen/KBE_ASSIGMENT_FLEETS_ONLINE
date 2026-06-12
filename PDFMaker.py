@@ -17,7 +17,7 @@ from reportlab.platypus import (
 )
 
 
-def Export(mission, start_time, timelines) -> None:
+def Export(mission, start_time, timelines, strict_deadline, deadline_time) -> None:
     """Export the final mission strategy to a PDF file.
 
     Parameters
@@ -99,6 +99,24 @@ def Export(mission, start_time, timelines) -> None:
     story.append(
         Paragraph(
             f"<b>Generated:</b> {datetime.now():%Y-%m-%d %H:%M}",
+            styles["BodyText"],
+        )
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>Mission Preferences: cost</b> {mission.mission_preferences[0]*100:0.1f} <b>%, time</b> {mission.mission_preferences[1]*100:0.1f} <b>%, emissions</b> {mission.mission_preferences[2]*100:0.1f}",
+            styles["BodyText"],
+        )
+    )
+
+    if strict_deadline:
+        deadline = deadline_time
+    else:
+        deadline = "None"
+    story.append(
+        Paragraph(
+            f"<b>Mission Deadline:</b> {deadline}",
             styles["BodyText"],
         )
     )

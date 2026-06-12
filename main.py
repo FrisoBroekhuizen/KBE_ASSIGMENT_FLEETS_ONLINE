@@ -1192,6 +1192,8 @@ class MissionStrategyApp(Base):
             self.winning_mission,
             self.start_time,
             self.timelines,
+            self.strict_deadline,
+            self.deadlines,
         )
 
     @action(
