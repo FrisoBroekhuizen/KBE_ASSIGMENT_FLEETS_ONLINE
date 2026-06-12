@@ -69,9 +69,9 @@ class Machine(Base):
 
     # historical_data_file: str = Input("")   # can point to .xlsx / .csv, etc.
     emission_class: str = Input(
-        "StageIIIA",
+        "StageIIIB",
         validator=OneOf(
-            ("StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")
+            ("Manual", "StageI", "StageII", "StageIIIA", "StageIIIB", "StageIV")
         ),
         widget=TextField(autocompute=True),
     )
@@ -88,7 +88,7 @@ class Machine(Base):
     # waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo),
     # kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
     energy_source: str = Input(
-        "Choose one of: diesel-(fossiel), biodiesel-(hvo), "
+        "Choose one of: Manual, diesel-(fossiel), biodiesel-(hvo), "
         "benzine-(e10-blend), Electric, Hybrid",
         widget=TextField(
             autocompute=True,
@@ -96,6 +96,7 @@ class Machine(Base):
                 "Red"
                 if self.energy_source
                 not in [
+                    "Manual",
                     "diesel-(fossiel)",
                     "biodiesel-(hvo)",
                     "benzine-(e10-blend)",
@@ -177,6 +178,7 @@ class Machine(Base):
         "benzine-(e10-blend)": 2.31,  # /L
         "Electric": 0.8,  # /kWh
         "Hybrid": 1.4,  # /Combo
+        "Manual": 0 # Tools
     }
 
     energy_source_factors = {
@@ -185,6 +187,7 @@ class Machine(Base):
         "benzine-(e10-blend)": 1.1,
         "Electric": 0.8,
         "Hybrid": 1.3,
+        "Manual": 1
     }
 
     machine_type_factors = {
@@ -218,6 +221,8 @@ class Machine(Base):
     @Attribute
     def individual_co2(self) -> float:
         """CO2 [kg] over self.hours_used."""
+        if self.energy_source == "Manual":
+            return 0
         fuel_type = self.energy_source.lower()
         fuel_usage = self.consumption_per_hour * self.hours_used
         result = CO2Calculator(
@@ -231,6 +236,8 @@ class Machine(Base):
     @Attribute
     def individual_nox(self) -> float:
         """NOx [g] over self.hours_used using AUB method by default."""
+        if self.emission_class == "Manual":
+            return 0
         fuel_usage = self.consumption_per_hour * self.hours_used
         result = NOxCalculator(
             energy_source=self.energy_source,
