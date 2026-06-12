@@ -1,16 +1,18 @@
 # EmissionsExternalTool.py
 
 from __future__ import annotations
-from Warning import generate_warning
 
 import requests
 
+from Warning import generate_warning
+
 BASE_URL = "https://api.v2.deepdigital.org"
+
 
 def _get_access_token() -> str:
     try:
         resp = requests.post(
-            "https://api.v2.deepdigital.org/oauth/token",
+            f"{BASE_URL}/oauth/token",
             data={
                 "grant_type": "password",
                 "username": "testing@fleets-online.com",
@@ -23,19 +25,26 @@ def _get_access_token() -> str:
     except requests.RequestException as exc:
         generate_warning(
             "Emissions API error",
-            "External error while contacting DeepDigital emissions API for authentication.\n\n"
+            "External error while contacting DeepDigital emissions API "
+            "for authentication.\n\n"
             "Please contact Fleets-Online.",
         )
         raise RuntimeError(
-            "External error while contacting DeepDigital emissions API for authentication. "
-            "Please contact Fleets-Online."
+            "External error while contacting DeepDigital emissions API "
+            "for authentication. Please contact Fleets-Online."
         ) from exc
 
 
 def _get_auth_headers() -> dict:
     return {"Authorization": f"Bearer {_get_access_token()}"}
 
-# Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85, diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo), biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg, waterstof-(grijs), waterstof-(groen), marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1), HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
+
+# Possible fuel types: benzine-(e10-blend), bio-ethanol-(100%), e85,
+# diesel-(b7-blend), diesel-(fossiel), biodiesel-(hvo),
+# biodiesel-(fame), gtl, cng, bio-cng, lng, bio-lng, lpg,
+# waterstof-(grijs), waterstof-(groen),
+# marine-diesel-oil-(mdo), heavy-fuel-oil-(hfo), kerosine-(jet-a1),
+# HVO10, HVO20, HVO30, HVO50, HVO70, HVO100
 def CO2Calculator(
     *,
     energy_source: str,
@@ -46,6 +55,7 @@ def CO2Calculator(
     if energy_source.strip().lower() == "electric":
         print("machine was electric")
         return 0.0
+
     headers = _get_auth_headers()
 
     try:
@@ -69,12 +79,13 @@ def CO2Calculator(
     except requests.RequestException as exc:
         generate_warning(
             "Emissions API error",
-            "External error while contacting DeepDigital CO₂ calculator.\n\n"
+            "External error while contacting DeepDigital CO₂ "
+            "calculator.\n\n"
             "Please contact Fleets-Online.",
         )
         raise RuntimeError(
-            "External error while contacting DeepDigital CO₂ calculator. "
-            "Please contact Fleets-Online."
+            "External error while contacting DeepDigital CO₂ "
+            "calculator. Please contact Fleets-Online."
         ) from exc
 
 
@@ -118,10 +129,13 @@ def NOxCalculator(
     except requests.RequestException as exc:
         generate_warning(
             "Emissions API error",
-            "External error while contacting DeepDigital NOx calculator.\n\n"
+            "External error while contacting DeepDigital NOx "
+            "calculator.\n\n"
             "Please contact Fleets-Online.",
         )
         raise RuntimeError(
-            "External error while contacting DeepDigital NOx calculator. "
-            "Please contact Fleets-Online."
+            "External error while contacting DeepDigital NOx "
+            "calculator. Please contact Fleets-Online."
         ) from exc
+
+

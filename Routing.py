@@ -1,17 +1,18 @@
-# Routing.py
-from __future__ import annotations
+#from __future__ import annotations
+
 import math
 import os
 import time
 from typing import Tuple, List
 
-from parapy.geom import Point, Polyline
-from parapy.core import Base, Input, Attribute, Part, child, action
-from parapy.exchange import STEPWriter
-from parapy.core.validate import OneOf
 import requests
+from parapy.core import Base, Input, Attribute, Part, child, action
+from parapy.core.validate import OneOf
+from parapy.exchange import STEPWriter
+from parapy.geom import Point, Polyline
 from routingpy import ORS
 from routingpy.exceptions import RouterApiError
+
 from Warning import generate_warning
 
 maindir = os.path.dirname(__file__)
@@ -20,8 +21,8 @@ maindir = os.path.dirname(__file__)
 # Global map bounds (lat, lon) for your screenshots
 # ---------------------------------------------------------------------
 # Small MAP1:
-MAP1_CORNER_1: Tuple[float, float] = (51.084598, 4.210087)  # bottom-left (lat, lon)
-MAP1_CORNER_2: Tuple[float, float] = (51.95, 6.049)  # top-right (lat, lon) – adjust when you know it
+MAP1_CORNER_1: Tuple[float, float] = (51.084598, 4.210087)  # bottom-left
+MAP1_CORNER_2: Tuple[float, float] = (51.95, 6.049)  # top-right – adjust
 
 # Large MAP2:
 MAP2_CORNER_1: Tuple[float, float] = (43.312459, -1.987007)
@@ -29,8 +30,10 @@ MAP2_CORNER_2: Tuple[float, float] = (54.65, 22.928525)
 
 
 def HaversineDistance(
-    lat1: float, lon1: float,
-    lat2: float, lon2: float
+    lat1: float,
+    lon1: float,
+    lat2: float,
+    lon2: float,
 ) -> float:
     """Great-circle distance between two GPS points in meters."""
     R = 6371000.0  # Earth radius [m]
@@ -38,10 +41,13 @@ def HaversineDistance(
     phi2 = math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lon2 - lon1)
-    a = (math.sin(dphi / 2) ** 2
-         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
     return R * c
+
 
 def ComputeRoute(start, end, machine_type):
     """
@@ -78,9 +84,9 @@ def ComputeRoute(start, end, machine_type):
     try:
         # --- normal ORS call ---
         route = client.directions(locations=coordinates, profile=profile)
-        duration = route.duration         # [s]
-        distance = route.distance         # [m]
-        geometry = route.geometry         # [[lon, lat], ...]
+        duration = route.duration  # [s]
+        distance = route.distance  # [m]
+        geometry = route.geometry  # [[lon, lat], ...]
         return duration, distance, geometry
 
     except (RouterApiError, requests.RequestException) as e:
@@ -93,7 +99,9 @@ def ComputeRoute(start, end, machine_type):
             "travel time. Distances and times in this strategy are therefore only "
             "approximate. Try again later or reduce the number of route requests."
         )
-        print(f"[ComputeRoute] ORS/network error: {e} – using conservative fallback")
+        print(
+            f"[ComputeRoute] ORS/network error: {e} – using conservative fallback"
+        )
         generate_warning(
             "Routing service unavailable – using fallback route",
             msg,
@@ -107,7 +115,9 @@ def ComputeRoute(start, end, machine_type):
             "A simplified conservative route is used instead with an approximate "
             "travel time. Distances and times in this strategy may be inaccurate."
         )
-        print(f"[ComputeRoute] Unexpected error: {e} – using conservative fallback")
+        print(
+            f"[ComputeRoute] Unexpected error: {e} – using conservative fallback"
+        )
         generate_warning(
             "Routing error – using fallback route",
             msg,
@@ -128,9 +138,21 @@ def ComputeRoute(start, end, machine_type):
     corner_lat = lat2
     corner_lon = lon1
 
-    d_ns = HaversineDistance(lat1, lon1, corner_lat, corner_lon)  # N/S leg
-    d_ew = HaversineDistance(corner_lat, corner_lon, lat2, lon2)  # E/W leg
-    total_dist = (d_ns + d_ew) * 1.5 # 1.5 factor in order to be more conservative (if vehicle right above or next to site, its distance would be way to short without 1.5 factor)
+    d_ns = HaversineDistance(
+        lat1,
+        lon1,
+        corner_lat,
+        corner_lon,
+    )  # N/S leg
+    d_ew = HaversineDistance(
+        corner_lat,
+        corner_lon,
+        lat2,
+        lon2,
+    )  # E/W leg
+    # 1.5 factor in order to be more conservative (if vehicle right above
+    # or next to site, its distance would be way too short without 1.5)
+    total_dist = (d_ns + d_ew) * 1.5
 
     # 3-point polyline: start -> corner -> end
     geometry = [
@@ -145,6 +167,7 @@ def ComputeRoute(start, end, machine_type):
 
     return duration, total_dist, geometry
 
+
 # ---------------------------------------------------------------------
 # Helpers for map selection + projection
 # ---------------------------------------------------------------------
@@ -154,7 +177,8 @@ def _latlon_to_xy(
     origin_lat: float,
     origin_lon: float,
 ) -> Tuple[float, float]:
-    """Project (lat, lon) to local (x, y) in meters w.r.t. (origin_lat, origin_lon).
+    """Project (lat, lon) to local (x, y) in meters w.r.t. (origin_lat,
+    origin_lon).
 
     x: east-positive distance
     y: north-positive distance
@@ -172,9 +196,12 @@ def _latlon_to_xy(
     return dx, dy
 
 
-def _normalize_bounds(c1: Tuple[float, float],
-                      c2: Tuple[float, float]) -> Tuple[float, float, float, float]:
-    """From two corners (lat, lon) return (bottom_lat, top_lat, left_lon, right_lon)."""
+def _normalize_bounds(
+    c1: Tuple[float, float],
+    c2: Tuple[float, float],
+) -> Tuple[float, float, float, float]:
+    """From two corners (lat, lon) return (bottom_lat, top_lat, left_lon,
+    right_lon)."""
     lat1, lon1 = c1
     lat2, lon2 = c2
     top_lat = max(lat1, lat2)
@@ -184,13 +211,23 @@ def _normalize_bounds(c1: Tuple[float, float],
     return bottom_lat, top_lat, left_lon, right_lon
 
 
-def _point_in_bounds(lat: float, lon: float,
-                     bottom_lat: float, top_lat: float,
-                     left_lon: float, right_lon: float) -> bool:
-    return (bottom_lat <= lat <= top_lat) and (left_lon <= lon <= right_lon)
+def _point_in_bounds(
+    lat: float,
+    lon: float,
+    bottom_lat: float,
+    top_lat: float,
+    left_lon: float,
+    right_lon: float,
+) -> bool:
+    return (bottom_lat <= lat <= top_lat) and (
+        left_lon <= lon <= right_lon
+    )
 
-def choose_map(start: Tuple[float, float],
-               end: Tuple[float, float]) -> Tuple[float, float, float, float, str]:
+
+def choose_map(
+    start: Tuple[float, float],
+    end: Tuple[float, float],
+) -> Tuple[float, float, float, float, str]:
     """
     Decide which map to use and return its bounds + filename.
 
@@ -200,22 +237,34 @@ def choose_map(start: Tuple[float, float],
     """
     # unpack map bounds
     map1_bottom, map1_top, map1_left, map1_right = _normalize_bounds(
-        MAP1_CORNER_1, MAP1_CORNER_2
+        MAP1_CORNER_1,
+        MAP1_CORNER_2,
     )
     map2_bottom, map2_top, map2_left, map2_right = _normalize_bounds(
-        MAP2_CORNER_1, MAP2_CORNER_2
+        MAP2_CORNER_1,
+        MAP2_CORNER_2,
     )
 
     start_lat, start_lon = start
     end_lat, end_lon = end
 
     # in‑bounds checks
-    start_in_map1 = _point_in_bounds(start_lat, start_lon,
-                                     map1_bottom, map1_top,
-                                     map1_left, map1_right)
-    end_in_map1 = _point_in_bounds(end_lat, end_lon,
-                                   map1_bottom, map1_top,
-                                   map1_left, map1_right)
+    start_in_map1 = _point_in_bounds(
+        start_lat,
+        start_lon,
+        map1_bottom,
+        map1_top,
+        map1_left,
+        map1_right,
+    )
+    end_in_map1 = _point_in_bounds(
+        end_lat,
+        end_lon,
+        map1_bottom,
+        map1_top,
+        map1_left,
+        map1_right,
+    )
 
     if start_in_map1 and end_in_map1:
         # small MAP1
@@ -234,8 +283,10 @@ def choose_map(start: Tuple[float, float],
 
     return bottom_lat, top_lat, left_lon, right_lon, filename
 
-def choose_map_for_points(points: List[Tuple[float, float]]
-                          ) -> Tuple[float, float, float, float, str]:
+
+def choose_map_for_points(
+    points: List[Tuple[float, float]],
+) -> Tuple[float, float, float, float, str]:
     """
     Decide which map to use based on a list of (lat, lon) points.
 
@@ -248,10 +299,12 @@ def choose_map_for_points(points: List[Tuple[float, float]]
     """
     # unpack map bounds
     map1_bottom, map1_top, map1_left, map1_right = _normalize_bounds(
-        MAP1_CORNER_1, MAP1_CORNER_2
+        MAP1_CORNER_1,
+        MAP1_CORNER_2,
     )
     map2_bottom, map2_top, map2_left, map2_right = _normalize_bounds(
-        MAP2_CORNER_1, MAP2_CORNER_2
+        MAP2_CORNER_1,
+        MAP2_CORNER_2,
     )
 
     # if no points are given, just use MAP2 by default
@@ -266,9 +319,14 @@ def choose_map_for_points(points: List[Tuple[float, float]]
     # check if all points lie in MAP1
     all_in_map1 = True
     for lat, lon in points:
-        if not _point_in_bounds(lat, lon,
-                                map1_bottom, map1_top,
-                                map1_left, map1_right):
+        if not _point_in_bounds(
+            lat,
+            lon,
+            map1_bottom,
+            map1_top,
+            map1_left,
+            map1_right,
+        ):
             all_in_map1 = False
             break
 
@@ -289,6 +347,7 @@ def choose_map_for_points(points: List[Tuple[float, float]]
 
     return bottom_lat, top_lat, left_lon, right_lon, filename
 
+
 # ---------------------------------------------------------------------
 # Core: map‑aware route visualization
 # ---------------------------------------------------------------------
@@ -298,7 +357,8 @@ def RouteVisualization(
     end: Tuple[float, float],
 ) -> Polyline:
     """
-    Convert ORS geometry [[lon, lat], ...] into a red Polyline in local XY coordinates.
+    Convert ORS geometry [[lon, lat], ...] into a red Polyline in local
+    XY coordinates.
 
     Map selection:
     --------------
@@ -322,10 +382,12 @@ def RouteVisualization(
     """
     # --- unpack map bounds ---
     map1_bottom, map1_top, map1_left, map1_right = _normalize_bounds(
-        MAP1_CORNER_1, MAP1_CORNER_2
+        MAP1_CORNER_1,
+        MAP1_CORNER_2,
     )
     map2_bottom, map2_top, map2_left, map2_right = _normalize_bounds(
-        MAP2_CORNER_1, MAP2_CORNER_2
+        MAP2_CORNER_1,
+        MAP2_CORNER_2,
     )
 
     start_lat, start_lon = start
@@ -333,14 +395,20 @@ def RouteVisualization(
 
     # --- decide which map to use ---
     start_in_map1 = _point_in_bounds(
-        start_lat, start_lon,
-        map1_bottom, map1_top,
-        map1_left, map1_right
+        start_lat,
+        start_lon,
+        map1_bottom,
+        map1_top,
+        map1_left,
+        map1_right,
     )
     end_in_map1 = _point_in_bounds(
-        end_lat, end_lon,
-        map1_bottom, map1_top,
-        map1_left, map1_right
+        end_lat,
+        end_lon,
+        map1_bottom,
+        map1_top,
+        map1_left,
+        map1_right,
     )
 
     if start_in_map1 and end_in_map1:
@@ -365,9 +433,13 @@ def RouteVisualization(
 
     if not points:
         # Avoid empty polyline; could also raise
-        return Polyline(points=[Point(0, 0, 0), Point(1, 0, 0)], color="red")
+        return Polyline(
+            points=[Point(0, 0, 0), Point(1, 0, 0)],
+            color="red",
+        )
 
     return Polyline(points=points, color="red", line_thickness=8)
+
 
 def gps_checker(coord: Tuple[float, float]) -> int:
     """Classify a GPS coordinate (lat, lon) w.r.t. MAP1 / MAP2.
@@ -388,25 +460,35 @@ def gps_checker(coord: Tuple[float, float]) -> int:
 
     # Unpack bounds once
     map1_bottom, map1_top, map1_left, map1_right = _normalize_bounds(
-        MAP1_CORNER_1, MAP1_CORNER_2
+        MAP1_CORNER_1,
+        MAP1_CORNER_2,
     )
     map2_bottom, map2_top, map2_left, map2_right = _normalize_bounds(
-        MAP2_CORNER_1, MAP2_CORNER_2
+        MAP2_CORNER_1,
+        MAP2_CORNER_2,
     )
 
     # Case 1: inside small MAP1
-    if _point_in_bounds(lat, lon,
-                        map1_bottom, map1_top,
-                        map1_left, map1_right):
+    if _point_in_bounds(
+        lat,
+        lon,
+        map1_bottom,
+        map1_top,
+        map1_left,
+        map1_right,
+    ):
         return 1
 
     # Case 2: outside MAP1 but inside large MAP2
-    if _point_in_bounds(lat, lon,
-                        map2_bottom, map2_top,
-                        map2_left, map2_right):
+    if _point_in_bounds(
+        lat,
+        lon,
+        map2_bottom,
+        map2_top,
+        map2_left,
+        map2_right,
+    ):
         return 2
 
     # Case 3: completely outside MAP2
     return 3
-
-
