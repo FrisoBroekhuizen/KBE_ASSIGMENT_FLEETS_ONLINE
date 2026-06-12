@@ -1227,7 +1227,6 @@ class MissionStrategyApp(Base):
         with open("CustomData.json", "w") as f:
             json.dump(data, f, indent=4)
 
-    @action(button_label="Delete the last added machine", label="Delete Machine")
         generate_warning("Added machine", "Successfully added the machine to CustomData.json. Please reload the data file using the button in the property view.")
 
     @action(button_label="Delete the last added machine", label="Delete machine")
