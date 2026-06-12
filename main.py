@@ -525,6 +525,8 @@ class MissionStrategyApp(Base):
                         m.energy_source = "biodiesel-(hvo)"
                     elif "Electric" in l["fuel_type"]:
                         m.energy_source = "Electric"
+                    else:
+                        m.energy_source = "diesel-(fossiel)"
 
                     m.emission_class = l["emission_class_version"]
                     m.consumption_per_hour = l["consumption_per_hour"]
@@ -845,7 +847,7 @@ class MissionStrategyApp(Base):
             timelines.append(
                 [vehicle, self.start_time, self.start_time + datetime.timedelta(minutes=transport_job.routeDuration),
                  "transport"])
-
+        print(timelines)
         timelines = np.array(timelines)
         for work_job in self.winning_mission.work_jobs:
             vehicles = work_job.assigned_vehicles
@@ -1184,14 +1186,22 @@ class MissionStrategyApp(Base):
         )
 
     @action(
-        button_label="Add vehicle to JSON data file",
-        label="Add vehicle",
+        button_label="Add machine to JSON data file",
+        label="Add machine",
     )
     def AddVehicle(self):
-        m = self.New_Vehicle
+        m = self.new_vehicle
         with open("CustomData.json", "r") as f:
             data = json.load(f)
-
+        energy_source = m.energy_source
+        if "diesel-(fossiel)" == energy_source:
+            fuel_type = "Diesel (fossiel)"
+        elif "biodiesel-(hvo)" == energy_source:
+            fuel_type = "Biodiesel"
+        elif "Electric" == energy_source:
+            fuel_type = "Electric"
+        else:
+            fuel_type = "diesel-(fossiel)"
         data.append(
             {
                 "type": "asset",
@@ -1204,7 +1214,9 @@ class MissionStrategyApp(Base):
                 },
                 "overall_dimensions": m.overall_dimensions,
                 "color": m.color,
-                "fuel_type": m.energy_source,
+                "fuel_type": fuel_type,
+                "emission_class_version": m.emission_class,
+                "consumption_per_hour": m.consumption_per_hour
             }
         )
 
@@ -1212,6 +1224,8 @@ class MissionStrategyApp(Base):
 
         with open("CustomData.json", "w") as f:
             json.dump(data, f, indent=4)
+
+        generate_warning("Added machine", "Successfully added the machine to CustomData.json. Please reload the data file using the button in the property view.")
 
     @action(button_label="Delete the last added machine", label="Delete machine")
     def RemoveVehicle(self):
@@ -1335,6 +1349,7 @@ class MissionStrategyApp(Base):
         with open("CustomData.json", "w") as f:
             json.dump(data, f, indent=4)
 
+        generate_warning("Exported fleet", "Successfully exported the current fleet to CustomData.json.")
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])

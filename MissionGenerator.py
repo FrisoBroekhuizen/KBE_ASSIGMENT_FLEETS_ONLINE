@@ -148,7 +148,7 @@ def filter_matrix(app, matrix):
                         not in (needed_machine, "Truck")
                     ):
                         matrix[i][j] = 0
-
+    print(matrix)
     return matrix, truckIndexes, directRoutes
 
 
@@ -174,7 +174,7 @@ def route_matrix(filteredMatrix):
                     routeMatrix[i][j] = [routeDuration, route_distance]
             else:
                 routeMatrix[i][j] = 1000000000
-
+    print(routeMatrix)
     return routeMatrix
 
 
@@ -221,7 +221,7 @@ def viable_mission_generator(
         truckRoutes.append(
             [[closest_truck_index, tractor_i], [tractor_i, 0]]
         )
-
+    print(truckRoutes)
     return truckRoutes
 
 
@@ -497,9 +497,15 @@ def generate_missions(
                     contents=best_truck_for_machine.contents,
                     gps_location=best_truck_for_machine.gps_location,
                 )
+                if idx_machine_location < idx_truck_origin:
+                    print(
+                        "Warning: the index order of this truck route falls in the upper triangle; flipped the indices")
+                    temp = idx_machine_location
+                    idx_machine_location = idx_truck_origin
+                    idx_truck_origin = temp
                 route_distance = route_mat[
-                    idx_truck_origin
-                ][idx_machine_location]
+                    idx_machine_location
+                ][idx_truck_origin]
                 if route_distance != 0:
                     # depot-depot special case
                     route_distance = route_distance[1]
@@ -615,11 +621,18 @@ def generate_missions(
                 contents=best_truck_for_machine.contents,
                 gps_location=best_truck_for_machine.gps_location,
             )
-            if route_mat[idx_truck_origin][idx_machine_location] == 0:
+            print("idx_machine_location: " + str(idx_machine_location))
+            print("idx_truck_origin: " + str(idx_truck_origin))
+            if idx_machine_location < idx_truck_origin:
+                print("Warning: the index order of this truck route falls in the upper triangle; flipped the indices")
+                temp = idx_machine_location
+                idx_machine_location = idx_truck_origin
+                idx_truck_origin = temp
+            if route_mat[idx_machine_location][idx_truck_origin] == 0:
                 route_distance = 0
             else:
-                route_distance = route_mat[idx_truck_origin][
-                    idx_machine_location
+                route_distance = route_mat[idx_machine_location][
+                    idx_truck_origin
                 ][1]
             transport_job_toDepot = TransportJobCls(
                 transporting_vehicle=empty_truck,
