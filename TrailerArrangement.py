@@ -29,7 +29,6 @@ from typing import List, Tuple, Literal, Any
 
 from parapy.core import Base, Input, Attribute, Part, child, action
 from parapy.geom import Box, XOY
-
 from parapy.exchange import STEPWriter
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -61,6 +60,7 @@ class Item:
                 that are vehicles or tools with (vehicle_attachable AND
                 upright_only) may be loaded in that trailer.
     """
+
     id: str
     lx: float
     ly: float
@@ -71,15 +71,15 @@ class Item:
     color: Any
 
     def __init__(
-            self,
-            id: str,
-            lx: float,
-            ly: float,
-            lz: float,
-            item_type: ItemType,
-            upright_only: bool = False,
-            vehicle_attachable: bool = False,
-            color: Any = None,
+        self,
+        id: str,
+        lx: float,
+        ly: float,
+        lz: float,
+        item_type: ItemType,
+        upright_only: bool = False,
+        vehicle_attachable: bool = False,
+        color: Any = None,
     ):
         self.id = id
         self.lx = lx
@@ -155,7 +155,15 @@ class FreeBox:
     W: float
     H: float
 
-    def __init__(self, x: float, y: float, z: float, L: float, W: float, H: float):
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        L: float,
+        W: float,
+        H: float,
+    ):
         self.x = x
         self.y = y
         self.z = z
@@ -186,14 +194,16 @@ def tool_orientations(item: Item) -> List[Tuple[float, float, float]]:
     """
     l, w, h = item.lx, item.ly, item.lz
     # Use a set to avoid duplicates if dimensions are equal
-    return list({
-        (l, w, h),
-        (l, h, w),
-        (w, l, h),
-        (w, h, l),
-        (h, l, w),
-        (h, w, l),
-    })
+    return list(
+        {
+            (l, w, h),
+            (l, h, w),
+            (w, l, h),
+            (w, h, l),
+            (h, l, w),
+            (h, w, l),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +213,7 @@ def tool_orientations(item: Item) -> List[Tuple[float, float, float]]:
 def pack_vehicles_2d(
     vehicles: List[Item],
     L: float,
-    W: float
+    W: float,
 ) -> Tuple[
     List[Tuple[Item, float, float, float, float, float, float]],
     List[Item],
@@ -233,7 +243,11 @@ def pack_vehicles_2d(
     """
 
     # Sort largest footprint first
-    veh_sorted = sorted(vehicles, key=lambda v: v.lx * v.ly, reverse=True)
+    veh_sorted = sorted(
+        vehicles,
+        key=lambda v: v.lx * v.ly,
+        reverse=True,
+    )
 
     free_rects: List[FreeRect] = [FreeRect(0.0, 0.0, L, W)]
     placed: List[Tuple[Item, float, float, float, float, float, float]] = []
@@ -259,7 +273,7 @@ def pack_vehicles_2d(
                                 x=x + wx,
                                 y=rect.y,
                                 w=rw,
-                                h=rect.h
+                                h=rect.h,
                             )
                         )
 
@@ -271,7 +285,7 @@ def pack_vehicles_2d(
                                 x=rect.x,
                                 y=y + wy,
                                 w=wx,
-                                h=rh
+                                h=rh,
                             )
                         )
 
@@ -292,7 +306,7 @@ def pack_vehicles_2d(
 
 def split_free_box(
     box: FreeBox,
-    placed_dims: Tuple[float, float, float]
+    placed_dims: Tuple[float, float, float],
 ) -> List[FreeBox]:
     """Guillotine split of a free box after placing an item at its origin.
 
@@ -354,7 +368,7 @@ def split_free_box(
 
 def pack_tools_3d(
     tools: List[Item],
-    free_boxes: List[FreeBox]
+    free_boxes: List[FreeBox],
 ) -> Tuple[
     List[Tuple[Item, float, float, float, float, float, float]],
     List[Item],
@@ -373,7 +387,11 @@ def pack_tools_3d(
         - for each tool, try each free box and all 6 axis-aligned orientations
         - when a placement is found, split the box and continue
     """
-    tools_sorted = sorted(tools, key=lambda t: t.lx * t.ly * t.lz, reverse=True)
+    tools_sorted = sorted(
+        tools,
+        key=lambda t: t.lx * t.ly * t.lz,
+        reverse=True,
+    )
 
     placed: List[Tuple[Item, float, float, float, float, float, float]] = []
     unplaced: List[Item] = []
@@ -440,7 +458,9 @@ def pack_single_trailer(
 
     # 2) Place floor-only items with 2D guillotine packing
     floor_placed_raw, floor_unplaced, free_rects = pack_vehicles_2d(
-        floor_items, L, W
+        floor_items,
+        L,
+        W,
     )
 
     # Split floor_unplaced back into vehicles and upright_only tools
@@ -451,16 +471,21 @@ def pack_single_trailer(
         it for it in floor_unplaced if it.item_type == "tool"
     ]
 
-    # 3) Build free 3D boxes for stackable tools from remaining floor rectangles
+    # 3) Build free 3D boxes for stackable tools from remaining floor
+    #    rectangles
     free_boxes = [
         FreeBox(x=r.x, y=r.y, z=0.0, L=r.w, W=r.h, H=H)
         for r in free_rects
     ]
 
     # 4) Pack stackable tools in these 3D boxes
-    tool_placed_raw, stackable_unplaced = pack_tools_3d(stackable_tools, free_boxes)
+    tool_placed_raw, stackable_unplaced = pack_tools_3d(
+        stackable_tools,
+        free_boxes,
+    )
 
-    # Tools unplaced for this trailer = those that didn't fit + upright_only that didn't fit floor
+    # Tools unplaced for this trailer = those that didn't fit +
+    # upright_only that didn't fit floor
     tools_unplaced: List[Item] = stackable_unplaced + upright_unplaced
 
     placed_items: List[PlacedItem] = []
@@ -529,7 +554,8 @@ def pack_items_into_trailers(
         - Trailer.has_ceiling == False (open / flatbed):
             * Only:
                 - vehicles, and
-                - tools with (vehicle_attachable == True AND upright_only == True)
+                - tools with (vehicle_attachable == True AND
+                             upright_only == True)
               are allowed to be loaded in this trailer.
             * Other tools are deferred to later trailers.
 
@@ -564,14 +590,17 @@ def pack_items_into_trailers(
             tools_for_this = tools
             tools_kept_for_later: List[Item] = []
         else:
-            # Open trailer: only vehicle-attachable, upright-only tools allowed here
+            # Open trailer:
+            # only vehicle-attachable, upright-only tools allowed here
             tools_for_this = [
                 t
                 for t in tools
                 if t.vehicle_attachable and t.upright_only
             ]
             # Disallowed tools must be tried in later trailers
-            tools_kept_for_later = [t for t in tools if t not in tools_for_this]
+            tools_kept_for_later = [
+                t for t in tools if t not in tools_for_this
+            ]
 
         # Use single-trailer packer
         placed, vehicles_unplaced, tools_unplaced_now = pack_single_trailer(
@@ -598,13 +627,15 @@ def pack_items_into_trailers(
 
         # Update remaining pools:
         vehicles = vehicles_unplaced
-        # tools that did not fit this trailer + tools that were not allowed on this trailer
+        # tools that did not fit this trailer + tools that were not allowed
+        # on this trailer
         tools = tools_unplaced_now + tools_kept_for_later
 
     # After using all trailers, fail if items remain
     if vehicles or tools:
         raise RuntimeError(
-            "Ran out of trailers while items remain to be packed under ceiling/attachment rules."
+            "Ran out of trailers while items remain to be packed under "
+            "ceiling/attachment rules."
         )
 
     return all_trailer_placements
@@ -622,7 +653,6 @@ __all__ = [
     "item_from_machine",
     "TrailerAdapter",
 ]
-
 
 
 # --------------------------------------------
@@ -706,7 +736,8 @@ class TrailerPackingVisualization(Base):
     def open_trailer_indices(self) -> List[int]:
         """Indices of open (no-ceiling) trailers that are actually used."""
         return [
-            i for i in range(self.nb_trailers)
+            i
+            for i in range(self.nb_trailers)
             if not self.trailers[i].has_ceiling
         ]
 
@@ -714,7 +745,8 @@ class TrailerPackingVisualization(Base):
     def closed_trailer_indices(self) -> List[int]:
         """Indices of closed (ceiling) trailers that are actually used."""
         return [
-            i for i in range(self.nb_trailers)
+            i
+            for i in range(self.nb_trailers)
             if self.trailers[i].has_ceiling
         ]
 
@@ -791,12 +823,20 @@ class TrailerPackingVisualization(Base):
         """Closed trailer volumes: purple, semi-transparent."""
         return Box(
             quantify=len(self.closed_trailer_indices),
-            width=self.trailer_Ls[self.closed_trailer_indices[child.index]],
-            length=self.trailer_Ws[self.closed_trailer_indices[child.index]],
-            height=self.trailer_Hs[self.closed_trailer_indices[child.index]],
+            width=self.trailer_Ls[
+                self.closed_trailer_indices[child.index]
+            ],
+            length=self.trailer_Ws[
+                self.closed_trailer_indices[child.index]
+            ],
+            height=self.trailer_Hs[
+                self.closed_trailer_indices[child.index]
+            ],
             position=XOY.translate(
                 "x",
-                self.trailer_offsets_x[self.closed_trailer_indices[child.index]],
+                self.trailer_offsets_x[
+                    self.closed_trailer_indices[child.index]
+                ],
             ),
             color=[160, 32, 240],
             transparency=0.8,
@@ -804,15 +844,22 @@ class TrailerPackingVisualization(Base):
 
     @Part
     def closed_trailer_floors(self):
-        """Closed trailer floor: darker grey, 0.3 m thick, extending downward."""
+        """Closed trailer floor: darker grey, 0.3 m thick, extending
+        downward."""
         return Box(
             quantify=len(self.closed_trailer_indices),
-            width=self.trailer_Ls[self.closed_trailer_indices[child.index]],
-            length=self.trailer_Ws[self.closed_trailer_indices[child.index]],
+            width=self.trailer_Ls[
+                self.closed_trailer_indices[child.index]
+            ],
+            length=self.trailer_Ws[
+                self.closed_trailer_indices[child.index]
+            ],
             height=0.3,
             position=XOY.translate(
                 "x",
-                self.trailer_offsets_x[self.closed_trailer_indices[child.index]],
+                self.trailer_offsets_x[
+                    self.closed_trailer_indices[child.index]
+                ],
                 "z",
                 -0.3,
             ),
@@ -822,15 +869,20 @@ class TrailerPackingVisualization(Base):
 
     @Part
     def open_trailer_tops(self):
-        """Open trailer 'envelope' volumes: very light grey, highly transparent."""
+        """Open trailer 'envelope' volumes: very light grey, highly
+        transparent."""
         return Box(
             quantify=len(self.open_trailer_indices),
             width=self.trailer_Ls[self.open_trailer_indices[child.index]],
             length=self.trailer_Ws[self.open_trailer_indices[child.index]],
-            height=self.trailer_top_heights[self.open_trailer_indices[child.index]],
+            height=self.trailer_top_heights[
+                self.open_trailer_indices[child.index]
+            ],
             position=XOY.translate(
                 "x",
-                self.trailer_offsets_x[self.open_trailer_indices[child.index]],
+                self.trailer_offsets_x[
+                    self.open_trailer_indices[child.index]
+                ],
                 "z",
                 0.0,
             ),
@@ -840,7 +892,8 @@ class TrailerPackingVisualization(Base):
 
     @Part
     def open_trailer_floors(self):
-        """Open trailer floor: darker grey, 0.3 m thick, extending downward."""
+        """Open trailer floor: darker grey, 0.3 m thick, extending
+        downward."""
         return Box(
             quantify=len(self.open_trailer_indices),
             width=self.trailer_Ls[self.open_trailer_indices[child.index]],
@@ -848,7 +901,9 @@ class TrailerPackingVisualization(Base):
             height=0.3,
             position=XOY.translate(
                 "x",
-                self.trailer_offsets_x[self.open_trailer_indices[child.index]],
+                self.trailer_offsets_x[
+                    self.open_trailer_indices[child.index]
+                ],
                 "z",
                 -0.3,
             ),
@@ -870,7 +925,8 @@ class TrailerPackingVisualization(Base):
                 "x",
                 self.trailer_offsets_x[
                     self.flat_placed[child.index].trailer_index
-                ] + self.flat_placed[child.index].x,
+                ]
+                + self.flat_placed[child.index].x,
                 "y",
                 self.flat_placed[child.index].y,
                 "z",
@@ -879,10 +935,14 @@ class TrailerPackingVisualization(Base):
             color=self.cargo_colors[child.index],
         )
 
-    @action(label="Export", button_label="Export trailer arrangement to .stp")
+    @action(
+        label="Export",
+        button_label="Export trailer arrangement to .stp",
+    )
     def Export(self):
         writer = STEPWriter(trees=[self], filename="trailers.stp")
         writer.write()
+
 
 # ---------------------------------------------------------------------------
 # Helpers to integrate “machine-like” and “trailer-like” objects
@@ -897,7 +957,11 @@ def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
     if item_type_hint is not None:
         item_type = item_type_hint
     else:
-        item_type = "vehicle" if cls_name in ("Truck", "Tractor", "Vehicle") else "tool"
+        item_type = (
+            "vehicle"
+            if cls_name in ("Truck", "Tractor", "Vehicle")
+            else "tool"
+        )
 
     if item_type == "vehicle":
         upright_only = True
@@ -921,7 +985,8 @@ def item_from_machine(machine, item_type_hint: str | None = None) -> Item:
 
 
 class TrailerAdapter:
-    """Adapter to make an arbitrary Trailer-like object usable by the packer.
+    """Adapter to make an arbitrary Trailer-like object usable by the
+    packer.
 
     Expects:
         trailer.overall_dimensions -> [L, W, H]
@@ -931,6 +996,10 @@ class TrailerAdapter:
         self.src = src_trailer
         L, W, H = src_trailer.overall_dimensions
         self.carrying_bounding_box = (L, W, H)
-        self.has_ceiling = True  # later you can infer from src_trailer
-        self.trailer_id = trailer_id or getattr(src_trailer, "machine_id", "")
-
+        # later you can infer has_ceiling from src_trailer
+        self.has_ceiling = True
+        self.trailer_id = trailer_id or getattr(
+            src_trailer,
+            "machine_id",
+            "",
+        )

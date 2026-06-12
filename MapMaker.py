@@ -16,6 +16,7 @@ maindir = os.path.dirname(__file__)
 # Marker objects that wrap geometry + keep a reference to real objects
 # ---------------------------------------------------------------------------
 
+
 class DepotMarker(Base):
     """Visual marker for a Depot on the map, keeps a reference to the Depot."""
     depot: object = Input()
@@ -27,7 +28,11 @@ class DepotMarker(Base):
 
     @Attribute
     def label(self) -> str:
-        name = getattr(self.depot, "name", None) if self.depot is not None else None
+        name = (
+            getattr(self.depot, "name", None)
+            if self.depot is not None
+            else None
+        )
         return f"Depot: {name}" if name not in (None, "") else "Depot"
 
     @Part
@@ -37,11 +42,16 @@ class DepotMarker(Base):
             length=self.size[1],
             height=self.size[2],
             position=XOY.translate(
-                "x", self.x,
-                "y", self.y,
-                "z", self.z,
+                "x",
+                self.x,
+                "y",
+                self.y,
+                "z",
+                self.z,
             ).rotate(
-                "z", self.rotation_deg, deg=True,
+                "z",
+                self.rotation_deg,
+                deg=True,
             ),
             color="black",
             transparency=0.2,
@@ -60,7 +70,11 @@ class WorksiteMarker(Base):
 
     @Attribute
     def label(self) -> str:
-        name = getattr(self.worksite, "name", None) if self.worksite is not None else None
+        name = (
+            getattr(self.worksite, "name", None)
+            if self.worksite is not None
+            else None
+        )
         return f"Work site: {name}" if name not in (None, "") else "Work site"
 
     @Part
@@ -70,11 +84,16 @@ class WorksiteMarker(Base):
             length=self.size[1],
             height=self.size[2],
             position=XOY.translate(
-                "x", self.x,
-                "y", self.y,
-                "z", self.z,
+                "x",
+                self.x,
+                "y",
+                self.y,
+                "z",
+                self.z,
             ).rotate(
-                "z", self.rotation_deg, deg=True,
+                "z",
+                self.rotation_deg,
+                deg=True,
             ),
             color="purple",
             transparency=0.3,
@@ -151,7 +170,10 @@ class RouteMarker(Base):
                 for m in inner:
                     if m is None:
                         continue
-                    m_type = getattr(m, "machine_type", None) or type(m).__name__
+                    m_type = (
+                        getattr(m, "machine_type", None)
+                        or type(m).__name__
+                    )
                     m_id = getattr(m, "machine_id", None)
                     names.append(f"{m_type} {m_id}" if m_id else m_type)
 
@@ -163,7 +185,8 @@ class RouteMarker(Base):
         pts: List[Point] = []
         for lon, lat in self.geometry_latlon:
             x, y = Routing._latlon_to_xy(
-                lat, lon,
+                lat,
+                lon,
                 self.origin_lat,
                 self.origin_lon,
             )
@@ -183,6 +206,7 @@ class RouteMarker(Base):
 # ---------------------------------------------------------------------------
 # MapMaker
 # ---------------------------------------------------------------------------
+
 
 class MapMaker(Base):
     """
@@ -242,29 +266,35 @@ class MapMaker(Base):
                 machine_type = type(owner).__name__
 
             duration, distance, geometry = Routing.ComputeRoute(
-                start, end, machine_type
+                start,
+                end,
+                machine_type,
             )
             print(
                 f"Route {start} -> {end} ({machine_type}): "
                 f"duration [s]: {duration}, distance [m]: {distance}"
             )
-            results.append({
-                "start": start,
-                "end": end,
-                "machine_type": machine_type,
-                "vehicle": vehicle,
-                "duration": duration,
-                "distance": distance,
-                "geometry": geometry,
-            })
+            results.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "machine_type": machine_type,
+                    "vehicle": vehicle,
+                    "duration": duration,
+                    "distance": distance,
+                    "geometry": geometry,
+                }
+            )
         return results
 
     @Attribute
     def route_results_filtered(self):
         """Filter out degenerate / zero-length routes."""
         return [
-            r for r in self.route_results
-            if r["geometry"] and (r["distance"] is None or r["distance"] >= 1.0)
+            r
+            for r in self.route_results
+            if r["geometry"]
+            and (r["distance"] is None or r["distance"] >= 1.0)
         ]
 
     # ------------------------------------------------------------------
@@ -291,18 +321,24 @@ class MapMaker(Base):
 
     @Attribute
     def map_image_params(self):
-        bottom_lat, top_lat, left_lon, right_lon, filename = self.map_selection
+        bottom_lat, top_lat, left_lon, right_lon, filename = (
+            self.map_selection
+        )
 
         # width: east-west extent at bottom latitude
         width = Routing.HaversineDistance(
-            bottom_lat, left_lon,
-            bottom_lat, right_lon,
+            bottom_lat,
+            left_lon,
+            bottom_lat,
+            right_lon,
         )
 
         # length: north-south extent at left longitude
         length = Routing.HaversineDistance(
-            bottom_lat, left_lon,
-            top_lat, left_lon,
+            bottom_lat,
+            left_lon,
+            top_lat,
+            left_lon,
         )
 
         return filename, width, length
@@ -310,7 +346,9 @@ class MapMaker(Base):
     @Attribute
     def map_origin_lat_lon(self):
         """Bottom-left GPS (lat, lon) used as (0, 0) in XY."""
-        bottom_lat, top_lat, left_lon, right_lon, filename = self.map_selection
+        bottom_lat, top_lat, left_lon, right_lon, filename = (
+            self.map_selection
+        )
         return bottom_lat, left_lon
 
     # ------------------------------------------------------------------
@@ -322,9 +360,13 @@ class MapMaker(Base):
         n = len(self.depots)
         base = list(self.depot_sizes)
         while len(base) < n:
-            base.append((self.depot_cube_size,
-                         self.depot_cube_size,
-                         self.depot_cube_size))
+            base.append(
+                (
+                    self.depot_cube_size,
+                    self.depot_cube_size,
+                    self.depot_cube_size,
+                )
+            )
         return base[:n]
 
     @Attribute
@@ -341,9 +383,13 @@ class MapMaker(Base):
         n = len(self.work_sites)
         base = list(self.worksite_sizes)
         while len(base) < n:
-            base.append((self.depot_cube_size,
-                         self.depot_cube_size,
-                         self.depot_cube_size))
+            base.append(
+                (
+                    self.depot_cube_size,
+                    self.depot_cube_size,
+                    self.depot_cube_size,
+                )
+            )
         return base[:n]
 
     @Attribute
@@ -379,7 +425,9 @@ class MapMaker(Base):
         return RouteMarker(
             quantify=len(self.route_results_filtered),
             vehicle=self.route_results_filtered[child.index]["vehicle"],
-            geometry_latlon=self.route_results_filtered[child.index]["geometry"],
+            geometry_latlon=self.route_results_filtered[child.index][
+                "geometry"
+            ],
             origin_lat=self.map_origin_lat_lon[0],
             origin_lon=self.map_origin_lat_lon[1],
         )
@@ -443,6 +491,7 @@ class MapMaker(Base):
 # FleetMapMaker
 # ---------------------------------------------------------------------------
 
+
 class AssetMarker(Base):
     """Visual marker for a fleet asset, keeps a reference to the Machine/Trailer."""
     asset: object = Input()
@@ -457,7 +506,9 @@ class AssetMarker(Base):
     @Attribute
     def label(self) -> str:
         mid = getattr(self.asset, "machine_id", None)
-        mtype = getattr(self.asset, "machine_type", None) or type(self.asset).__name__
+        mtype = getattr(self.asset, "machine_type", None) or type(
+            self.asset
+        ).__name__
         if mid not in (None, "") and mid is not None:
             return f"{mtype} {mid}"
         return mtype
@@ -469,9 +520,12 @@ class AssetMarker(Base):
             length=self.W,
             height=self.H,
             position=XOY.translate(
-                "x", self.x,
-                "y", self.y,
-                "z", self.z,
+                "x",
+                self.x,
+                "y",
+                self.y,
+                "z",
+                self.z,
             ),
             color=self.color,
             label=self.label,
@@ -512,6 +566,7 @@ class FleetMapMaker(MapMaker):
     @Attribute
     def _asset_infos(self):
         """Stacking info for all assets."""
+
         def overlap_1d(c1, size1, c2, size2):
             return abs(c1 - c2) < 0.5 * (size1 + size2)
 
@@ -524,7 +579,12 @@ class FleetMapMaker(MapMaker):
                 continue
 
             lat, lon = latlon
-            x, y = Routing._latlon_to_xy(lat, lon, origin_lat, origin_lon)
+            x, y = Routing._latlon_to_xy(
+                lat,
+                lon,
+                origin_lat,
+                origin_lon,
+            )
 
             dims = getattr(obj, "overall_dimensions", None)
             if not dims or len(dims) != 3:
@@ -538,18 +598,20 @@ class FleetMapMaker(MapMaker):
             color = getattr(obj, "color", "gray")
             mid = getattr(obj, "machine_id", "Unlabeled")
 
-            raw.append({
-                "lat": float(lat),
-                "lon": float(lon),
-                "x": x,
-                "y": y,
-                "L": L,
-                "W": W,
-                "H": H,
-                "color": color,
-                "id": mid,
-                "obj": obj,
-            })
+            raw.append(
+                {
+                    "lat": float(lat),
+                    "lon": float(lon),
+                    "x": x,
+                    "y": y,
+                    "L": L,
+                    "W": W,
+                    "H": H,
+                    "color": color,
+                    "id": mid,
+                    "obj": obj,
+                }
+            )
 
         raw.sort(key=lambda d: (d["y"], d["x"]))
         placed = []
@@ -557,8 +619,12 @@ class FleetMapMaker(MapMaker):
         for info in raw:
             base_z = 0.0
             for other in placed:
-                if (overlap_1d(info["x"], info["L"], other["x"], other["L"])
-                        and overlap_1d(info["y"], info["W"], other["y"], other["W"])):
+                if (
+                    overlap_1d(info["x"], info["L"], other["x"], other["L"])
+                    and overlap_1d(
+                        info["y"], info["W"], other["y"], other["W"]
+                    )
+                ):
                     top_other = other["z_center"] + 0.5 * other["H"]
                     if top_other > base_z:
                         base_z = top_other
@@ -604,6 +670,7 @@ if __name__ == "__main__":
         worksite_rotations_deg=[-15.0],
     )
     display(obj)
+
 
 
 
