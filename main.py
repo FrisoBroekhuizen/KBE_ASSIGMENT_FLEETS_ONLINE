@@ -419,7 +419,7 @@ class MissionStrategyApp(Base):
             - mission_picker: uses the normalized, preference-weighted score to pick and store
               the best mission in self.winning_mission.
         """
-
+        print("Hello world")
         print("=== DEBUG: current machines ===")
         print("Total machines:", len(self.machines))
         for m in self.machines:
