@@ -320,9 +320,6 @@ def ReadData(app, use_fleets_data, workjob):
             m.build_year = l["build_year"]
             if m.build_year is None:
                 m.build_year = 2026
-            elif m.build_year < 2020:
-                # limitation of CO2 calculator
-                m.build_year = 2020
 
             m.gps_location = (
                 l["gps_location"]["lat"],
