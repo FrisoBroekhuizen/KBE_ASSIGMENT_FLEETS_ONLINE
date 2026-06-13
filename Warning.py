@@ -1,9 +1,8 @@
-# ui_warning.py
 from tkinter import Tk, messagebox
 
 
 def generate_warning(warning_header: str, msg: str) -> None:
-    """Generate a warning dialog box, wait for user confirmation and close it."""
+    """Generate a warning dialog box, wait for user confirmation and close it, used for variety of warnings troughout the files"""
     window = Tk()
     window.withdraw()
 

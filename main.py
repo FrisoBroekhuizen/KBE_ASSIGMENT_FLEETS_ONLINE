@@ -438,7 +438,7 @@ class MissionStrategyApp(Base):
                             l["gps_location"]["lon"],
                         )
 
-                    workjob.needed_machine = self.needed_machinery
+                    workjob.needed_machines = self.needed_machinery
                     workjob.man_hours = self.man_hours
                     workjob.name = l["name"]
 

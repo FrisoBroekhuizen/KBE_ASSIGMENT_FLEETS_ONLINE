@@ -1,27 +1,16 @@
-# TrailerArrangement.py
-# ---------------------------------------------------------------------------
-# 3D packing logic + ParaPy visualization for trailer loading
-#
-# Public API:
-#   - Item, ItemType
-#   - PlacedItem
-#   - pack_single_trailer
-#   - pack_items_into_trailers
-#   - TrailerPackingVisualization (ParaPy model for visualization)
-#
-# Usage from main application (example):
-#
-#   from TrailerArrangement import Item, TrailerPackingVisualization
-#
-#   class MissionStrategyApp(Base):
-#       ...
-#       def PackagedVisualization(self):
-#           return TrailerPackingVisualization(
-#               items=self.items_to_pack,   # List[Item]
-#               trailers=self.trailers,     # list of trailer-like objects
-#           )
-# ---------------------------------------------------------------------------
+"""3D trailer loading and visualization.
 
+This module contains:
+- a simple 2D/3D bin-packing heuristic for vehicles and tools;
+- ParaPy geometry to visualize packed trailers and cargo;
+- adapters to convert application-specific objects into generic packing types.
+
+Key concepts:
+- Vehicles and upright-only tools are floor-only (z = 0), no stacking above.
+- Other tools may be stacked in remaining volume.
+- Open trailers (has_ceiling == False) only accept vehicles or
+  (upright_only AND vehicle_attachable) tools.
+"""
 from __future__ import annotations
 
 import random
@@ -92,14 +81,26 @@ class Item:
 
 
 class PlacedItem:
-    """Result of packing one item in a particular trailer.
+    """Physical placement of a single Item inside a specific trailer.
 
-    trailer_index: index into the returned list from pack_items_into_trailers
-    (0 = first trailer).
-    (x, y, z): lower-left-front corner of the placed box in trailer coords.
-    (wx, wy, wz): oriented dimensions actually used.
+    Attributes
+    ----------
+    item :
+        The original Item that has been packed.
+    trailer_index :
+        Integer index of the trailer this item is placed in
+        (0 = first trailer in the list passed to pack_items_into_trailers).
+        Used by the visualization to translate from trailer-local
+        coordinates to global scene coordinates.
+    x, y, z :
+        Coordinates of the lower-left-front corner of the placed box
+        in that trailer's local coordinate system (meters).
+        z is measured from the trailer floor (floor-only items have z = 0).
+    wx, wy, wz :
+        The oriented (possibly permuted) dimensions of the placed box
+        in the trailer frame. These may differ from the nominal
+        (lx, ly, lz) on Item if the algorithm rotated the box.
     """
-
     item: Item
     trailer_index: int
     x: float
@@ -155,15 +156,7 @@ class FreeBox:
     W: float
     H: float
 
-    def __init__(
-        self,
-        x: float,
-        y: float,
-        z: float,
-        L: float,
-        W: float,
-        H: float,
-    ):
+    def __init__(self,x: float,y: float,z: float,L: float,W: float,H: float,):
         self.x = x
         self.y = y
         self.z = z
@@ -225,47 +218,63 @@ def pack_vehicles_2d(
     - real vehicles (item_type == "vehicle")
     - or upright_only tools (item_type == "tool", upright_only == True).
 
-    Returns:
-        placed:
-            list of tuples
-            (item, x, y, z, wx, wy, wz)
-            where z is always 0.0 and (wx, wy, wz) are oriented dims.
-        unplaced:
-            list of items that do not fit in this trailer.
-        free_rects:
-            remaining free rectangles on the floor (used later for 3D tools).
+    Returns
+    -------
+    placed :
+        List of tuples
+        (item, x, y, z, wx, wy, wz)
+        where z is always 0.0 and (wx, wy, wz) are oriented dims.
+    unplaced :
+        Items that do not fit in this trailer.
+    free_rects :
+        Remaining free rectangles on the floor (used later for 3D tools).
 
-    Strategy: simple greedy guillotine 2D packing:
-        - start with one free rectangle [0,0,L,W]
-        - sort items by decreasing footprint (lx*ly)
-        - for each item, try to place in first free rect (two orientations)
-          that fits; then guillotine-split that rect into right + top parts.
+    Strategy
+    --------
+    Simple greedy guillotine 2D packing:
+    - start with one free rectangle [0, 0, L, W]
+    - sort items by decreasing footprint (lx * ly)
+    - for each item:
+        * try to place it in the first free rect (two orientations) that fits
+        * when placed, remove that rect and split it into "right" and "top"
+          child rectangles that represent the remaining free floor area.
     """
 
-    # Sort largest footprint first
-    veh_sorted = sorted(
-        vehicles,
-        key=lambda v: v.lx * v.ly,
-        reverse=True,
-    )
+    # Sort vehicles by decreasing footprint area so that the largest items
+    # claim floor space first.
+    veh_sorted = sorted(vehicles,key=lambda v: v.lx * v.ly,reverse=True,)
 
+    # Initially, the entire trailer floor is a single free rectangle.
     free_rects: List[FreeRect] = [FreeRect(0.0, 0.0, L, W)]
+
+    # placed: (item, x, y, z, wx, wy, wz)
     placed: List[Tuple[Item, float, float, float, float, float, float]] = []
     unplaced: List[Item] = []
 
     for v in veh_sorted:
         placed_v = False
+
+        # Enumerate over a copy of free_rects so we can safely delete
+        # rectangles from the original list during iteration.
         for rect_index, rect in enumerate(list(free_rects)):
+
+            # Try both allowed in-plane orientations (swap L/W).
             for wx, wy, wz in vehicle_orientations(v):
+
+                # Check if the oriented box fits completely inside this rect.
                 if wx <= rect.w and wy <= rect.h:
-                    # Place at (rect.x, rect.y) on the floor
+                    # Place lower-left-front corner of the box at rect origin.
                     x, y, z = rect.x, rect.y, 0.0
                     placed.append((v, x, y, z, wx, wy, wz))
 
-                    # Guillotine split: remove used rect and create right + top
+                    # Guillotine split:
+                    # - remove the used rectangle
+                    # - replace it with at most two new free rects:
+                    #   * a "right" one and a "top" one.
                     del free_rects[rect_index]
 
-                    # Right rectangle (to the +x side)
+                    # Right rectangle (space to the +x side of the placed box),
+                    # spans full height of the original rect.
                     rw = rect.w - wx
                     if rw > 0.0:
                         free_rects.append(
@@ -277,7 +286,8 @@ def pack_vehicles_2d(
                             )
                         )
 
-                    # Top rectangle (to the +y side, above the placed box)
+                    # Top rectangle (space above the placed box in +y),
+                    # spans only the width of the placed box in x.
                     rh = rect.h - wy
                     if rh > 0.0:
                         free_rects.append(
@@ -290,14 +300,17 @@ def pack_vehicles_2d(
                         )
 
                     placed_v = True
-                    break
-            if placed_v:
-                break
+                    break  # stop trying orientations for this rect
 
+            if placed_v:
+                break  # stop searching other rects for this vehicle
+
+        # If we couldn't find any rect/orientation that fits, mark as unplaced.
         if not placed_v:
             unplaced.append(v)
 
     return placed, unplaced, free_rects
+
 
 
 # ---------------------------------------------------------------------------
