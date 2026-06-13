@@ -122,13 +122,12 @@ class MissionStrategyApp(Base):
         ),
         label="Man Hours"
     )
+
     # default: no deadline restriction
     strict_deadline: bool = Input(False, widget=CheckBox(), label="Strict Deadline?")
-    start_time = Input(datetime.datetime(2026, 5, 27, 8, 0), label="Start Time (yyyy, mm, dd, hrs, min)")
+    start_time = Input((datetime.datetime.now() + datetime.timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0), label="Start Time (yyyy, mm, dd, hrs, min)")
     # Only required / meaningful if strict_deadline is True
     deadline_time: Optional[datetime.datetime] = Input(None, label="Deadline Time (yyyy, mm, dd, hrs, min)")
-
-
 
     standard_locations = {
         "Eindhoven": (51.468288, 5.421365),
@@ -136,20 +135,22 @@ class MissionStrategyApp(Base):
         "Breda": (51.585288, 4.732775),
         "Den Bosch": (51.585288, 4.732775),
         "Waalwijk": (51.699574, 5.046544),
+        "Fleets-Online offices": (51.589710, 4.836888) # This should be set to the headquarters of the company using the application
     }
 
     # overall_dimensions: array[x', y'], always a rectangle,
     # in its own reference system
+    worksite_name: str = Input("Boomrooierij")
     site_dimensions: Tuple[float, float] = Input((100.0, 100.0))
     orientation: float = Input(0.0)
 
-    number_of_machines_per_type = {
-        "Crane": 0,
-        "Tractor": 0,
-        "Truck": 0,
-        "Tool": 0,
-        "Pump": 0,
-    }
+    # number_of_machines_per_type = {
+    #     "Crane": 0,
+    #     "Tractor": 0,
+    #     "Truck": 0,
+    #     "Tool": 0,
+    #     "Pump": 0,
+    # }
 
     # Aggregations / associations
     machines: List[Machine] = Input([])
@@ -165,212 +166,24 @@ class MissionStrategyApp(Base):
         else:
             return (0, 0)
 
+    # This should be the coordinates of the headquarters of the company that uses it
+    @Input
+    def standard_location(self):
+        return self.standard_locations["Fleets-Online offices"]
+
     @action(label="Use Fleets-Online Data", button_label="Read")
     def ReadFleetsData(self):
         self.FleetsOnlineData()
-        self.ReadData(True)
+        self.LoadData(True)
 
     @action(label="Use Custom Data", button_label="Read")
     def ReadCustomData(self):
-        self.ReadData(False)
+        self.LoadData(False)
 
     def FleetsOnlineData(self):
-        # API Authentication Header
-        base_url = "https://api.v2.deepdigital.org"
-        token_response = requests.post(
-            f"{base_url}/oauth/token",
-            data={
-                "grant_type": "password",
-                "username": "testing@fleets-online.com",
-                "password": "WTuXQ8ZsK9#mT4qZ",
-            },
-        )
-        token_response.raise_for_status()
-        token = token_response.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
+        GetFleetsOnlineData(app)
 
-        standard_dimensions = {
-            "Vrachtwagens ": [3, 2, 2],
-            "Tractor": [3, 2.5, 3],
-            "Kranen": [4, 2, 3.5],
-            "Aanhanger licht": [10, 2, 2],
-            "Aanhanger zwaar": [18, 2.5, 2.5],
-        }
-
-        # API Get POIs
-        response = requests.get(
-            f"{base_url}/pois",
-            headers=headers,
-            params={
-                "page": 1,
-                "pageSize": 50,
-                # "searchTerm": "depot",
-                "archived": False,
-                # "poiGroupId": 7,
-            },
-        )
-        response.raise_for_status()
-        pois = response.json()["value"]
-
-        # Types: Aanhanger licht, Aanhanger zwaar, Kranen, Tractor, Vrachtwagens,
-        assets = []
-        assets.append(
-            requests.get(
-                f"{base_url}/equipment",
-                headers=headers,
-                params={
-                    "pageSize": 100,
-                    "activeOnly": True,
-                    "searchTerm": "Tractor",
-                },
-            ).json()["value"]
-        )
-        assets.append(
-            requests.get(
-                f"{base_url}/equipment",
-                headers=headers,
-                params={
-                    "pageSize": 100,
-                    "activeOnly": True,
-                    "searchTerm": "Kranen",
-                },
-            ).json()["value"]
-        )
-        assets.append(
-            requests.get(
-                f"{base_url}/equipment",
-                headers=headers,
-                params={
-                    "pageSize": 100,
-                    "activeOnly": True,
-                    "searchTerm": "Vrachtwagens",
-                },
-            ).json()["value"]
-        )
-        assets.append(
-            requests.get(
-                f"{base_url}/equipment",
-                headers=headers,
-                params={
-                    "pageSize": 100,
-                    "activeOnly": True,
-                    "searchTerm": "Aanhanger licht",
-                },
-            ).json()["value"]
-        )
-        assets.append(
-            requests.get(
-                f"{base_url}/equipment",
-                headers=headers,
-                params={
-                    "pageSize": 100,
-                    "activeOnly": True,
-                    "searchTerm": "Aanhanger zwaar",
-                },
-            ).json()["value"]
-        )
-
-        # Keep track of all pois and assets to write to the json file
-        data = []
-
-        # Loop through the available points of interest
-        for poi in pois:
-            # -- The following can be added if Fleets-Online adds
-            #    orientation to their POI data --
-            # if poi["orientation"] == None: orientation = 0
-            # else: orientation = poi["orientation"]
-            orientation = 0
-            # Check if the location address and shapeData is defined
-            if poi["address"] is not None and poi["shapeData"] is not None:
-                # For the time being to put all FleetsOnline assets
-                # in the depot
-                (
-                    poi["address"]["lat"],
-                    poi["address"]["lat"],
-                ) = self.standard_location
-                data.append(
-                    {
-                        "type": "poi",
-                        "name": poi["name"],
-                        "gps_location": {
-                            "lat": poi["address"]["lat"],
-                            "lon": poi["address"]["lon"],
-                        },
-                        "overall_dimensions": [
-                            poi["shapeData"]["radius"],
-                            0.5 * poi["shapeData"]["radius"],
-                            10,
-                        ],
-                        "orientation": orientation,
-                    }
-                )
-            else:
-                data.append(
-                    {
-                        "type": "poi",
-                        "name": poi["name"],
-                        "gps_location": {
-                            "lat": self.standard_location[0],
-                            "lon": self.standard_location[1],
-                        },
-                        "overall_dimensions": [50, 25, 10],
-                        "orientation": orientation,
-                    }
-                )
-
-        # Loop through the available assets
-        for asset_type in assets:
-            for asset in asset_type:
-                if asset["averageConsumption"] is None:
-                    cons = 50
-                else:
-                    cons = asset["averageConsumption"]
-
-                if "Aanhanger" in asset["type"]["name"]:
-                    data.append(
-                        {
-                            "type": "asset",
-                            "id": asset["name"],
-                            "name": asset["type"]["name"],
-                            "build_year": asset["buildYear"],
-                            "gps_location": {
-                                "lat": self.standard_location[0],
-                                "lon": self.standard_location[1],
-                            },
-                            "overall_dimensions": standard_dimensions[
-                                asset["type"]["name"]
-                            ],
-                            "color": "yellow",
-                        }
-                    )
-                else:
-                    data.append(
-                        {
-                            "type": "asset",
-                            "id": asset["name"],
-                            "name": asset["type"]["name"],
-                            "build_year": asset["buildYear"],
-                            "gps_location": {
-                                "lat": self.standard_location[0],
-                                "lon": self.standard_location[1],
-                            },
-                            "overall_dimensions": standard_dimensions[
-                                asset["type"]["name"]
-                            ],
-                            "color": "yellow",
-                            "fuel_type": asset["fuelType"]["name"],
-                            "emission_class_version": "StageIIIB",
-                            "consumption_per_hour": cons,
-                        }
-                    )
-
-        # Write FleetsOnline data to FleetsOnlineData.json file
-        with open("FleetsOnlineData.json", "w") as f:
-            json.dump(data, f, indent=4)
-
-        return pois, assets
-
-    def ReadData(self, use_fleets_data: bool = False):
+    def LoadData(self, use_fleets_data: bool = False):
         # reset mutable state so we don't accumulate entries across runs
         self.depots = []
         self.machines = []
@@ -387,7 +200,7 @@ class MissionStrategyApp(Base):
             generate_warning(
                 "Warning: Machinery cannot be read",
                 "The selected machinery type can not be read, check for a "
-                "typo or add this machine to the machinery types list. "
+                "typo or add this machine to the machinery types list. (In number_of_machines_per_type in main/ReadData() and possible_machinery in main/MissionStrategyApp())"
                 "If doubts about the application, contact us.",
             )
             return
@@ -419,7 +232,6 @@ class MissionStrategyApp(Base):
             - mission_picker: uses the normalized, preference-weighted score to pick and store
               the best mission in self.winning_mission.
         """
-        print("Hello world")
         print("=== DEBUG: current machines ===")
         print("Total machines:", len(self.machines))
         for m in self.machines:
@@ -494,7 +306,7 @@ class MissionStrategyApp(Base):
     def jobAnalyzer(self):
         """
         Determine the maximum number of machines that can work on a work
-        site, based on the machine area and the site area, to not have
+        site, based on the machine movement area and the site area, to not have
         an overcrowded work site.
         """
         area_factor = 0.1
@@ -506,9 +318,6 @@ class MissionStrategyApp(Base):
                     job_machines_areas.append(np.pi * m.turn_radius**2)
                 else:
                     job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1] * 2)
-                # job_machines_areas.append(
-                #     m.overall_dimensions[0] * m.overall_dimensions[1]
-                # )
 
         job_area = self.site_dimensions[0] * self.site_dimensions[1]
         average_job_machine_area = (
@@ -526,7 +335,7 @@ class MissionStrategyApp(Base):
     # 2) MissionEvaluator
     # ------------------------------------------------------------------
     def _mission_evaluator(self, missions: List["MissionStrategyApp"]) -> None:
-        """For each mission, sum maintenance, NOx, CO2, cost and time
+        """For each mission, sum NOx, CO2, cost and time
         over all its transport and work jobs."""
         for m in missions:
             m.work_jobs[0].assigned_vehicles = m.machines
@@ -546,7 +355,6 @@ class MissionStrategyApp(Base):
                 total_mission_NOx += transport_job.job_NOx
                 total_mission_CO2 += transport_job.job_CO2
                 total_mission_cost += transport_job.job_cost
-                # assume consistent unit
                 total_mission_time += transport_job.routeDuration
 
             # Work jobs: job_* are per tool/vehicle lists
@@ -565,7 +373,7 @@ class MissionStrategyApp(Base):
                 total_mission_NOx += sum(work_job.job_NOx)
                 total_mission_CO2 += sum(work_job.job_CO2)
                 total_mission_cost += sum(work_job.job_cost)
-                # total_mission_time += work_job.job_duration
+                # total_mission_time += work_job.job_duration -> work_job duration removed due to its relatively large magnitude
 
             m.mission_NOx = total_mission_NOx
             m.mission_CO2 = total_mission_CO2
@@ -579,13 +387,14 @@ class MissionStrategyApp(Base):
         self, missions: List["MissionStrategyApp"]
     ) -> "MissionStrategyApp":
         """Normalize cost/time/emissions across missions, evaluate scalar
-        score for each mission and return the best one."""
+        score for each mission and return the mission with the lowest scalar value."""
         # Collect raw values across all missions
         costs = [m.mission_cost for m in missions]
         times = [m.mission_time for m in missions]
         CO2s = [m.mission_CO2 for m in missions]
         NOxs = [m.mission_NOx for m in missions]
 
+        # Look at informal knowledge model for the normalization method used
         mean_cost = np.mean(costs)
         std_cost = np.std(costs)
         mean_time = np.mean(times)
@@ -595,6 +404,7 @@ class MissionStrategyApp(Base):
         mean_NOx = np.mean(NOxs)
         std_NOx = np.std(NOxs)
 
+        # Look at informal knowledge model, can be changed as desired
         alpha = 0.25  # weight CO2 vs NOx inside "emissions" metric
 
         for m in missions:
@@ -653,7 +463,7 @@ class MissionStrategyApp(Base):
         prefs = [float(p) for p in self.mission_preferences]
         if not prefs:
             # sensible fallback if user deletes the list entirely
-            return [1.0, 0.0, 0.0]
+            return [1.0, 0.0, 0.0] # If nothing specifically defined, the company probably wants to minimize the costs only
 
         # 2) clamp negatives to 0
         clamped = [p if p > 0.0 else 0.0 for p in prefs]
@@ -672,13 +482,15 @@ class MissionStrategyApp(Base):
     # Function that builds the final mission planning
     @Attribute
     def timelines(self):
+        """
+        This attribute determines for each machine used in the final strategy, its time milestones (its start time, start working time and finished time)
+        """
         timelines = []
         for transport_job in self.winning_mission.transport_jobs:
             vehicle = transport_job.transporting_vehicle
             timelines.append(
                 [vehicle, self.start_time, self.start_time + datetime.timedelta(minutes=transport_job.routeDuration),
                  "transport"])
-        print(timelines)
         timelines = np.array(timelines)
         for work_job in self.winning_mission.work_jobs:
             vehicles = work_job.assigned_vehicles
@@ -726,23 +538,6 @@ class MissionStrategyApp(Base):
                     )
                 )
         return timelines
-
-    # ------------------------------------------------------------------
-    # Cost function
-    # ------------------------------------------------------------------
-    def PackagedVisualization(self):
-        """Return the ParaPy model to visualize the packing. It visualizes
-        the trailers, together with the packed tools, and vehicles
-        * attachable + upright_only: solid purple.
-        * if only upright_only (nonturnable): very light/baby blue
-        * if only vehicle_attachable: pink
-        * other tools: random blue shades
-        * if vehicles: shades of yellow.
-        """
-        return TrailerPackingVisualization(
-            items=self.items_to_pack,
-            trailers=self.job_trailers,
-        )
 
     # ------------------------------------------------------------------------------------------------------------------
     # --- ACTIONS / BUTTONS --
@@ -838,7 +633,7 @@ class MissionStrategyApp(Base):
         current_y = 0
         # road_parked unused, still trigger AllocateMachines() to compute
         # only once for entire MissionStrategyApp
-        road_parked = self.AllocateMachines()
+        road_parked = AllocateMachines(self)
         del road_parked
 
         for i, d in enumerate(self.depots):
@@ -866,25 +661,11 @@ class MissionStrategyApp(Base):
                 "List[Item]."
             )
 
-        viz_model = self.PackagedVisualization()
+        viz_model = TrailerPackingVisualization(
+            items=self.items_to_pack,
+            trailers=self.job_trailers,
+        )
         display(viz_model, mainloop=False)
-
-    def AllocateMachines(self):
-        machines = self.machines
-        for machine in machines:
-            machine.number_of_this_type = (
-                self.number_of_machines_per_type[machine.machine_type]
-            )
-        trailers = self.trailers
-        road_parked: List[Machine] = []
-
-        for depot in self.depots:
-            depot.machines = machines
-            depot.trailers = trailers
-            _, road_parked = depot.DepotMachineAllocation()
-            machines = road_parked
-
-        return road_parked
 
     @Part(parse=False)
     def FleetOverviewMap(self):
@@ -981,6 +762,7 @@ class MissionStrategyApp(Base):
 
     @Attribute
     def job_trailers(self) -> List[object]:
+        # This attribute collects all trailers used in the final generated strategy
         job_trailers: List[object] = []
         for job in self.winning_mission.transport_jobs:
             veh = job.transporting_vehicle
@@ -992,6 +774,7 @@ class MissionStrategyApp(Base):
 
     @Attribute
     def items_to_pack(self) -> List[Item]:
+        # This attribute collects all items that were determined to be transported by trailer in the winning mission strategy
         items: List[Item] = []
         for job in self.winning_mission.transport_jobs:
             veh = job.transporting_vehicle
@@ -1005,6 +788,7 @@ class MissionStrategyApp(Base):
 
     @Part
     def new_vehicle(self):
+        # Creates an instance of Machine of which the attributes can be filled-in in the GUI, such that it can then be exported into the custom data JSON
         return Machine()
 
     @action(
@@ -1057,8 +841,6 @@ class MissionStrategyApp(Base):
             }
         )
 
-        print(data)
-
         with open("CustomData.json", "w") as f:
             json.dump(data, f, indent=4)
 
@@ -1066,6 +848,7 @@ class MissionStrategyApp(Base):
 
     @action(button_label="Delete the last added machine", label="Delete machine")
     def RemoveVehicle(self):
+        # Removes the last entry in CustomData.json, which is the vehicle the user added most recently
         with open("CustomData.json", "r") as f:
             data = json.load(f)
 
@@ -1089,6 +872,10 @@ class MissionStrategyApp(Base):
         self.ExportFleet(True)
 
     def ExportFleet(self, final_mission_only=False):
+        # This function exports all assets into CustomData.json if final_mission_only is equal to False
+        # If instead final_mission_only is equal to true, the function only exports all assets that were used by
+        # the final generated strategy to FinalMission.json
+
         # Keep track of all pois and assets to write to the json file
         data = []
 
@@ -1271,6 +1058,14 @@ class MissionStrategyApp(Base):
             generate_warning("Exported fleet", "Successfully exported the current fleet to CustomData.json.")
 
 class Mission(Base):
+    """
+    Container for a single candidate mission with evaluated metrics.
+
+    Holds transport/work jobs, the assigned machines, raw mission totals
+    (cost, time, CO₂, NOx), their normalized counterparts, and a
+    user-weighted scalar score via cost_function.
+    """
+
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
     machines: List["Machine"] = Input([])
@@ -1303,22 +1098,15 @@ class Mission(Base):
 
 class TransportJob(Base):
     """
-    Description:
-        Job representing the transport of a vehicle from its initial
-        position to a target location.
+        Single vehicle transport from an origin to a destination.
 
-    Inputs:
-        - Locations of the specific vehicles
-        - Vehicle specific work hours at the site (locations).
-
-    Outputs:
-        - Valhalla outputs
-
-    To Do's:
-        - Think about if a vehicle is more efficient to drive to the
-          depot, or if the vehicle should be picked up from its starting
-          location by a truck from the depot.
-        - Look at outputs of Valhalla and inputs needed for tools.
+        Represents moving one machine between two GPS coordinates with a
+        specific route distance found using the ORS API. Based on the
+        transporting vehicle type and distance, it computes via Routing.py:
+        - routeDuration: travel time [minutes],
+        - job_NOx: NOx emissions for this trip,
+        - job_CO2: CO₂ emissions for this trip,
+        - job_cost: operational cost for this trip.
     """
 
     begin_location_gps: Tuple[float, float] = Input((0.0, 0.0))
@@ -1401,16 +1189,9 @@ class WorkJob(Base):
         its own deadline and specific machinery.
 
     Inputs:
-        - Specific machinery and manhours
-        - Job definition
-
-    To Do's:
-        - Think about man hours vs machine hours, multiple people per
-          machine?
+        - Specific machinery, man hours and worksite location
     """
 
-    # Can be a list if needed_machinery is also a list (when multiple
-    # machine types are used for a specific job)
     name: str = ""
     man_hours: float = Input(0.0)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
@@ -1419,12 +1200,7 @@ class WorkJob(Base):
     # List specifying which type of machinery is required,
     # order is not important
     needed_machine: str = Input("")
-    # needed_machines = [needed_tools, needed_vehicles]
 
-    # Resources actually assigned to this work job - Not in UML yet,
-    # maybe in extended UML?
-    # TODO: Think about if it makes sense to have different tools and
-    # vehicles for a single job, important for workhour calculations
     assigned_tools: List["Tool"] = Input([])
     assigned_vehicles: List["Vehicle"] = Input([])
 
@@ -1435,10 +1211,6 @@ class WorkJob(Base):
     # iteration.
     fleet: Optional["Fleet"] = Input(None)
 
-    # Using travel times from Valhalla together with work hours to
-    # determine total mission time with margins, idle times, downtimes,
-    # maintenance, ..., which can be used later in the cost function
-    # evaluation
     @Attribute
     def job_duration(self) -> float:
         job_duration = self.man_hours / (
@@ -1528,5 +1300,6 @@ class Fleet(Base):
 
 
 if __name__ == "__main__":
+    # Instantiates the root object and starts the Parapy GUI
     app = MissionStrategyApp()
     display(app)
