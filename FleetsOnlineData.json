@@ -31,7 +31,7 @@
         "type": "poi",
         "name": "Garage vd Sande",
         "gps_location": {
-            "lat": 51.593139664,
+            "lat": 5.421365,
             "lon": 5.1432600664
         },
         "overall_dimensions": [
@@ -59,7 +59,7 @@
         "type": "poi",
         "name": "Kreitemolenstraat",
         "gps_location": {
-            "lat": 51.607040408,
+            "lat": 5.421365,
             "lon": 5.1537499956
         },
         "overall_dimensions": [
@@ -435,25 +435,6 @@
         "id": "VR07 10-BDL-2 DAF",
         "name": "Vrachtwagens ",
         "build_year": 2014,
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        },
-        "overall_dimensions": [
-            3,
-            2,
-            2
-        ],
-        "color": "yellow",
-        "fuel_type": "Biodiesel (HVO)",
-        "emission_class_version": "StageIIIB",
-        "consumption_per_hour": 50
-    },
-    {
-        "type": "asset",
-        "id": "VR08 47-BBF-1 DAF",
-        "name": "Vrachtwagens ",
-        "build_year": 2012,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
@@ -1129,7 +1110,7 @@
     },
     {
         "type": "asset",
-        "id": "CE11 72-WX-XD rongen",
+        "id": "CE11  72-WX-XD",
         "name": "Aanhanger zwaar",
         "build_year": 2013,
         "gps_location": {

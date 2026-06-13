@@ -590,6 +590,7 @@ class MissionStrategyApp(Base):
 
     @action(label="Generate Strategy", button_label="Generate")
     def MissionIterator(self) -> "MissionStrategyApp":
+
         print("=== DEBUG: current machines ===")
         print("Total machines:", len(self.machines))
         for m in self.machines:
@@ -903,9 +904,6 @@ class MissionStrategyApp(Base):
                 )
         return timelines
 
-    # ------------------------------------------------------------------
-    # Cost function
-    # ------------------------------------------------------------------
     def PackagedVisualization(self):
         """Return the ParaPy model to visualize the packing. It visualizes
         the trailers, together with the packed tools, and vehicles
