@@ -28,7 +28,7 @@ def filter_matrix(app, matrix):
     """Standalone version of MissionStrategyApp.filterMatrix()."""
     truckIndexes = []
     directRoutes = []
-    needed_machine = app.work_job.needed_machines
+    needed_machine = app.needed_machinery
 
     for i in range(0, matrix.shape[0]):
         for j in range(i + 1):
@@ -148,7 +148,6 @@ def filter_matrix(app, matrix):
                         not in (needed_machine, "Truck")
                     ):
                         matrix[i][j] = 0
-    print(matrix)
     return matrix, truckIndexes, directRoutes
 
 
@@ -174,7 +173,6 @@ def route_matrix(filteredMatrix):
                     routeMatrix[i][j] = [routeDuration, route_distance]
             else:
                 routeMatrix[i][j] = 1000000000
-    print(routeMatrix)
     return routeMatrix
 
 
@@ -198,7 +196,7 @@ def viable_mission_generator(
     )
     max_number_of_machines = 1  # current logic
 
-    needed_machine = app.work_job.needed_machines
+    needed_machine = app.needed_machinery
     truckRoutes = []
     for direct_route in directRoutes:
         tractor_i = direct_route[0]
@@ -221,7 +219,6 @@ def viable_mission_generator(
         truckRoutes.append(
             [[closest_truck_index, tractor_i], [tractor_i, 0]]
         )
-    print(truckRoutes)
     return truckRoutes
 
 
@@ -354,7 +351,7 @@ def generate_missions(
                 # and actually a vehicle (tools can not do direct routes)
                 if (
                     machine.machine_type
-                    == app.work_job.needed_machines
+                    == app.needed_machinery
                     and isinstance(machine, VehicleCls)
                 ):
                     transport_job = TransportJobCls(
@@ -374,7 +371,7 @@ def generate_missions(
 
         # If the needed vehicle is road-side parked
         elif (
-            obj.machine_type == app.work_job.needed_machines
+            obj.machine_type == app.needed_machinery
             and isinstance(obj, VehicleCls)
         ):
             transport_job = TransportJobCls(
@@ -412,7 +409,7 @@ def generate_missions(
 
         origin_obj = objects[idx_truck_origin]
         object_with_needed_machine = objects[idx_machine_location]
-        needed_type = app.work_job.needed_machines
+        needed_type = app.needed_machinery
 
         # ---- CASE A: needed machine is in a depot ----
         if type(object_with_needed_machine).__name__ == "Depot":
@@ -621,8 +618,6 @@ def generate_missions(
                 contents=best_truck_for_machine.contents,
                 gps_location=best_truck_for_machine.gps_location,
             )
-            print("idx_machine_location: " + str(idx_machine_location))
-            print("idx_truck_origin: " + str(idx_truck_origin))
             if idx_machine_location < idx_truck_origin:
                 print("Warning: the index order of this truck route falls in the upper triangle; flipped the indices")
                 temp = idx_machine_location
@@ -714,7 +709,7 @@ def deadline_restricted_mission_generator(
     if required_man_hours <= 0.0:
         return missions
 
-    needed_type = work_job.needed_machines  # e.g. "Tractor"
+    needed_type = app.needed_machinery  # e.g. "Tractor"
 
     # --- 1) Minimal number of machines required from deadline alone ---
     minimal_needed_machines = max(
