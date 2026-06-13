@@ -486,6 +486,9 @@ def generate_missions(
                             machine.overall_dimensions[0] * 1.1,
                             machine.overall_dimensions[0] * 1.1,
                         ],
+                        trailer_id="standard_issue_trailer",
+                        color="Orange",
+                        gps_location=best_truck_for_machine.gps_location,
                     )
 
                 # 1) leg: truck drives EMPTY from its origin to the depot
@@ -610,6 +613,9 @@ def generate_missions(
                         machine.overall_dimensions[1] * 1.1,
                         machine.overall_dimensions[2] * 1.1,
                     ],
+                        trailer_id="standard_issue_trailer",
+                        color="Orange",
+                        gps_location=best_truck_for_machine.gps_location,
                 )
 
             # 1) leg: truck drives EMPTY from origin to machine
@@ -639,7 +645,7 @@ def generate_missions(
             # 2) leg: truck drives LOADED from machine to work site
             loaded_truck = _clone_truck_for_leg(
                 best_truck_for_machine,
-                contents=TrailerCls(contents=[machine]),
+                contents=best_trailer_for_machine,
                 gps_location=machine.gps_location,
             )
             if (

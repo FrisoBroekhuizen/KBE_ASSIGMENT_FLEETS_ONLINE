@@ -1256,8 +1256,15 @@ class MissionStrategyApp(Base):
             "JSON file.",
         )
 
-    @action(button_label="Export", label="Export Fleet")
-    def ExportFleet(self):
+    @action(button_label="Export", label="Export Full Fleet")
+    def ExportAll(self):
+        self.ExportFleet(False)
+
+    @action(button_label="Export", label="Export Final Strategy Fleet")
+    def ExportFinal(self):
+        self.ExportFleet(True)
+
+    def ExportFleet(self, final_mission_only=False):
         # Keep track of all pois and assets to write to the json file
         data = []
 
@@ -1277,45 +1284,67 @@ class MissionStrategyApp(Base):
 
         # Add depots
         for depot in self.depots:
-            data.append(
-                {
-                    "type": "poi",
-                    "name": depot.name,
-                    "gps_location": {
-                        "lat": depot.gps_location[0],
-                        "lon": depot.gps_location[1],
-                    },
-                    "overall_dimensions": depot.overall_dimensions,
-                    "orientation": depot.rotation,
-                }
-            )
+            if final_mission_only:
+                if self.needed_machinery in depot.machines or "Truck" in depot.machines:
+                    data.append(
+                        {
+                            "type": "poi",
+                            "name": depot.name,
+                            "gps_location": {
+                                "lat": depot.gps_location[0],
+                                "lon": depot.gps_location[1],
+                            },
+                            "overall_dimensions": depot.overall_dimensions,
+                            "orientation": depot.rotation,
+                        }
+                    )
+            else:
+                data.append(
+                    {
+                        "type": "poi",
+                        "name": depot.name,
+                        "gps_location": {
+                            "lat": depot.gps_location[0],
+                            "lon": depot.gps_location[1],
+                        },
+                        "overall_dimensions": depot.overall_dimensions,
+                        "orientation": depot.rotation,
+                    }
+                )
+
 
         # Add trailers
-        for asset in self.trailers:
-            data.append(
-                {
-                    "type": "asset",
-                    "id": asset.trailer_id,
-                    "name": "Aanhanger zwaar",
-                    "build_year": asset.build_year,
-                    "gps_location": {
-                        "lat": asset.gps_location[0],
-                        "lon": asset.gps_location[1],
-                    },
-                    "overall_dimensions": asset.overall_dimensions,
-                    "color": asset.color,
-                }
-            )
-
-        # Add machines
-        for asset in self.machines:
-            if asset.machine_type in ["Tool", "Pump"]:
+        if final_mission_only:
+            trailers = []
+            for transport_job in self.winning_mission.transport_jobs:
+                if transport_job.transporting_vehicle.machine_type == "Truck":
+                    try:
+                        if transport_job.transporting_vehicle.contents != None:
+                            if transport_job.transporting_vehicle.contents not in trailers:
+                                trailers.append(transport_job.transporting_vehicle.contents)
+                    except:
+                        continue
+            for trailer in trailers:
                 data.append(
                     {
                         "type": "asset",
-                        "id": asset.machine_id,
-                        "name": type(asset).__name__,
-                        "build_year": asset.build_year,
+                        "id": trailer.trailer_id,
+                        "name": "Aanhanger zwaar",
+                        "gps_location": {
+                            "lat": trailer.gps_location[0],
+                            "lon": trailer.gps_location[1],
+                        },
+                        "overall_dimensions": trailer.overall_dimensions,
+                        "color": trailer.color,
+                    }
+                )
+        else:
+            for asset in self.trailers:
+                data.append(
+                    {
+                        "type": "asset",
+                        "id": asset.trailer_id,
+                        "name": "Aanhanger zwaar",
                         "gps_location": {
                             "lat": asset.gps_location[0],
                             "lon": asset.gps_location[1],
@@ -1324,7 +1353,53 @@ class MissionStrategyApp(Base):
                         "color": asset.color,
                     }
                 )
-            else:
+
+        # Add machines
+        if final_mission_only:
+            machines = self.winning_mission.machines
+            for transport_job in self.winning_mission.transport_jobs:
+                if transport_job.transporting_vehicle not in machines:
+                    if transport_job.transporting_vehicle.machine_type == "Truck":
+                        if transport_job.transporting_vehicle.contents == None: # Only add truck once, not the truck copy used for the second leg of the mission
+                            machines.append(transport_job.transporting_vehicle)
+                    else:
+                        machines.append(transport_job.transporting_vehicle)
+            for asset in self.winning_mission.machines:
+                if asset.energy_source == "diesel-(fossiel)":
+                    fuel_type = "Diesel (fossiel)"
+                elif asset.energy_source == "biodiesel-(hvo)":
+                    fuel_type = "Biodiesel"
+                elif asset.energy_source == "Electric":
+                    fuel_type = "Electric"
+                else:
+                    fuel_type = "Diesel (fossiel)"
+
+                if type(asset).__name__ == "Truck":
+                    machine_type = "Vrachtwagens"
+                elif type(asset).__name__ == "Crane":
+                    machine_type = "Kranen"
+                else:
+                    machine_type = type(asset).__name__
+
+                data.append(
+                    {
+                        "type": "asset",
+                        "id": asset.machine_id,
+                        "name": machine_type,
+                        "build_year": asset.build_year,
+                        "gps_location": {
+                            "lat": asset.gps_location[0],
+                            "lon": asset.gps_location[1],
+                        },
+                        "overall_dimensions": asset.overall_dimensions,
+                        "color": asset.color,
+                        "fuel_type": fuel_type,
+                        "emission_class_version": asset.emission_class,
+                        "consumption_per_hour": asset.consumption_per_hour,
+                    }
+                )
+        else:
+            for asset in self.machines:
                 if asset.energy_source == "diesel-(fossiel)":
                     fuel_type = "Diesel (fossiel)"
                 elif asset.energy_source == "biodiesel-(hvo)":
@@ -1359,10 +1434,17 @@ class MissionStrategyApp(Base):
                     }
                 )
 
-        with open("CustomData.json", "w") as f:
-            json.dump(data, f, indent=4)
+        if final_mission_only:
+            with open("FinalMission.json", "w") as f:
+                json.dump(data, f, indent=4)
+        else:
+            with open("CustomData.json", "w") as f:
+                json.dump(data, f, indent=4)
 
-        generate_warning("Exported fleet", "Successfully exported the current fleet to CustomData.json.")
+        if final_mission_only:
+            generate_warning("Exported final fleet", "Successfully exported all entities used in the final generated mission to FinalMission.json.")
+        else:
+            generate_warning("Exported fleet", "Successfully exported the current fleet to CustomData.json.")
 
 class Mission(Base):
     transport_jobs: List["TransportJob"] = Input([])
