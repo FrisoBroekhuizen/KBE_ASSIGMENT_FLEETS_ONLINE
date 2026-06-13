@@ -674,6 +674,22 @@ class Depot(GeomBase):
         writer = STEPWriter(trees=[self], filename="depots.stp")
         writer.write()
 
+def AllocateMachines(app):
+    machines = app.machines
+    for machine in machines:
+        machine.number_of_this_type = (
+            app.number_of_machines_per_type[machine.machine_type]
+        )
+    trailers = app.trailers
+    road_parked: List[Machine] = []
+
+    for depot in app.depots:
+        depot.machines = machines
+        depot.trailers = trailers
+        _, road_parked = depot.DepotMachineAllocation()
+        machines = road_parked
+
+    return road_parked
 
 if __name__ == "__main__":
     from parapy.gui import display

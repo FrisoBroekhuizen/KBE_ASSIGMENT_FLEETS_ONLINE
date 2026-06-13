@@ -221,6 +221,7 @@ class Machine(Base):
     @Attribute
     def individual_co2(self) -> float:
         """CO2 [kg] over self.hours_used."""
+        if self.build_year < 2020: self.build_year = 2020 # limitation of CO2 calculator
         if self.energy_source == "Manual":
             return 0
         fuel_type = self.energy_source.lower()
