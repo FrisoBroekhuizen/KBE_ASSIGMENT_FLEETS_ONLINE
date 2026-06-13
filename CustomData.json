@@ -7,9 +7,8 @@
             "lon": 5.4214
         },
         "overall_dimensions": [
-            200,
-            200,
-            10
+            200.0,
+            200.0
         ],
         "orientation": 30.0
     },
@@ -25,7 +24,7 @@
             100,
             30
         ],
-        "orientation": 45
+        "orientation": 45.0
     },
     {
         "type": "poi",
@@ -43,44 +42,8 @@
     },
     {
         "type": "asset",
-        "name": "Tractor",
-        "id": "Tractor_EHV_close",
-        "build_year": 2022,
-        "gps_location": {
-            "lat": 51.4683,
-            "lon": 5.4214
-        },
-        "overall_dimensions": [
-            3,
-            2.5,
-            3
-        ],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Biodiesel (HVO)",
-        "consumption_per_hour": 15
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens",
-        "id": "Truck_Tilburg",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.59148,
-            "lon": 5.02378
-        },
-        "overall_dimensions": [
-            4,
-            2.5,
-            3
-        ],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 25
-    },
-    {
-        "type": "asset",
-        "name": "Aanhanger zwaar",
         "id": "Trailer_Tilburg",
+        "name": "Aanhanger zwaar",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.59147,
@@ -91,14 +54,31 @@
             3.0,
             3.5
         ],
-        "emission_class_version": "StageIIIA",
-        "fuel_type": "Diesel (fossiel)",
-        "consumption_per_hour": 0
+        "color": "Orange"
     },
     {
         "type": "asset",
-        "name": "Tractor",
+        "id": "Truck_Tilburg",
+        "name": "Vrachtwagens",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.59148,
+            "lon": 5.02378
+        },
+        "overall_dimensions": [
+            4,
+            2.5,
+            3
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 25
+    },
+    {
+        "type": "asset",
         "id": "Tractor_DB_1",
+        "name": "Tractor",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.58532,
@@ -109,33 +89,66 @@
             2.5,
             3
         ],
-        "emission_class_version": "StageIIIA",
+        "color": "Yellow",
         "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
         "consumption_per_hour": 15
     },
-  {
-    "type": "asset",
-    "name": "Vrachtwagens",
-    "id": "Truck_DB",
-    "build_year": 2020,
-    "gps_location": {
-      "lat": 51.585330,
-      "lon": 4.732830
+    {
+        "type": "asset",
+        "id": "Truck_DB",
+        "name": "Vrachtwagens",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.58533,
+            "lon": 4.73283
+        },
+        "overall_dimensions": [
+            4,
+            2.5,
+            3
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 25
     },
-    "overall_dimensions": [4, 2.5, 3],
-    "emission_class_version": "StageIIIA",
-    "fuel_type": "Diesel (fossiel)",
-    "consumption_per_hour": 25
-  },
-  {
-    "type": "asset",
-    "name": "Tool",
-    "id": "Hamer_1",
-    "build_year": 2020,
-    "gps_location": {
-      "lat": 51.585330,
-      "lon": 4.732830
+    {
+        "type": "asset",
+        "id": "Hamer_1",
+        "name": "Tool",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.58533,
+            "lon": 4.73283
+        },
+        "overall_dimensions": [
+            4,
+            4,
+            4
+        ],
+        "color": "Blue",
+        "fuel_type": "Manual",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0
     },
-    "overall_dimensions": [4, 4, 4]
-  }
+    {
+        "type": "asset",
+        "id": "Tractor",
+        "name": "Tractor",
+        "build_year": 2026,
+        "gps_location": {
+            "lat": 51.53147,
+            "lon": 5.02377
+        },
+        "overall_dimensions": [
+            2,
+            2,
+            2
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 1.0
+    }
 ]
