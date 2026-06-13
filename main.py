@@ -1193,7 +1193,7 @@ class MissionStrategyApp(Base):
             self.start_time,
             self.timelines,
             self.strict_deadline,
-            self.deadlines,
+            self.deadline_time,
         )
 
     @action(

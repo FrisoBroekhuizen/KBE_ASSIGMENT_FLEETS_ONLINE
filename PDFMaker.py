@@ -105,7 +105,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time) -> No
 
     story.append(
         Paragraph(
-            f"<b>Mission Preferences: cost</b> {mission.mission_preferences[0]*100:0.1f} <b>%, time</b> {mission.mission_preferences[1]*100:0.1f} <b>%, emissions</b> {mission.mission_preferences[2]*100:0.1f}",
+            f"<b>Mission Preferences:</b> cost ({mission.mission_preferences[0]*100:0.1f} %), time ({mission.mission_preferences[1]*100:0.1f} %), emissions ({mission.mission_preferences[2]*100:0.1f} %)",
             styles["BodyText"],
         )
     )
