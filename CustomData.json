@@ -79,13 +79,13 @@
         "type": "asset",
         "id": "Tractor_DB_1",
         "name": "Tractor",
-        "build_year": 2020,
+        "build_year": 2018,
         "gps_location": {
             "lat": 51.58532,
             "lon": 4.73282
         },
         "overall_dimensions": [
-            3,
+            2,
             2.5,
             3
         ],
@@ -98,7 +98,7 @@
         "type": "asset",
         "id": "Truck_DB",
         "name": "Vrachtwagens",
-        "build_year": 2020,
+        "build_year": 2004,
         "gps_location": {
             "lat": 51.58533,
             "lon": 4.73283
