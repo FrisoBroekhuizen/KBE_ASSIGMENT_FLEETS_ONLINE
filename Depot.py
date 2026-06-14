@@ -14,6 +14,42 @@ from assets import Machine, Trailer, Tool, Truck
 from Routing import HaversineDistance
 import assets
 
+class DepotAssetMarker(GeomBase):
+    """Clickable marker for a machine / trailer in a depot.
+
+    - asset: underlying Machine or Trailer object.
+    - position: inherited from Depot; we place this marker at the parked location.
+    """
+
+    asset: object = Input()
+    color: Any = Input("yellow")
+
+    @Attribute
+    def label(self) -> str:
+        mid = getattr(self.asset, "machine_id", None)
+        # trailers have trailer_id instead
+        if mid in (None, "") or mid is None:
+            mid = getattr(self.asset, "trailer_id", None)
+
+        mtype = getattr(self.asset, "machine_type", None) or type(
+            self.asset
+        ).__name__
+
+        if mid not in (None, "") and mid is not None:
+            return f"{mtype} {mid}"
+        return mtype
+
+    @Part
+    def box(self):
+        """Actual visible geometry for this parked asset."""
+        return Box(
+            width=self.asset.overall_dimensions[0],
+            length=self.asset.overall_dimensions[1],
+            height=self.asset.overall_dimensions[2],
+            position=self.position,  # already positioned by Depot
+            color=self.color,
+            label=self.label,
+        )
 
 class Depot(GeomBase):
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
@@ -648,17 +684,17 @@ class Depot(GeomBase):
 
     @Part
     def PlaceMachines(self):
-        return Box(
+        """Markers for all parked machines / trailers in this depot.
+
+        Each marker:
+        - is a separate object in the tree,
+        - keeps a reference to the real Machine/Trailer via .asset,
+        - has a Box child for the visible geometry.
+        """
+        return DepotAssetMarker(
             quantify=len(self.machine_positions),
-            width=self.sorted_machines[
-                child.index
-            ].overall_dimensions[0],
-            length=self.sorted_machines[
-                child.index
-            ].overall_dimensions[1],
-            height=self.sorted_machines[
-                child.index
-            ].overall_dimensions[2],
+            asset=self.sorted_machines[child.index],
+            # Place marker at same XY position as old Box logic:
             position=translate(
                 self.position,
                 "x",
