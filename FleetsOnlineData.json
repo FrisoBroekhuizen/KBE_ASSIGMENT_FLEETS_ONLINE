@@ -6,7 +6,12 @@
             "lat": 51.468288,
             "lon": 5.421365
         },
-        "dimension": 20
+        "overall_dimensions": [
+            50,
+            25,
+            10
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -15,7 +20,12 @@
             "lat": 51.468288,
             "lon": 5.421365
         },
-        "dimension": 20
+        "overall_dimensions": [
+            50,
+            25,
+            10
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -24,7 +34,12 @@
             "lat": 51.593139664,
             "lon": 5.1432600664
         },
-        "dimension": 200
+        "overall_dimensions": [
+            100,
+            50.0,
+            10
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -33,7 +48,12 @@
             "lat": 51.468288,
             "lon": 5.421365
         },
-        "dimension": 20
+        "overall_dimensions": [
+            50,
+            25,
+            10
+        ],
+        "orientation": 0
     },
     {
         "type": "poi",
@@ -42,348 +62,1293 @@
             "lat": 51.607040408,
             "lon": 5.1537499956
         },
-        "dimension": 400
+        "overall_dimensions": [
+            200,
+            100.0,
+            10
+        ],
+        "orientation": 0
     },
     {
         "type": "asset",
+        "id": "OM02 Valtra TDR-68-L + Snipp.",
         "name": "Tractor",
         "build_year": 2012,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2.5,
+            3
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "OM106 Fendt T-93-GZB",
         "name": "Tractor",
         "build_year": 2025,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2.5,
+            3
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MK03 6-GV-923 Doosan ZK",
         "name": "Kranen",
         "build_year": 2016,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MK05 TDR-41-L Doosan ZK",
         "name": "Kranen",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MK06 TJG-59-H Doosan Electr. ZK",
         "name": "Kranen",
         "build_year": 2021,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Electric",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MK07 T-39-GZJ  Mobile kraan elec",
         "name": "Kranen",
         "build_year": 2025,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Electric",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MK08 TDT-81-V  Doosan 140w-5",
         "name": "Kranen",
         "build_year": 2018,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MKG03 93-BFZ-7 klem",
         "name": "Kranen",
         "build_year": 2015,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "MKG04 08-BLZ-5 klem",
         "name": "Kranen",
         "build_year": 2018,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "OM01 VERR. T-25-DLB 26m",
         "name": "Kranen",
         "build_year": 2019,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Electric",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "RK04 Mecalac ZK",
         "name": "Kranen",
         "build_year": 2023,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "RK05 Mecalac ZK",
         "name": "Kranen",
         "build_year": 2023,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "RK06 Doosan  ZK",
         "name": "Kranen",
         "build_year": 2015,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "RK07 Hyundai ZK",
         "name": "Kranen",
         "build_year": 2017,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "RK09 Develon DX10Z-7",
         "name": "Kranen",
         "build_year": 2025,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "RK10 Mecalac ZK",
         "name": "Kranen",
         "build_year": 2025,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            4,
+            2,
+            3.5
+        ],
+        "color": "yellow",
+        "fuel_type": "Onbekend",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR04 BT-GG-10 Ginaf",
         "name": "Vrachtwagens ",
         "build_year": 2007,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR05 BX-GX-33 DAF accu's",
         "name": "Vrachtwagens ",
         "build_year": 2009,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR06 BV-SJ-51 DAF oprijwagen",
         "name": "Vrachtwagens ",
         "build_year": 2009,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR07 10-BDL-2 DAF",
         "name": "Vrachtwagens ",
         "build_year": 2014,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR08 47-BBF-1 DAF",
         "name": "Vrachtwagens ",
         "build_year": 2012,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR09 54-BFL-9 Ginaf",
         "name": "Vrachtwagens ",
         "build_year": 2014,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR10 59-BFD-6 DAF rongen",
         "name": "Vrachtwagens ",
         "build_year": 2014,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR11 78-BGL-9 DAF",
         "name": "Vrachtwagens ",
         "build_year": 2015,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR12 31-BJJ-4 DAF",
         "name": "Vrachtwagens ",
         "build_year": 2017,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR13 40-BKH-5 DAF trekker",
         "name": "Vrachtwagens ",
         "build_year": 2013,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR14 86-BLT-9 DAF oprijwagen",
         "name": "Vrachtwagens ",
         "build_year": 2019,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR15 BS-ZZ-40 Volvo Hoogwerker",
         "name": "Vrachtwagens ",
         "build_year": 2007,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR16 09-BPR-5 Volvo",
         "name": "Vrachtwagens ",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR17 12-BPZ-3 DAF oprijwagen",
         "name": "Vrachtwagens ",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR18 29-BRB-6 DAF oprijwagen",
         "name": "Vrachtwagens ",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR19 20-BTN-7 Volvo incl laadkraan",
         "name": "Vrachtwagens ",
         "build_year": 2022,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR21 10-BRB-7 Volvo",
         "name": "Vrachtwagens ",
         "build_year": 2020,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR22 99-BXH-5 DAF Bakwagen",
         "name": "Vrachtwagens ",
         "build_year": 2024,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR23 25-BXZ-7 Volvo haakarm",
         "name": "Vrachtwagens ",
         "build_year": 2024,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR24 48-BZZ-1 Trekker",
         "name": "Vrachtwagens ",
         "build_year": 2021,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR25 BB-617-L Ginaf 8x4",
         "name": "Vrachtwagens ",
         "build_year": 2024,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
     },
     {
         "type": "asset",
+        "id": "VR26 25-BZV-2",
         "name": "Vrachtwagens ",
         "build_year": 2024,
         "gps_location": {
             "lat": 51.468288,
             "lon": 5.421365
-        }
+        },
+        "overall_dimensions": [
+            3,
+            2,
+            2
+        ],
+        "color": "yellow",
+        "fuel_type": "Biodiesel (HVO)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 50
+    },
+    {
+        "type": "asset",
+        "id": "BE01  bordenaanher",
+        "name": "Aanhanger licht",
+        "build_year": 2016,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE04 28-WP-LZ kipper",
+        "name": "Aanhanger licht",
+        "build_year": 2016,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE05 57-WJ-RG Ambulance",
+        "name": "Aanhanger licht",
+        "build_year": 2012,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE06 Diesel aanhanger",
+        "name": "Aanhanger licht",
+        "build_year": null,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE07 rode aanhanger",
+        "name": "Aanhanger licht",
+        "build_year": null,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE08 96-WV-VL Predator",
+        "name": "Aanhanger licht",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE09 6-WN-NJ Fermex",
+        "name": "Aanhanger licht",
+        "build_year": 2016,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE10 56-WN-FJ Fermex B",
+        "name": "Aanhanger licht",
+        "build_year": null,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE11 01-WV-GP freesaanhanger",
+        "name": "Aanhanger licht",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE14 WS-JZ-42",
+        "name": "Aanhanger licht",
+        "build_year": 2005,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "BE16 huif",
+        "name": "Aanhanger licht",
+        "build_year": 2007,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            10,
+            2,
+            2
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE01 96-WV-ZJ kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": 2000,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE02 66-WV-VF kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": null,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE03 89-WF-KD kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": 2009,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE04 85-WK-SB kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": 2014,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE05 79-WN-PB kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": 2015,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE06 75-WS-FX kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": 2018,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE07 44-WDH-1 kipper",
+        "name": "Aanhanger zwaar",
+        "build_year": 2022,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE08 WL-PL-57",
+        "name": "Aanhanger zwaar",
+        "build_year": 1989,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE09 WH-14-FH rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 1991,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE10 WR-83-KR rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 1996,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE11 72-WX-XD rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 2013,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE12 WZ-NL-55 rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 2007,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE13 35-WB-PX rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 2008,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE14 64-WG-PT",
+        "name": "Aanhanger zwaar",
+        "build_year": 2010,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE15 36-WP-LK rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 2016,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE16 23-WV-VV Rongen",
+        "name": "Aanhanger zwaar",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE17 WD-PD-95 dieplader",
+        "name": "Aanhanger zwaar",
+        "build_year": 2003,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE18 WJ-RT-88 dieplader 1 as",
+        "name": "Aanhanger zwaar",
+        "build_year": 2003,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE19 64-WK-PF dieplader",
+        "name": "Aanhanger zwaar",
+        "build_year": 2013,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE20 OF-09-GX dieplader",
+        "name": "Aanhanger zwaar",
+        "build_year": 1997,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE23 ZZ-69-62 dieplader",
+        "name": "Aanhanger zwaar",
+        "build_year": 2000,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE24 12-WKS-5",
+        "name": "Aanhanger zwaar",
+        "build_year": 2024,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE25  05-WPD-9",
+        "name": "Aanhanger zwaar",
+        "build_year": 2025,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
+    },
+    {
+        "type": "asset",
+        "id": "CE26  09-WRK-9",
+        "name": "Aanhanger zwaar",
+        "build_year": 2026,
+        "gps_location": {
+            "lat": 51.468288,
+            "lon": 5.421365
+        },
+        "overall_dimensions": [
+            18,
+            2.5,
+            2.5
+        ],
+        "color": "yellow"
     }
 ]

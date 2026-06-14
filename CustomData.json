@@ -1,119 +1,154 @@
 [
     {
         "type": "poi",
-        "name": "Boomrooierij Weijtmans Udenhout",
+        "name": "Boomrooierij Eindhoven",
         "gps_location": {
-            "lat": 51.416232,
-            "lon": 5.507185
+            "lat": 51.4683,
+            "lon": 5.4214
         },
-        "dimension": 20
+        "overall_dimensions": [
+            200.0,
+            200.0
+        ],
+        "orientation": 30.0
     },
     {
         "type": "poi",
-        "name": "Garage vd Sande",
+        "name": "Garage Den Bosch",
         "gps_location": {
-            "lat": 51.584217,
-            "lon": 5.101924
+            "lat": 51.5853,
+            "lon": 4.7328
         },
-        "dimension": 200
+        "overall_dimensions": [
+            400,
+            100,
+            30
+        ],
+        "orientation": 45.0
     },
     {
         "type": "poi",
-        "name": "Garage vd Sande",
+        "name": "Garage X",
         "gps_location": {
-            "lat": 51.720407,
-            "lon": 5.269097
+            "lat": 51.5,
+            "lon": 5.1
         },
-        "dimension": 200
-    },
-    {
-        "type": "poi",
-        "name": "Garage vd Sande",
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        },
-        "dimension": 200
-    },
-    {
-        "type": "poi",
-        "name": "Heuvelmans ",
-        "gps_location": {
-            "lat": 51.468288,
-            "lon": 5.421365
-        },
-        "dimension": 20
-    },
-    {
-        "type": "poi",
-        "name": "Kreitemolenstraat",
-        "gps_location": {
-            "lat": 51.607040408,
-            "lon": 5.1537499956
-        },
-        "dimension": 400
+        "overall_dimensions": [
+            600.0,
+            100.0,
+            15.0
+        ],
+        "orientation": 45.0
     },
     {
         "type": "asset",
-        "name": "Vrachtwagens",
-        "build_year": 2012,
-        "gps_location": {
-            "lat": 51.359188,
-            "lon": 5.166491
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Vrachtwagens",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Kranen",
-        "build_year": 2016,
-        "gps_location": {
-            "lat": 51.584217,
-            "lon": 5.101924
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Tractor",
+        "id": "Trailer_Tilburg",
+        "name": "Aanhanger zwaar",
         "build_year": 2020,
         "gps_location": {
-            "lat": 51.638291,
-            "lon": 5.357588
-        }
+            "lat": 51.59147,
+            "lon": 5.02377
+        },
+        "overall_dimensions": [
+            10,
+            3.0,
+            3.5
+        ],
+        "color": "Orange"
     },
     {
         "type": "asset",
-        "name": "Tractor",
-        "build_year": 2021,
-        "gps_location": {
-            "lat": 51.720407,
-            "lon": 5.269097
-        }
-    },
-    {
-        "type": "asset",
-        "name": "Tractor",
-        "build_year": 2025,
-        "gps_location": {
-            "lat": 51.590574,
-            "lon": 4.921730
-        }
-    },
-    {
-        "type": "asset",
+        "id": "Truck_Tilburg",
         "name": "Vrachtwagens",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.59148,
+            "lon": 5.02378
+        },
+        "overall_dimensions": [
+            4,
+            2.5,
+            3
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 25
+    },
+    {
+        "type": "asset",
+        "id": "Tractor_DB_1",
+        "name": "Tractor",
         "build_year": 2018,
         "gps_location": {
-            "lat": 51.617221,
-            "lon": 5.436735
-        }
+            "lat": 51.58532,
+            "lon": 4.73282
+        },
+        "overall_dimensions": [
+            2,
+            2.5,
+            3
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 15
+    },
+    {
+        "type": "asset",
+        "id": "Truck_DB",
+        "name": "Vrachtwagens",
+        "build_year": 2004,
+        "gps_location": {
+            "lat": 51.58533,
+            "lon": 4.73283
+        },
+        "overall_dimensions": [
+            4,
+            2.5,
+            3
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 25
+    },
+    {
+        "type": "asset",
+        "id": "Hamer_1",
+        "name": "Tool",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.58533,
+            "lon": 4.73283
+        },
+        "overall_dimensions": [
+            4,
+            4,
+            4
+        ],
+        "color": "Blue",
+        "fuel_type": "Manual",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0
+    },
+    {
+        "type": "asset",
+        "id": "Tractor",
+        "name": "Tractor",
+        "build_year": 2026,
+        "gps_location": {
+            "lat": 51.53147,
+            "lon": 5.02377
+        },
+        "overall_dimensions": [
+            2,
+            2,
+            2
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 1.0
     }
 ]
