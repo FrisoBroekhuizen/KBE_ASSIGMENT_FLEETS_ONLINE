@@ -1126,7 +1126,7 @@ class TransportJob(Base):
 
     max_speeds = {
         "Truck": 80,
-        "Tractor": 40,
+        "Tractor": 10,
         "Crane": 45,
         "Excavator": 40,
         "Vehicle": 100,

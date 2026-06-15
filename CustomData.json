@@ -4,7 +4,7 @@
         "name": "Boomrooierij Eindhoven",
         "gps_location": {
             "lat": 51.340466,
-            "lon": 5.46428
+            "lon": 5.464280
         },
         "overall_dimensions": [
             80.0,
@@ -26,6 +26,7 @@
         ],
         "orientation": 30.0
     },
+
     {
         "type": "asset",
         "id": "Trailer_Tilburg",
@@ -107,6 +108,26 @@
         "color": "Yellow",
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 25.0
+    },
+    {
+        "type": "asset",
+        "id": "Tractor_Electric_Breda",
+        "name": "Tractor",
+        "build_year": 2023,
+        "gps_location": {
+            "lat": 51.5853,
+            "lon": 4.7328
+        },
+        "overall_dimensions": [
+            3.0,
+            2.5,
+            3.0
+        ],
+        "color": "Green",
+        "fuel_type": "Electric",
+        "emission_class_version": "StageIV",
+        "consumption_per_hour": 8.0
         "consumption_per_hour": 25.0,
         "engine_power": 100,
         "is_available": "True"
@@ -116,16 +137,41 @@
         "id": "Truck_Tilburg2",
         "name": "Vrachtwagens",
         "build_year": 2020,
+        "id": "Tractor_Mid_1",
+        "name": "Tractor",
+        "build_year": 2020,
         "gps_location": {
             "lat": 51.59148,
             "lon": 5.02378
+            "lat": 51.53,
+            "lon": 5.10
         },
         "overall_dimensions": [
             4.0,
+            3.0,
             2.5,
             3.0
         ],
         "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 14.0
+    },
+    {
+        "type": "asset",
+        "id": "Tractor_Depot_X",
+        "name": "Tractor",
+        "build_year": 2017,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            3.0,
+            2.5,
+            3.0
+        ],
+        "color": "Black",
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIIIA",
         "consumption_per_hour": 25.0,
@@ -173,9 +219,50 @@
         "consumption_per_hour": 16.0,
         "engine_power": 75,
         "is_available": "True"
+        "consumption_per_hour": 16.0
+    },
+
+    {
+        "type": "asset",
+        "id": "Tractor_Close_Old",
+        "name": "Tractor",
+        "build_year": 2005,
+        "gps_location": {
+            "lat": 51.462,
+            "lon": 5.68
+        },
+        "overall_dimensions": [
+            4.0,
+            2.5,
+            3.0
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIV",
+        "consumption_per_hour": 30.0
     },
     {
         "type": "asset",
+        "id": "Tractor_Close_New",
+        "name": "Tractor",
+        "build_year": 2026,
+        "gps_location": {
+            "lat": 51.492,
+            "lon": 5.44
+        },
+        "overall_dimensions": [
+            4.0,
+            2.5,
+            3.0
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIV",
+        "consumption_per_hour": 22.0
+    },
+    {
+        "type": "asset",
+        "id": "Truck_OostTilburg_1",
         "id": "Tractor_Close_Old",
         "name": "Tractor",
         "build_year": 2005,
@@ -220,8 +307,11 @@
         "type": "asset",
         "id": "Truck_OostTilburg_2",
         "name": "Vrachtwagens",
+        "build_year": 2019,
         "build_year": 2016,
         "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
             "lat": 51.55,
             "lon": 5.1
         },
@@ -274,6 +364,94 @@
         ],
         "color": "Yellow",
         "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 24.0
+    },
+    {
+        "type": "asset",
+        "id": "Truck_OostTilburg_2",
+        "name": "Vrachtwagens",
+        "build_year": 2016,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            4.0,
+            2.5,
+            3.0
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIV",
+        "consumption_per_hour": 26.0
+    },
+
+    {
+        "type": "asset",
+        "id": "Trailer_OostTilburg_1",
+        "name": "Aanhanger zwaar",
+        "build_year": 2018,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            10.0,
+            3.0,
+            3.5
+        ],
+        "color": "Orange"
+    },
+    {
+        "type": "asset",
+        "id": "Trailer_OostTilburg_2",
+        "name": "Aanhanger zwaar",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            10.0,
+            3.0,
+            3.5
+        ],
+        "color": "Orange"
+    },
+    {
+        "type": "asset",
+        "id": "Trailer_OostTilburg_3",
+        "name": "Aanhanger zwaar",
+        "build_year": 2017,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            10.0,
+            3.0,
+            3.5
+        ],
+        "color": "Orange"
+    },
+    {
+        "type": "asset",
+        "id": "Crane_OostTilburg_1",
+        "name": "Kranen",
+        "build_year": 2018,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            4.0,
+            2.0,
+            3.5
+            3.0
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIV",
         "consumption_per_hour": 26.0,
         "engine_power": 100,
@@ -299,9 +477,50 @@
         "consumption_per_hour": 20.0,
         "engine_power": 80,
         "is_available": "True"
+        "consumption_per_hour": 20.0
     },
     {
         "type": "asset",
+        "id": "Crane_OostTilburg_2",
+        "name": "Kranen",
+        "build_year": 2020,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            4.0,
+            2.0,
+            3.5
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 18.0
+    },
+    {
+        "type": "asset",
+        "id": "Crane_Street_1",
+        "name": "Kranen",
+        "build_year": 2017,
+        "gps_location": {
+            "lat": 51.52,
+            "lon": 5.00
+        },
+        "overall_dimensions": [
+            4.0,
+            2.0,
+            3.5
+        ],
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 19.0
+    },
+
+    {
+        "type": "asset",
+        "id": "Tool_Box_2",
         "id": "Crane_OostTilburg_2",
         "name": "Kranen",
         "build_year": 2020,
@@ -347,6 +566,7 @@
         "id": "Tool_Box_1",
         "name": "Tool",
         "build_year": 2019,
+        "build_year": 2019,
         "gps_location": {
             "lat": 51.55,
             "lon": 5.1
@@ -373,6 +593,9 @@
             "lon": 5.1
         },
         "overall_dimensions": [
+            3.0,
+            2.0,
+            2.0
             5.0,
             1.0,
             1.0
@@ -389,15 +612,27 @@
         "id": "Tool_Box_5",
         "name": "Tool",
         "build_year": 2019,
+        "id": "Tool_Street_1",
+        "name": "Tool",
+        "build_year": 2021,
         "gps_location": {
+            "lat": 51.49,
+            "lon": 5.40
             "lat": 51.55,
             "lon": 5.1
         },
         "overall_dimensions": [
+            2.5,
+            2.5,
+            2.0
             3.0,
             3.0,
             3.0
         ],
+        "color": "Blue",
+        "fuel_type": "Manual",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0
         "color": "Blue",
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
