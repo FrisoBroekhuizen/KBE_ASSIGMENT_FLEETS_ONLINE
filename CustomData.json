@@ -331,9 +331,9 @@
             "lon": 5.1
         },
         "overall_dimensions": [
-            0.2,
-            4.33,
-            0.2
+            3,
+            3,
+            1
         ],
         "color": "Blue",
         "fuel_type": "Diesel (fossiel)",
@@ -405,6 +405,48 @@
         "engine_power": 0,
         "is_available": "True"
     },
+        {
+        "type": "asset",
+        "id": "Tool_Box_8",
+        "name": "Tool",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            2.0,
+            2.0,
+            2.0
+        ],
+        "color": "Blue",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
+    },
+            {
+        "type": "asset",
+        "id": "Tool_Box_9",
+        "name": "Tool",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            1.0,
+            1.0,
+            2.0
+        ],
+        "color": "Blue",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
+    },
     {
         "type": "asset",
         "id": "Tool_Box_2",
@@ -418,6 +460,69 @@
             3.0,
             2.0,
             2.0
+        ],
+        "color": "Blue",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
+    },
+                {
+        "type": "asset",
+        "id": "Tool_Box_10",
+        "name": "Tool",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            1.0,
+            1.0,
+            2.0
+        ],
+        "color": "Blue",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
+    },
+    {
+        "type": "asset",
+        "id": "Tool_Box_11",
+        "name": "Tool",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            1.0,
+            2.5,
+            1.0
+        ],
+        "color": "Blue",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
+    },
+       {
+        "type": "asset",
+        "id": "Tool_Box_12",
+        "name": "Tool",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            1.0,
+            2.5,
+            1.0
         ],
         "color": "Blue",
         "fuel_type": "Diesel (fossiel)",
