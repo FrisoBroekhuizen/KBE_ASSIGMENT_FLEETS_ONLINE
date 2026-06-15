@@ -131,10 +131,8 @@ def GetFleetsOnlineData(app):
         if poi["address"] is not None and poi["shapeData"] is not None:
             # For the time being to put all FleetsOnline assets
             # in the depot
-            # (
-            #     poi["address"]["lat"],
-            #     poi["address"]["lat"],
-            # ) = app.standard_location
+            poi["address"]["lat"] = app.standard_location[0]
+            poi["address"]["lon"] = app.standard_location[1]
             data.append(
                 {
                     "type": "poi",
@@ -188,9 +186,14 @@ def GetFleetsOnlineData(app):
                             asset["type"]["name"]
                         ],
                         "color": "yellow",
+                        "is_available": "True"
                     }
                 )
             else:
+                if asset["kwh"] is None:
+                    engine_power = 50
+                else:
+                    engine_power = asset["kwh"]
                 data.append(
                     {
                         "type": "asset",
@@ -209,6 +212,8 @@ def GetFleetsOnlineData(app):
                         "emission_class_version": "StageIIIB",
                         # Common emission class for heavy machinery, standard input as our Fleets-Online data does not have emission_class assigned
                         "consumption_per_hour": cons,
+                        "engine_power": engine_power,
+                        "is_available": "True"
                     }
                 )
 
@@ -218,7 +223,7 @@ def GetFleetsOnlineData(app):
 
     return pois, assets
 
-def ReadData(app, use_fleets_data, workjob):
+def ReadData(app, use_fleets_data, workjob, fleet):
     if use_fleets_data:
         with open("FleetsOnlineData.json", "r") as file:
             data = json.load(file)
@@ -317,9 +322,13 @@ def ReadData(app, use_fleets_data, workjob):
                     "[2 x 2 x 2] are used instead.",
                 )
 
-            m.build_year = l["build_year"]
-            if m.build_year is None:
-                m.build_year = 2026
+            try:
+                if l["is_available"] == "True":
+                    m.is_available = True
+                else:
+                    m.is_available = False
+            except:
+                m.is_available = True
 
             m.gps_location = (
                 l["gps_location"]["lat"],
@@ -335,7 +344,7 @@ def ReadData(app, use_fleets_data, workjob):
                 m.trailer_id = l["id"]
                 if m.color is None:
                     m.color = "Orange"
-                app.trailers.append(m)
+                fleet.trailers.append(m)
                 if not np.all(m.overall_dimensions):
                     generate_warning(
                         "Warning: Dimension(s) missing",
@@ -354,10 +363,14 @@ def ReadData(app, use_fleets_data, workjob):
 
                 m.emission_class = l["emission_class_version"]
                 m.consumption_per_hour = l["consumption_per_hour"]
+                m.engine_power = l["engine_power"]
+                m.build_year = l["build_year"]
+                if m.build_year is None:
+                    m.build_year = 2026
                 if m.color is None:
                     m.color = "Yellow"
-                app.machines.append(m)
-                app.number_of_machines_per_type[m.machine_type] += 1
+                fleet.machines.append(m)
+                fleet.number_of_machines_per_type[m.machine_type] += 1
                 if not np.all(m.overall_dimensions):
                     generate_warning(
                         "Warning: Dimension(s) missing",

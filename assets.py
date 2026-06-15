@@ -6,15 +6,50 @@ from typing import Tuple, List
 import numpy as np
 
 from EmissionsExternalTool import CO2Calculator, NOxCalculator
-from parapy.core import Base, Input, Attribute
+from parapy.core import Base, Input, Attribute, Part
 from parapy.core.validate import OneOf
-from parapy.core.widgets import PyField, TextField
+from parapy.core.widgets import PyField, TextField, CheckBox
 
 
 # ---------------------------------------------------------------------------
 # Superclass: Machine and its specializations
 # ---------------------------------------------------------------------------
 
+class Fleet(Base):
+    machines = Input([])
+    trailers = Input([])
+
+    number_of_machines_per_type = {
+        "Crane": 0,
+        "Tractor": 0,
+        "Truck": 0,
+        "Tool": 0,
+        "Pump": 0,
+    }
+
+    @Attribute
+    def available_machines(self):
+        available = []
+        for machine in self.machines:
+            if machine.is_available:
+                available.append(machine)
+        return available
+
+    @Attribute
+    def available_trailers(self):
+        available = []
+        for trailer in self.trailers:
+            if trailer.is_available:
+                available.append(trailer)
+        return available
+
+    @Part(parse=False)
+    def Machines(self):
+        return self.machines
+
+    @Part(parse=False)
+    def Trailers(self):
+        return self.trailers
 
 class Machine(Base):
     """
@@ -60,6 +95,8 @@ class Machine(Base):
             ),
         ),
     )
+
+    is_available: bool = Input(True, widget=CheckBox())
 
     # default current year (new)
     build_year: int = Input(
@@ -160,6 +197,7 @@ class Machine(Base):
 
     total_hours_used = Input(0.0)
     hours_used = Input(0.0)
+    engine_power = Input(0.0) # kWh
 
     # Assumed data contains hours/day
     operating_fraction = 8
@@ -225,7 +263,7 @@ class Machine(Base):
         if self.energy_source == "Manual":
             return 0
         fuel_type = self.energy_source.lower()
-        fuel_usage = self.consumption_per_hour * self.hours_used
+        fuel_usage = self.consumption_per_hour * self.hours_used * self.loading_factor
         result = CO2Calculator(
             energy_source=self.energy_source,
             fuel_type=fuel_type,
@@ -239,12 +277,13 @@ class Machine(Base):
         """NOx [g] over self.hours_used using AUB method by default."""
         if self.emission_class == "Manual":
             return 0
-        fuel_usage = self.consumption_per_hour * self.hours_used
+        fuel_usage = self.consumption_per_hour * self.hours_used * self.loading_factor
         result = NOxCalculator(
             energy_source=self.energy_source,
             emission_class=self.emission_class,
             fuel_liters=fuel_usage,
             engine_hours=self.hours_used,
+            engine_power=self.engine_power
         )
         return result
 
@@ -256,27 +295,12 @@ class Machine(Base):
         # extra emissions, reliability, etc.
         wear_factor = self.individual_depreciation
 
-        # Check if vehicle is carrying any additional mass
-        try:
-            content_mass = self.contents.mass
-            try:
-                # Check if vehicle was carrying a trailer that
-                # is carrying additional mass
-                trailer_content_mass = self.contents.contents[0].mass
-            except Exception:
-                trailer_content_mass = 0
-            loading_factor = (
-                self.mass + content_mass + trailer_content_mass
-            ) / self.mass
-        except Exception:
-            loading_factor = 1
-
         # Operating costs: fuel, predicted maintenance and wages
         operating_cost = (
             self.consumption_per_hour
             * hours_used
             * self.energy_source_cost[self.energy_source]
-            * loading_factor
+            * self.loading_factor
             * wear_factor
         )
         operating_cost += self.wage * self.hours_used
@@ -348,6 +372,31 @@ class Machine(Base):
         wear_factor = np.exp(decay_factor * self.age)
         return wear_factor
 
+    @Attribute
+    def loading_factor(self):
+        # Check if vehicle is carrying any additional mass
+        try:
+            content_mass = self.contents.mass
+            try:
+                # Check if vehicle was carrying a trailer that
+                # is carrying additional mass
+                trailer_content_mass = 0
+                for c in self.contents.contents:
+                    trailer_content_mass += c.mass
+            except Exception:
+                trailer_content_mass = 0
+            loading_factor = (
+                                     self.mass + content_mass + trailer_content_mass
+                             ) / self.mass
+        except Exception:
+            loading_factor = 1
+
+    @Attribute
+    def label(self) -> str:
+        if self.is_available:
+            return self.machine_id
+        else:
+            return f"⚠ {self.machine_id} (unavailable)"
 
 class Vehicle(Machine):
     """
@@ -588,6 +637,8 @@ class Trailer(Base):
     # Identifier for reporting / debug
     trailer_id: str = Input("")
 
+    is_available: bool = Input(True, widget=CheckBox())
+
     # Internal usable cargo volume [L, W, H] in meters
     carrying_bounding_box: Tuple[float, float, float] = Input(
         (0.0, 0.0, 0.0)
@@ -613,6 +664,12 @@ class Trailer(Base):
     # Logical content (IDs, Machine references, or your packing Items)
     contents: List[object] = Input([None])
 
+    @Attribute
+    def label(self):
+        if self.is_available:
+            return self.trailer_id
+        else:
+            return f"⚠ {self.trailer_id} (unavailable)"
 
 if __name__ == "__main__":
     from parapy.gui import display

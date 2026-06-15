@@ -14,6 +14,8 @@ from assets import Machine, Trailer, Tool, Truck
 from Routing import HaversineDistance
 import assets
 
+from Warning import generate_warning
+
 
 class Depot(GeomBase):
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
@@ -411,6 +413,10 @@ class Depot(GeomBase):
                 path_width = self.DeterminePathWidth(longest_vehicle)
                 print(row_height, path_width, longest_vehicle_length)
                 row_height += path_width + longest_vehicle_length
+
+                if row_height > self.overall_dimensions[1]:
+                    generate_warning("Depot too small", f"Warning: the depot {self.name} is too small to house all allocated machines.")
+
                 positions.append(
                     [row_height, row_width + self.gps_location[1]]
                 )
@@ -429,11 +435,6 @@ class Depot(GeomBase):
     # collision detection of a vehicle making a turn with its
     # corresponding turning radius
     def DeterminePathWidth(self, longest_vehicle):
-        # TODO: Remove once this information is read from JSON
-        longest_vehicle.wheelbase = longest_vehicle.overall_dimensions[0]
-        # TODO: Remove once this information is read from JSON
-        longest_vehicle.dimensions = longest_vehicle.overall_dimensions
-
         if type(longest_vehicle).__name__ == "Trailer":
             m = Truck(
                 overall_dimensions=[4, 2, 2],
@@ -459,21 +460,6 @@ class Depot(GeomBase):
 
         if has_trailer:
             trailer = longest_vehicle.contents
-            # TODO: Remove once this information is read from JSON
-            longest_vehicle.wheelbase = (
-                longest_vehicle.overall_dimensions[0]
-            )
-            longest_vehicle.wheelbase_rear = (
-                trailer.overall_dimensions[0]
-            )
-            longest_vehicle.wheelbase_track = (
-                trailer.overall_dimensions[1]
-            )
-            longest_vehicle.number_of_axles = 3
-            # TODO: Remove once this information is read from JSON
-            longest_vehicle.dimensions = (
-                longest_vehicle.overall_dimensions
-            )
             longest_vehicle.dimensions_rear = (
                 trailer.overall_dimensions
             )
@@ -662,11 +648,23 @@ class Depot(GeomBase):
             position=translate(
                 self.position,
                 "x",
-                self.machine_positions[child.index][0],
+                self.machine_positions[child.index][0] if self.machine_positions[child.index][0] +
+                           self.sorted_machines[child.index].overall_dimensions[0] +
+                           (Truck(overall_dimensions=[4, 2, 2],
+                                contents=self.sorted_machines[child.index]).turn_radius if type(self.sorted_machines[child.index]).__name__ == "Trailer"
+                                else self.sorted_machines[child.index].turn_radius) < self.overall_dimensions[0]
+                    else self.machine_positions[child.index][0] + self.sorted_machines[child.index].overall_dimensions[0] + (Truck(overall_dimensions=[4, 2, 2],
+                                contents=self.sorted_machines[child.index]).turn_radius if type(self.sorted_machines[child.index]).__name__ == "Trailer"
+                                else self.sorted_machines[child.index].turn_radius),
                 "y",
                 self.machine_positions[child.index][1],
             ),
-            color=self.machine_colors[child.index],
+            color="Red" if self.machine_positions[child.index][0] +
+                           self.sorted_machines[child.index].overall_dimensions[0] +
+                           (Truck(overall_dimensions=[4, 2, 2],
+                                contents=self.sorted_machines[child.index]).turn_radius if type(self.sorted_machines[child.index]).__name__ == "Trailer"
+                                else self.sorted_machines[child.index].turn_radius) > self.overall_dimensions[0]
+                    else self.machine_colors[child.index],
         )
 
     @action(label="Export", button_label="Export depot to STEP file")
@@ -675,12 +673,12 @@ class Depot(GeomBase):
         writer.write()
 
 def AllocateMachines(app):
-    machines = app.machines
+    machines = app.fleet.machines
     for machine in machines:
         machine.number_of_this_type = (
-            app.number_of_machines_per_type[machine.machine_type]
+            app.fleet.number_of_machines_per_type[machine.machine_type]
         )
-    trailers = app.trailers
+    trailers = app.fleet.trailers
     road_parked: List[Machine] = []
 
     for depot in app.depots:
