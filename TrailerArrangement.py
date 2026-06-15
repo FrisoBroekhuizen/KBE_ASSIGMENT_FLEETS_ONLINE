@@ -883,3 +883,148 @@ class TrailerAdapter:
             "machine_id",
             "",
         )
+class WinningMissionTrailerPacking(Base):
+    """Visualization of trailers and their *current* contents in a winning mission.
+
+    - trailers: list of real Trailer objects (as in winning_mission).
+    - cargo_per_trailer: parallel list of lists of Machine/Tool objects.
+    - For each trailer, we:
+        * build Items from the machines/tools,
+        * run pack_single_trailer() to place them in 3D,
+        * visualize trailers and cargo with real dimensions & colors,
+        * preserve references to the original assets via CargoMarker.asset.
+    """
+
+    trailers: List[Any] = Input()
+    cargo_per_trailer: List[List[object]] = Input()  # len == len(trailers)
+
+    # ----------------- Derived: sizes & offsets -----------------
+
+    @Attribute
+    def trailer_sizes(self) -> List[Tuple[float, float, float]]:
+        """Use each trailer.overall_dimensions as [L, W, H]."""
+        sizes = []
+        for tr in self.trailers:
+            L, W, H = getattr(tr, "overall_dimensions", (0.0, 0.0, 0.0))
+            sizes.append((float(L), float(W), float(H)))
+        return sizes
+
+    @Attribute
+    def trailer_offsets_x(self) -> List[float]:
+        """Lay out trailers next to each other along +X."""
+        offsets = []
+        x = 0.0
+        gap = 1.0  # 1 m gap between trailers
+        for (L, _, _) in self.trailer_sizes:
+            offsets.append(x)
+            x += L + gap
+        return offsets
+
+    # ----------------- Derived: packing per trailer -----------------
+
+    @Attribute
+    def placements_per_trailer(self) -> List[List[PlacedItem]]:
+        """Run pack_single_trailer per trailer, using its own contents only."""
+        all_placements: List[List[PlacedItem]] = []
+
+        for idx, (tr, cargo_list) in enumerate(
+            zip(self.trailers, self.cargo_per_trailer)
+        ):
+            if not cargo_list:
+                all_placements.append([])
+                continue
+
+            # trailer size
+            L, W, H = self.trailer_sizes[idx]
+
+            # Build Items from actual machines/tools
+            items: List[Item] = [
+                item_from_machine(m) for m in cargo_list if m is not None
+            ]
+            vehicles = [it for it in items if it.item_type == "vehicle"]
+            tools = [it for it in items if it.item_type == "tool"]
+
+            # Use your existing per-trailer packing heuristic
+            placed, veh_unplaced, tools_unplaced = pack_single_trailer(
+                vehicles=vehicles,
+                tools=tools,
+                L=L,
+                W=W,
+                H=H,
+            )
+
+            if veh_unplaced or tools_unplaced:
+                print(
+                    f"[WinningMissionTrailerPacking] WARNING: "
+                    f"{len(veh_unplaced)} vehicles and "
+                    f"{len(tools_unplaced)} tools did not fit in trailer "
+                    f"{getattr(tr, 'trailer_id', None)}."
+                )
+
+            # Set trailer_index to this trailer
+            for p in placed:
+                p.trailer_index = idx
+
+            all_placements.append(placed)
+
+        return all_placements
+
+    @Attribute
+    def flat_placed(self) -> List[PlacedItem]:
+        return [p for trailer in self.placements_per_trailer for p in trailer]
+
+    # ----------------- Geometry: trailers -----------------
+
+    @Part
+    def trailer_markers(self):
+        """One TrailerMarker per trailer, using real dimensions."""
+        return TrailerMarker(
+            quantify=len(self.trailers),
+            asset=self.trailers[child.index],
+            L=self.trailer_sizes[child.index][0],
+            W=self.trailer_sizes[child.index][1],
+            H=self.trailer_sizes[child.index][2],
+            offset_x=self.trailer_offsets_x[child.index],
+            color=(160, 32, 240),
+            transparency=0.8,
+        )
+
+    # ----------------- Geometry: cargo -----------------
+
+    @Part
+    def cargo_markers(self):
+        """Boxes for all placed items, pointing back to the real Machine/Tool."""
+        return CargoMarker(
+            quantify=len(self.flat_placed),
+            asset=self.flat_placed[child.index].item.source,
+            L=self.flat_placed[child.index].wx,
+            W=self.flat_placed[child.index].wy,
+            H=self.flat_placed[child.index].wz,
+            x=(
+                self.trailer_offsets_x[
+                    self.flat_placed[child.index].trailer_index
+                ]
+                + self.flat_placed[child.index].x
+            ),
+            y=self.flat_placed[child.index].y,
+            z=self.flat_placed[child.index].z,
+            color=(
+                getattr(
+                    self.flat_placed[child.index].item,
+                    "color",
+                    getattr(
+                        self.flat_placed[child.index].item.source,
+                        "color",
+                        "gray",
+                    ),
+                )
+            ),
+        )
+
+    @action(
+        label="Export",
+        button_label="Export trailer arrangement to .stp",
+    )
+    def Export(self):
+        writer = STEPWriter(trees=[self], filename="winning_trailers.stp")
+        writer.write()

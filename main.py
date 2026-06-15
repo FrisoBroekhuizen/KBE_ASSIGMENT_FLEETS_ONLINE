@@ -31,6 +31,7 @@ from TrailerArrangement import (
     TrailerPackingVisualization,
     item_from_machine,
     TrailerAdapter,
+    pack_items_into_trailers,
 )
 from Warning import generate_warning
 import Routing
@@ -43,6 +44,7 @@ from assets import (
     Tool,
     Pump,
     Vehicle,
+    allocate_trailers_to_road_trucks,
 )
 import PDFMaker
 
@@ -111,7 +113,14 @@ class MissionStrategyApp(Base):
         ),
         label="Needed Machinery"
     )
-
+    # Optional: extra tools to be shipped as "goods" to the work site.
+    # List of tool machine_id strings, all of which must be located in the same depot.
+    goods_to_pack_ids: List[str] = Input(
+        [],
+        widget=PyField(),
+        label="Tool IDs to pack (machine_id list, e.g. ['T1', 'T2'])",
+    )
+#TODO: ADD VALIDATOR FOR GOODS TO PAK IDS
     man_hours = Input(
         0,
         widget=PyField(
@@ -231,6 +240,12 @@ class MissionStrategyApp(Base):
             - mission_evaluator: evaluates each mission on NOx, CO₂, cost and time, and
             - mission_picker: uses the normalized, preference-weighted score to pick and store
               the best mission in self.winning_mission.
+
+            After the winning mission is selected, optional extra "goods to pack"
+            (tools specified via goods_to_pack_ids) are shipped from their depot
+            to the work site by dedicated truck+trailer transport jobs. These
+            extra transports do NOT influence mission selection yet; they are
+            simply appended to the winning mission.
         """
         print("=== DEBUG: current machines ===")
         print("Total machines:", len(self.machines))
@@ -241,7 +256,13 @@ class MissionStrategyApp(Base):
         self.work_job.man_hours = self.man_hours
 
         if self.number_of_machines_per_type[self.needed_machinery] == 0:
-            generate_warning("No machines available", f"The chosen needed machinery type {self.needed_machinery} is not present in the provided fleet. Please ensure the right vehicle type is chosen and the fleet data JSON file is complete.")
+            generate_warning(
+                "No machines available",
+                f"The chosen needed machinery type {self.needed_machinery} "
+                "is not present in the provided fleet. Please ensure the "
+                "right vehicle type is chosen and the fleet data JSON file "
+                "is complete.",
+            )
             return
 
         # --- deadline consistency check (WARNING but no abort) ---
@@ -254,11 +275,14 @@ class MissionStrategyApp(Base):
                 "if you want real deadline enforcement.",
             )
             self.strict_deadline = False
-
         tic = time.perf_counter()
 
         # Allocate machines to depots / road-side
         self.road_parked = AllocateMachines(self)
+
+        # Allocate nearby road-parked trailers to road-parked trucks
+        # (uses 100 m threshold by default,  change max_distance_m if needed/desired)
+        allocate_trailers_to_road_trucks(self, max_distance_m=100.0)
 
         # 1) MissionGenerator: generate all candidate missions
         self.all_generated_missions = generate_missions(
@@ -274,7 +298,7 @@ class MissionStrategyApp(Base):
             # Available total hours between start and deadline
             deadline_delta = self.deadline_time - self.start_time
             deadline_total_hours = (
-                deadline_delta.total_seconds() / 3600.0
+                    deadline_delta.total_seconds() / 3600.0
             )
 
             # Call special deadline-aware mission generator / filter
@@ -290,6 +314,31 @@ class MissionStrategyApp(Base):
             raise RuntimeError(
                 "MissionGenerator produced no missions to evaluate."
             )
+        print("=== DEBUG: missions after deadline filter ===")
+        for i, m in enumerate(self.all_generated_missions):
+            if not m.machines:
+                continue
+            mach = m.machines[0]
+            print(
+                f"  Mission {i}: machine={type(mach).__name__} {getattr(mach, 'machine_id', None)}, "
+                f"legs={len(m.transport_jobs)}"
+            )
+            for j, tj in enumerate(m.transport_jobs):
+                v = tj.transporting_vehicle
+                tr = getattr(v, "contents", None)
+
+                inner_ids = [
+                    getattr(x, "machine_id", None)
+                    for x in (getattr(tr, "contents", []) or [])
+                    if x is not None
+                ]
+                print(
+                    f"    leg {j}: veh={type(v).__name__} {getattr(v, 'machine_id', None)}, "
+                    f"trailer={getattr(tr, 'trailer_id', None) if tr else None}, "
+                    f"inner={inner_ids}, route_dist={tj.route_distance}"
+                )
+        print("=== END DEBUG missions after deadline filter ===")
+
 
         # 2) MissionEvaluator: compute raw totals per mission
         self._mission_evaluator(self.all_generated_missions)
@@ -301,7 +350,279 @@ class MissionStrategyApp(Base):
         print(f"Took {toc - tic:0.4f} seconds")
 
         self.winning_mission = winning_mission
-        return winning_mission
+        print("=== DEBUG: winning mission transport jobs ===")
+        for j, tj in enumerate(self.winning_mission.transport_jobs):
+            v = tj.transporting_vehicle
+            tr = getattr(v, "contents", None)
+            inner = getattr(tr, "contents", None) if tr is not None else None
+            inner_ids = [
+                getattr(m, "machine_id", None) for m in (inner or []) if m is not None
+            ]
+            print(
+                f"  job {j}: veh={type(v).__name__} {getattr(v, 'machine_id', None)}, "
+                f"trailer={getattr(tr, 'trailer_id', None) if tr else None}, "
+                f"inner={inner_ids}, "
+                f"begin={tj.begin_location_gps}, end={tj.end_location_gps}, "
+                f"dist={tj.route_distance}"
+            )
+        print("=== END DEBUG winning mission transport jobs ===")
+
+
+        # 4) OPTIONAL: append extra truck+trailer transports
+        #     for "goods to pack" (tools). This does NOT influence
+        #     mission selection; it just adds extra transport jobs
+        #     to the chosen winning_mission.
+        self._add_goods_transport_to_winning_mission()
+
+        return self.winning_mission
+
+    def _add_goods_transport_to_winning_mission(self) -> None:
+        """Post-process the chosen winning mission by adding extra transport
+        jobs for user-specified 'goods to pack'.
+
+        Behavior:
+        - goods_to_pack_ids: list of tool machine_id strings.
+        - All these tools must be located in the SAME depot (in its .machines list).
+        - Tools are converted into packing Items and packed into the minimum
+          number of trailers using pack_items_into_trailers(), with trailers
+          sorted from largest to smallest.
+        - Each used trailer is assigned a dedicated truck from the same depot
+          (assumes number of trucks >= number of used trailers).
+        - For each (truck, trailer) pair we create a TransportJob from depot
+          to work site and append it to self.winning_mission.transport_jobs.
+        - Trailer.contents is set to the packed tools, so trailer_arrangement
+          visualization sees these tools as cargo.
+        """
+        # Basic guards
+        if self.winning_mission is None:
+            return
+        if not self.goods_to_pack_ids:
+            return
+        if self.work_job is None:
+            generate_warning(
+                "Goods-to-pack error",
+                "No work job is defined, so the destination for "
+                "goods-to-pack cannot be determined.",
+            )
+            return
+
+        # Collect tool objects per depot
+        requested_ids = set(str(x) for x in self.goods_to_pack_ids)
+        candidate_depots = []
+        depot_tools_map = {}
+
+        for dep in self.depots:
+            tools_here = [
+                m
+                for m in dep.machines
+                if getattr(m, "machine_type", None) == "Tool"
+                and getattr(m, "machine_id", None) in requested_ids
+            ]
+            ids_here = {m.machine_id for m in tools_here}
+            depot_tools_map[dep] = tools_here
+
+            if requested_ids.issubset(ids_here):
+                candidate_depots.append(dep)
+
+        if not candidate_depots:
+            generate_warning(
+                "Goods-to-pack error",
+                "None of the depots contains ALL requested tool IDs.\n"
+                "Please check 'goods_to_pack_ids' and the fleet data.",
+            )
+            return
+        if len(candidate_depots) > 1:
+            generate_warning(
+                "Goods-to-pack warning",
+                "Multiple depots contain all requested tools. "
+                "Using the first one found; please verify your data.",
+            )
+
+        depot = candidate_depots[0]
+        tools_to_ship = depot_tools_map[depot]
+        tools_to_ship.sort(key=lambda t: t.machine_id)
+
+        print(
+            f"[GoodsToPack] Using depot '{getattr(depot, 'name', None)}' "
+            f"with tools {[t.machine_id for t in tools_to_ship]}"
+        )
+
+        # Trailers and trucks at this depot
+        depot_trailers = list(depot.trailers)
+        if not depot_trailers:
+            generate_warning(
+                "Goods-to-pack error",
+                f"Depot '{getattr(depot, 'name', None)}' has no trailers "
+                "available to carry the requested tools.",
+            )
+            return
+
+        depot_trucks = [
+            m
+            for m in depot.machines
+            if getattr(m, "machine_type", None) == "Truck"
+        ]
+        if not depot_trucks:
+            generate_warning(
+                "Goods-to-pack error",
+                f"Depot '{getattr(depot, 'name', None)}' has no trucks "
+                "available to pull trailers for goods-to-pack.",
+            )
+            return
+
+        # Sort trailers from large to small (by volume of carrying_bounding_box)
+        def trailer_volume(tr):
+            try:
+                L, W, H = tr.carrying_bounding_box
+            except Exception:
+                L, W, H = getattr(tr, "overall_dimensions", (0.0, 0.0, 0.0))
+            return float(L) * float(W) * float(H)
+
+        sorted_trailers = sorted(
+            depot_trailers,
+            key=trailer_volume,
+            reverse=True,
+        )
+
+        # Convert tools into Items
+        items = [
+            item_from_machine(tool, item_type_hint="tool")
+            for tool in tools_to_ship
+        ]
+
+        # Convert sorted trailers into TrailerAdapters for packing
+        adapters = [
+            TrailerAdapter(tr, trailer_id=tr.trailer_id or f"depot_trailer_{i}")
+            for i, tr in enumerate(sorted_trailers)
+        ]
+
+        # Run packing: minimum number of trailers given largest-first heuristic
+        try:
+            placements_per_trailer = pack_items_into_trailers(
+                all_items=items,
+                trailers=adapters,
+            )
+
+        except RuntimeError as exc:
+            generate_warning(
+                "Goods-to-pack packing error",
+                f"Failed to pack requested tools into trailers:\n{exc}",
+            )
+            return
+
+        # Determine which trailer indices are actually used
+        used_indices = [
+            idx for idx, placed in enumerate(placements_per_trailer) if placed
+        ]
+        if not used_indices:
+            generate_warning(
+                "Goods-to-pack error",
+                "Packing algorithm did not place any tools into trailers. "
+                "Please verify dimensions and tool IDs.",
+            )
+            return
+
+        # Map placements back to real Trailer objects and set contents
+        used_trailers = []
+        for idx in used_indices:
+            real_trailer = sorted_trailers[idx]
+            placed_items_here = placements_per_trailer[idx]
+            cargo_machines = [p.item.source for p in placed_items_here]
+            real_trailer.contents = cargo_machines
+            used_trailers.append(real_trailer)
+
+            print(
+                f"[GoodsToPack] Trailer {getattr(real_trailer, 'trailer_id', None)} "
+                f"carries tools {[m.machine_id for m in cargo_machines]}"
+            )
+
+        # Assign one truck per used trailer (assumes enough trucks available)
+        if len(depot_trucks) < len(used_trailers):
+            generate_warning(
+                "Goods-to-pack warning",
+                "Number of available trucks at the depot is less than the "
+                "number of used trailers for goods-to-pack. "
+                "Only a subset will be shipped.",
+            )
+
+        trucks_for_goods = depot_trucks[: len(used_trailers)]
+
+        # Build extra TransportJobs depot -> worksite for each truck+trailer pair
+        extra_jobs = []
+        worksite_gps = self.gps_location
+        depot_gps = depot.gps_location
+
+        # --- NEW: reuse route_matrix from mission generator ---
+        distance_m = 0.0
+        rm = getattr(self, "route_matrix", None)
+        objs = getattr(self, "route_objects", None)
+
+        if rm is not None and objs:
+            try:
+                # find the index of this depot in route_objects
+                depot_idx = None
+                for idx, obj in enumerate(objs):
+                    if obj is depot:
+                        depot_idx = idx
+                        break
+
+                if depot_idx is None:
+                    print(
+                        "[GoodsToPack] WARNING: current depot not found in "
+                        "route_objects; falling back to Haversine distance."
+                    )
+                else:
+                    cell = rm[depot_idx][0]
+                    if cell == 0 or cell == 1000000000:
+                        print(
+                            "[GoodsToPack] WARNING: route_matrix entry "
+                            f"[{depot_idx}][0] is degenerate ({cell}); "
+                            "falling back to Haversine distance."
+                        )
+                    else:
+                        # cell is [routeDuration_seconds, distance_meters]
+                        _, distance_m = cell
+            except Exception as exc:
+                print(
+                    "[GoodsToPack] WARNING: failed to read route_matrix, "
+                    f"falling back to Haversine distance: {exc}"
+                )
+                distance_m = 0.0
+
+        # Fallback if route_matrix not available / invalid
+        if distance_m <= 0.0:
+            distance_m = Routing.HaversineDistance(
+                depot_gps[0],
+                depot_gps[1],
+                worksite_gps[0],
+                worksite_gps[1],
+            ) * 1.3  # small safety factor
+
+        # Now create one extra TransportJob per trailer+truck, all with
+        # the same depot->worksite distance.
+        for trailer, truck in zip(used_trailers, trucks_for_goods):
+            truck.contents = trailer  # attach trailer
+
+            job = TransportJob(
+                transporting_vehicle=truck,
+                route_distance=float(distance_m),
+                begin_location_gps=depot_gps,
+                end_location_gps=worksite_gps,
+            )
+            extra_jobs.append(job)
+
+        if not extra_jobs:
+            return
+
+        print(
+            f"[GoodsToPack] Added {len(extra_jobs)} extra transport jobs "
+            "for goods-to-pack."
+        )
+
+        # IMPORTANT for ParaPy: reassign the list instead of mutating in place,
+        # to ensure dependency-tracked invalidation of the transport_jobs slot.
+        old_jobs = list(self.winning_mission.transport_jobs)
+        self.winning_mission.transport_jobs = old_jobs + extra_jobs
 
     def jobAnalyzer(self):
         """
@@ -449,6 +770,47 @@ class MissionStrategyApp(Base):
             missions, key=lambda mm: mm.mission_scalar
         )
         return winning_mission
+
+    @Attribute
+    def items_to_pack(self) -> List[Item]:
+        """Unique machines that are transported by trailer in the winning mission."""
+        items: List[Item] = []
+        seen = set()  # track physical machine objects
+
+        print("=== DEBUG: items_to_pack ===")
+        for job in self.winning_mission.transport_jobs:
+            veh = job.transporting_vehicle
+            trailer_obj = getattr(veh, "contents", None)
+            if trailer_obj is None:
+                continue
+
+            # Debug: show what this trailer is carrying
+            contents_ids = [
+                getattr(m, "machine_id", None)
+                for m in (getattr(trailer_obj, "contents", []) or [])
+                if m is not None
+            ]
+            print(
+                "  trailer",
+                getattr(trailer_obj, "trailer_id", None),
+                "contents",
+                contents_ids,
+            )
+
+            for machine in getattr(trailer_obj, "contents", []):
+                if machine is None:
+                    continue
+
+                key = getattr(machine, "machine_id", id(machine))
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                # Currently you treat everything in trailers as tools for packing viz:
+                items.append(item_from_machine(machine, item_type_hint="tool"))
+
+        print("=== END DEBUG items_to_pack ===")
+        return items
 
     # Define (normalized) preferences function
     @Attribute
@@ -645,27 +1007,56 @@ class MissionStrategyApp(Base):
 
     @action(label="Visualise Trailer Arrangements", button_label="Visualise")
     def trailer_arrangement(self):
-        """Open a ParaPy viewer window with the trailer packing
-        visualization for this mission.
-
-        Relies on:
-            - self.items_to_pack: List[Item]
-            - self.trailers: list of trailer-like objects
-              (each with carrying_bounding_box and has_ceiling).
+        """Visualize all trailers with cargo in the winning mission, laid out
+        next to each other, using per-trailer optimal packing and real
+        dimensions/colors with back-references to the actual assets.
         """
-        # Basic sanity checks, helpful during development
-        if not hasattr(self, "items_to_pack"):
-            raise RuntimeError(
-                "MissionStrategyApp has no 'items_to_pack' attribute. "
-                "Define it as an Input or Attribute that returns "
-                "List[Item]."
+        if self.winning_mission is None:
+            generate_warning(
+                "Trailer arrangement",
+                "No winning mission is available. Generate a strategy first.",
             )
+            return
 
-        viz_model = TrailerPackingVisualization(
-            items=self.items_to_pack,
-            trailers=self.job_trailers,
+        # Collect trailers and their contents from winning_mission
+        trailer_list: List[Trailer] = []
+        cargo_per_trailer: List[List[object]] = []
+        seen = set()
+
+        for job in self.winning_mission.transport_jobs:
+            veh = job.transporting_vehicle
+            trailer_obj = getattr(veh, "contents", None)
+            if trailer_obj is None:
+                continue
+
+            contents = getattr(trailer_obj, "contents", []) or []
+            if not contents:
+                continue  # skip empty trailers
+
+            tid = getattr(trailer_obj, "trailer_id", None)
+            key = tid if tid not in (None, "") else id(trailer_obj)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            trailer_list.append(trailer_obj)
+            cargo_per_trailer.append(list(contents))
+
+        if not trailer_list:
+            generate_warning(
+                "Trailer arrangement",
+                "No trailers with cargo were found in the winning mission.",
+            )
+            return
+
+        # Build and display packed arrangement view
+        from TrailerArrangement import WinningMissionTrailerPacking
+
+        view = WinningMissionTrailerPacking(
+            trailers=trailer_list,
+            cargo_per_trailer=cargo_per_trailer,
         )
-        display(viz_model, mainloop=False)
+        display(view, mainloop=False)
 
     @Part(parse=False)
     def FleetOverviewMap(self):
@@ -762,29 +1153,49 @@ class MissionStrategyApp(Base):
 
     @Attribute
     def job_trailers(self) -> List[object]:
-        # This attribute collects all trailers used in the final generated strategy
-        job_trailers: List[object] = []
-        for job in self.winning_mission.transport_jobs:
-            veh = job.transporting_vehicle
-            trailer_obj = getattr(veh, "contents", None)
-            if trailer_obj is not None:
-                name = f"{veh.machine_id}_trailer"
-                job_trailers.append(TrailerAdapter(trailer_obj, name))
-        return job_trailers
+        """Unique trailers used in the winning mission, as TrailerAdapters.
 
-    @Attribute
-    def items_to_pack(self) -> List[Item]:
-        # This attribute collects all items that were determined to be transported by trailer in the winning mission strategy
-        items: List[Item] = []
+        If the same physical trailer is used in multiple TransportJobs,
+        we only create one adapter for it in the packing visualization.
+        """
+        adapters: List[object] = []
+        seen = set()  # track trailers by logical ID
+
         for job in self.winning_mission.transport_jobs:
             veh = job.transporting_vehicle
             trailer_obj = getattr(veh, "contents", None)
             if trailer_obj is None:
                 continue
-            for machine in getattr(trailer_obj, "contents", []):
-                if machine is not None:
-                    items.append(item_from_machine(machine))
-        return items
+
+            trailer_id = getattr(trailer_obj, "trailer_id", None)
+            key = trailer_id if trailer_id not in (None, "") else id(trailer_obj)
+
+            if key in seen:
+                continue
+            seen.add(key)
+
+            name = trailer_id or f"{veh.machine_id}_trailer"
+            adapters.append(TrailerAdapter(trailer_obj, name))
+
+        # DEBUG
+        print("=== DEBUG: job_trailers ===")
+        for ad in adapters:
+            src = getattr(ad, "src", ad)
+            print(
+                "  adapter",
+                getattr(ad, "trailer_id", None),
+                "src",
+                getattr(src, "trailer_id", None),
+                "contents",
+                [
+                    getattr(m, "machine_id", None)
+                    for m in (getattr(src, "contents", []) or [])
+                    if m is not None
+                ],
+            )
+        print("=== END DEBUG job_trailers ===")
+
+        return adapters
 
     @Part
     def new_vehicle(self):

@@ -6,6 +6,7 @@ from typing import Tuple, List
 import numpy as np
 
 from EmissionsExternalTool import CO2Calculator, NOxCalculator
+from Routing import HaversineDistance
 from parapy.core import Base, Input, Attribute
 from parapy.core.validate import OneOf
 from parapy.core.widgets import PyField, TextField
@@ -612,6 +613,95 @@ class Trailer(Base):
 
     # Logical content (IDs, Machine references, or your packing Items)
     contents: List[object] = Input([None])
+
+
+def allocate_trailers_to_road_trucks(app, max_distance_m: float = 100.0) -> None:
+    """
+    Allocate nearby road-parked trailers to road-parked trucks.
+
+    Intended call site:
+        - Immediately after machine allocation in MissionStrategyApp.MissionIterator,
+          i.e. just after:
+              self.road_parked = AllocateMachines(self)
+
+    Behavior:
+        - Considers only road-parked trucks in app.road_parked.
+        - Considers only trailers that are:
+            * in app.trailers, and
+            * not already in any depot.trailers, and
+            * not already assigned as .contents of any machine.
+        - For each road truck, finds the closest such trailer within
+          max_distance_m (default: 100 m, great-circle distance).
+        - If found, sets truck.contents = that trailer, and moves the
+          trailer to the truck location (same gps_location).
+        - A trailer is only assigned to at most one truck.
+
+    This function does NOT touch depots or depot.trailers; it only
+    wires up road-parked trucks with nearby road-parked trailers.
+    """
+    # 1) collect road-parked trucks
+    road_trucks = [
+        m
+        for m in getattr(app, "road_parked", [])
+        if getattr(m, "machine_type", None) == "Truck"
+    ]
+    if not road_trucks:
+        return
+
+    # 2) collect trailers that are not in any depot and not already attached
+    #    as contents to some machine
+    all_trailers = list(getattr(app, "trailers", []))
+
+    # trailers that live in depots (we don't touch those)
+    depot_trailers = set()
+    for d in getattr(app, "depots", []):
+        for tr in getattr(d, "trailers", []):
+            depot_trailers.add(tr)
+
+    # trailers that are already attached to some machine.contents
+    attached_trailers = set()
+    for m in getattr(app, "machines", []):
+        cont = getattr(m, "contents", None)
+        if cont is not None and type(cont).__name__ == "Trailer":
+            attached_trailers.add(cont)
+
+    # candidates: road-parked, unattached trailers
+    available_trailers = [
+        tr
+        for tr in all_trailers
+        if tr not in depot_trailers and tr not in attached_trailers
+    ]
+
+    if not available_trailers:
+        return
+
+    used_trailers = set()
+
+    # 3) for each road truck, find closest available trailer within max_distance_m
+    for truck in road_trucks:
+        best_trailer = None
+        best_distance = max_distance_m
+
+        t_lat, t_lon = truck.gps_location
+
+        for trailer in available_trailers:
+            if trailer in used_trailers:
+                continue
+
+            r_lat, r_lon = trailer.gps_location
+            dist = HaversineDistance(t_lat, t_lon, r_lat, r_lon)
+
+            if dist <= best_distance:
+                best_distance = dist
+                best_trailer = trailer
+
+        if best_trailer is not None:
+            # attach trailer to truck
+            truck.contents = best_trailer
+            # move trailer to exact truck location for consistency
+            best_trailer.gps_location = truck.gps_location
+            used_trailers.add(best_trailer)
+
 
 
 if __name__ == "__main__":
