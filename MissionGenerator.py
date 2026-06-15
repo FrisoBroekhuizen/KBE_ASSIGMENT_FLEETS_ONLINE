@@ -379,12 +379,10 @@ def generate_missions(
         # If the needed vehicle is in a depot
         if type(obj).__name__ == "Depot":
             for machine in obj.machines:
-                # Check that the current machine is the needed machine
-                # and actually a vehicle (tools can not do direct routes)
                 if (
-                    machine.machine_type
-                    == app.needed_machinery
-                    and isinstance(machine, VehicleCls)
+                        machine.machine_type
+                        == app.needed_machinery
+                        and isinstance(machine, VehicleCls)
                 ):
                     transport_job = TransportJobCls(
                         transporting_vehicle=machine,
@@ -392,8 +390,10 @@ def generate_missions(
                         begin_location_gps=machine.gps_location,
                         end_location_gps=app.gps_location,
                     )
-                    work_job = app.work_job
+                    # IMPORTANT: per-mission WorkJob copy
+                    work_job = copy.copy(app.work_job)
                     work_job.assigned_vehicles = [machine]
+                    work_job.assigned_tools = []
                     mission = MissionCls(
                         transport_jobs=[transport_job],
                         work_jobs=[work_job],
@@ -403,8 +403,8 @@ def generate_missions(
 
         # If the needed vehicle is road-side parked
         elif (
-            obj.machine_type == app.needed_machinery
-            and isinstance(obj, VehicleCls)
+                obj.machine_type == app.needed_machinery
+                and isinstance(obj, VehicleCls)
         ):
             transport_job = TransportJobCls(
                 transporting_vehicle=obj,
@@ -412,8 +412,9 @@ def generate_missions(
                 begin_location_gps=obj.gps_location,
                 end_location_gps=app.gps_location,
             )
-            work_job = app.work_job
+            work_job = copy.copy(app.work_job)
             work_job.assigned_vehicles = [obj]
+            work_job.assigned_tools = []
             mission = MissionCls(
                 transport_jobs=[transport_job],
                 work_jobs=[work_job],
@@ -563,7 +564,7 @@ def generate_missions(
                     end_location_gps=app.gps_location,
                 )
 
-                work_job = app.work_job
+                work_job = copy.copy(app.work_job)
                 if isinstance(machine, VehicleCls):
                     work_job.assigned_vehicles = [machine]
                     work_job.assigned_tools = []
@@ -748,8 +749,9 @@ def generate_missions(
                 end_location_gps=app.gps_location,
             )
 
-            work_job = app.work_job
+            work_job = copy.copy(app.work_job)
             work_job.assigned_vehicles = [machine]
+            work_job.assigned_tools = []
             mission = MissionCls(
                 transport_jobs=[
                     transport_job_toDepot,
@@ -759,6 +761,7 @@ def generate_missions(
                 machines=[machine],
             )
             mission_list.append(mission)
+
         # === DEBUG: summarize generated missions per machine ===
     print("=== DEBUG: generate_missions summary ===")
     from collections import Counter
