@@ -4,7 +4,7 @@
         "name": "Boomrooierij Eindhoven",
         "gps_location": {
             "lat": 51.340466,
-            "lon": 5.464280
+            "lon": 5.46428
         },
         "overall_dimensions": [
             80.0,
@@ -20,18 +20,16 @@
             "lon": 5.1
         },
         "overall_dimensions": [
-            600.0,
-            120.0,
+            200.0,
+            60.0,
             20.0
         ],
         "orientation": 30.0
     },
-
     {
         "type": "asset",
         "id": "Trailer_Tilburg",
         "name": "Aanhanger zwaar",
-        "build_year": 2020,
         "gps_location": {
             "lat": 51.59147,
             "lon": 5.02377
@@ -41,7 +39,56 @@
             3.0,
             3.5
         ],
-        "color": "Orange"
+        "color": "Orange",
+        "is_available": "True"
+    },
+    {
+        "type": "asset",
+        "id": "Trailer_OostTilburg_1",
+        "name": "Aanhanger zwaar",
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            10.0,
+            3.0,
+            3.5
+        ],
+        "color": "Orange",
+        "is_available": "True"
+    },
+    {
+        "type": "asset",
+        "id": "Trailer_OostTilburg_2",
+        "name": "Aanhanger zwaar",
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            10.0,
+            3.0,
+            3.5
+        ],
+        "color": "Orange",
+        "is_available": "True"
+    },
+    {
+        "type": "asset",
+        "id": "Trailer_OostTilburg_3",
+        "name": "Aanhanger zwaar",
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            10.0,
+            3.0,
+            3.5
+        ],
+        "color": "Orange",
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -62,8 +109,9 @@
         "emission_class_version": "StageIIIA",
         "consumption_per_hour": 25.0,
         "engine_power": 120,
+        "is_available": "True"
     },
-        {
+    {
         "type": "asset",
         "id": "Truck_Tilburg2",
         "name": "Vrachtwagens",
@@ -81,7 +129,8 @@
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIIIA",
         "consumption_per_hour": 25.0,
-            "engine_power": 80,
+        "engine_power": 80,
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -102,6 +151,7 @@
         "emission_class_version": "StageIV",
         "consumption_per_hour": 8.0,
         "engine_power": 40,
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -122,8 +172,8 @@
         "emission_class_version": "StageIIIA",
         "consumption_per_hour": 16.0,
         "engine_power": 50,
+        "is_available": "True"
     },
-
     {
         "type": "asset",
         "id": "Tractor_Close_Old",
@@ -143,6 +193,7 @@
         "emission_class_version": "StageIV",
         "consumption_per_hour": 30.0,
         "engine_power": 150,
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -163,94 +214,49 @@
         "emission_class_version": "StageIV",
         "consumption_per_hour": 20.0,
         "engine_power": 100,
-    },
-    {
-    "type": "asset",
-    "id": "Truck_OostTilburg_3",
-    "name": "Vrachtwagens",
-    "build_year": 2016,
-    "gps_location": {
-        "lat": 51.55,
-        "lon": 5.1
-    },
-    "overall_dimensions": [
-        4.0,
-        2.5,
-        3.0
-    ],
-    "color": "Yellow",
-    "fuel_type": "Diesel (fossiel)",
-    "emission_class_version": "StageIV",
-    "engine_power": 150,
-    "consumption_per_hour": 26.0
-    },
-    {
-    "type": "asset",
-    "id": "Truck_OostTilburg_4",
-    "name": "Vrachtwagens",
-    "build_year": 2016,
-    "gps_location": {
-        "lat": 51.55,
-        "lon": 5.1
-    },
-    "overall_dimensions": [
-        4.0,
-        2.5,
-        3.0
-    ],
-    "color": "Yellow",
-    "fuel_type": "Diesel (fossiel)",
-    "emission_class_version": "StageIV",
-    "engine_power": 100,
-    "consumption_per_hour": 26.0
+        "is_available": "True"
     },
     {
         "type": "asset",
-        "id": "Trailer_OostTilburg_1",
-        "name": "Aanhanger zwaar",
-        "build_year": 2018,
+        "id": "Truck_OostTilburg_3",
+        "name": "Vrachtwagens",
+        "build_year": 2016,
         "gps_location": {
             "lat": 51.55,
             "lon": 5.1
         },
         "overall_dimensions": [
-            10.0,
-            3.0,
-            3.5
+            4.0,
+            2.5,
+            3.0
         ],
-        "color": "Orange"
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIV",
+        "consumption_per_hour": 26.0,
+        "engine_power": 150,
+        "is_available": "True"
     },
     {
         "type": "asset",
-        "id": "Trailer_OostTilburg_2",
-        "name": "Aanhanger zwaar",
-        "build_year": 2019,
+        "id": "Truck_OostTilburg_4",
+        "name": "Vrachtwagens",
+        "build_year": 2016,
         "gps_location": {
             "lat": 51.55,
             "lon": 5.1
         },
         "overall_dimensions": [
-            10.0,
-            3.0,
-            3.5
+            4.0,
+            2.5,
+            3.0
         ],
-        "color": "Orange"
-    },
-    {
-        "type": "asset",
-        "id": "Trailer_OostTilburg_3",
-        "name": "Aanhanger zwaar",
-        "build_year": 2017,
-        "gps_location": {
-            "lat": 51.55,
-            "lon": 5.1
-        },
-        "overall_dimensions": [
-            10.0,
-            3.0,
-            3.5
-        ],
-        "color": "Orange"
+        "color": "Yellow",
+        "fuel_type": "Diesel (fossiel)",
+        "emission_class_version": "StageIV",
+        "consumption_per_hour": 26.0,
+        "engine_power": 100,
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -269,8 +275,9 @@
         "color": "Yellow",
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 20.0,
         "engine_power": 50,
-        "consumption_per_hour": 20.0
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -289,8 +296,9 @@
         "color": "Yellow",
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIIIB",
+        "consumption_per_hour": 18.0,
         "engine_power": 25,
-        "consumption_per_hour": 18.0
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -299,7 +307,7 @@
         "build_year": 2017,
         "gps_location": {
             "lat": 51.52,
-            "lon": 5.00
+            "lon": 5.0
         },
         "overall_dimensions": [
             4.0,
@@ -309,8 +317,9 @@
         "color": "Yellow",
         "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "StageIIIA",
+        "consumption_per_hour": 19.0,
         "engine_power": 50,
-        "consumption_per_hour": 19.0
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -327,10 +336,11 @@
             2.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
         "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -347,12 +357,13 @@
             1.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
         "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "is_available": "True"
     },
-        {
+    {
         "type": "asset",
         "id": "Tool_Box_5",
         "name": "Tool",
@@ -367,12 +378,13 @@
             3.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
-            "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
     },
-        {
+    {
         "type": "asset",
         "id": "Tool_Box_6",
         "name": "Tool",
@@ -387,12 +399,13 @@
             1.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
-            "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
     },
-        {
+    {
         "type": "asset",
         "id": "Tool_Box_7",
         "name": "Tool",
@@ -407,10 +420,11 @@
             2.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
-            "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -427,9 +441,11 @@
             2.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
-        "consumption_per_hour": 1.0
+        "consumption_per_hour": 1.0,
+        "engine_power": 0,
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -446,10 +462,11 @@
             2.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
         "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -466,10 +483,11 @@
             2.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
         "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "is_available": "True"
     },
     {
         "type": "asset",
@@ -478,7 +496,7 @@
         "build_year": 2021,
         "gps_location": {
             "lat": 51.49,
-            "lon": 5.40
+            "lon": 5.4
         },
         "overall_dimensions": [
             2.5,
@@ -486,9 +504,10 @@
             2.0
         ],
         "color": "Blue",
-        "fuel_type": "Manual",
+        "fuel_type": "Diesel (fossiel)",
         "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0,
         "engine_power": 0,
-        "consumption_per_hour": 1.0
+        "is_available": "True"
     }
 ]

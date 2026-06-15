@@ -1608,7 +1608,7 @@ class WorkJob(Base):
         - Specific machinery, man hours and worksite location
     """
 
-    name: str = ""
+    name: str = Input("")
     man_hours: float = Input(0.0)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
     deadline: str = Input("")

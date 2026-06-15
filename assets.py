@@ -391,6 +391,10 @@ class Machine(Base):
         except Exception:
             loading_factor = 1
 
+        if loading_factor is None: loading_factor = 1
+
+        return loading_factor
+
     @Attribute
     def label(self) -> str:
         if self.is_available:
