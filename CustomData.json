@@ -113,27 +113,6 @@
     },
     {
         "type": "asset",
-        "id": "Truck_Tilburg2",
-        "name": "Vrachtwagens",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.59148,
-            "lon": 5.02378
-        },
-        "overall_dimensions": [
-            4.0,
-            2.5,
-            3.0
-        ],
-        "color": "Yellow",
-        "fuel_type": "Diesel (fossiel)",
-        "emission_class_version": "StageIIIA",
-        "consumption_per_hour": 25.0,
-        "engine_power": 80,
-        "is_available": "True"
-    },
-    {
-        "type": "asset",
         "id": "Tractor_Electric_Breda",
         "name": "Tractor",
         "build_year": 2023,
@@ -352,9 +331,9 @@
             "lon": 5.1
         },
         "overall_dimensions": [
-            5.0,
-            1.0,
-            1.0
+            0.2,
+            4.33,
+            0.2
         ],
         "color": "Blue",
         "fuel_type": "Diesel (fossiel)",
