@@ -28,7 +28,6 @@ from DataProcessing import GetFleetsOnlineData, ReadData
 from TestFunctions.TestLevel3.TimeKeeperTest import transport_job
 from TrailerArrangement import (
     Item,
-    TrailerPackingVisualization,
     item_from_machine,
     TrailerAdapter,
     pack_items_into_trailers,
@@ -771,46 +770,6 @@ class MissionStrategyApp(Base):
         )
         return winning_mission
 
-    @Attribute
-    def items_to_pack(self) -> List[Item]:
-        """Unique machines that are transported by trailer in the winning mission."""
-        items: List[Item] = []
-        seen = set()  # track physical machine objects
-
-        print("=== DEBUG: items_to_pack ===")
-        for job in self.winning_mission.transport_jobs:
-            veh = job.transporting_vehicle
-            trailer_obj = getattr(veh, "contents", None)
-            if trailer_obj is None:
-                continue
-
-            # Debug: show what this trailer is carrying
-            contents_ids = [
-                getattr(m, "machine_id", None)
-                for m in (getattr(trailer_obj, "contents", []) or [])
-                if m is not None
-            ]
-            print(
-                "  trailer",
-                getattr(trailer_obj, "trailer_id", None),
-                "contents",
-                contents_ids,
-            )
-
-            for machine in getattr(trailer_obj, "contents", []):
-                if machine is None:
-                    continue
-
-                key = getattr(machine, "machine_id", id(machine))
-                if key in seen:
-                    continue
-                seen.add(key)
-
-                # Currently you treat everything in trailers as tools for packing viz:
-                items.append(item_from_machine(machine, item_type_hint="tool"))
-
-        print("=== END DEBUG items_to_pack ===")
-        return items
 
     # Define (normalized) preferences function
     @Attribute
@@ -1151,51 +1110,6 @@ class MissionStrategyApp(Base):
 
         return map_obj
 
-    @Attribute
-    def job_trailers(self) -> List[object]:
-        """Unique trailers used in the winning mission, as TrailerAdapters.
-
-        If the same physical trailer is used in multiple TransportJobs,
-        we only create one adapter for it in the packing visualization.
-        """
-        adapters: List[object] = []
-        seen = set()  # track trailers by logical ID
-
-        for job in self.winning_mission.transport_jobs:
-            veh = job.transporting_vehicle
-            trailer_obj = getattr(veh, "contents", None)
-            if trailer_obj is None:
-                continue
-
-            trailer_id = getattr(trailer_obj, "trailer_id", None)
-            key = trailer_id if trailer_id not in (None, "") else id(trailer_obj)
-
-            if key in seen:
-                continue
-            seen.add(key)
-
-            name = trailer_id or f"{veh.machine_id}_trailer"
-            adapters.append(TrailerAdapter(trailer_obj, name))
-
-        # DEBUG
-        print("=== DEBUG: job_trailers ===")
-        for ad in adapters:
-            src = getattr(ad, "src", ad)
-            print(
-                "  adapter",
-                getattr(ad, "trailer_id", None),
-                "src",
-                getattr(src, "trailer_id", None),
-                "contents",
-                [
-                    getattr(m, "machine_id", None)
-                    for m in (getattr(src, "contents", []) or [])
-                    if m is not None
-                ],
-            )
-        print("=== END DEBUG job_trailers ===")
-
-        return adapters
 
     @Part
     def new_vehicle(self):
@@ -1606,7 +1520,6 @@ class WorkJob(Base):
     name: str = ""
     man_hours: float = Input(0.0)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
-    deadline: str = Input("")
 
     # List specifying which type of machinery is required,
     # order is not important
