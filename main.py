@@ -35,6 +35,7 @@ from TrailerArrangement import (
 from Warning import generate_warning
 import Routing
 from assets import (
+    Fleet,
     Machine,
     Trailer,
     Tractor,
@@ -166,6 +167,7 @@ class MissionStrategyApp(Base):
     depots: List[Depot] = Input([])
 
     work_job = Input(None)
+    fleet = Input(Fleet())
 
     @Input
     def gps_location(self):
@@ -194,15 +196,8 @@ class MissionStrategyApp(Base):
     def LoadData(self, use_fleets_data: bool = False):
         # reset mutable state so we don't accumulate entries across runs
         self.depots = []
-        self.machines = []
-        self.trailers = []
-        self.number_of_machines_per_type = {
-            "Crane": 0,
-            "Tractor": 0,
-            "Truck": 0,
-            "Tool": 0,
-            "Pump": 0,
-        }
+        self.fleet.machines = []
+        self.fleet.trailers = []
 
         if self.needed_machinery not in self.possible_machinery:
             generate_warning(
@@ -221,7 +216,7 @@ class MissionStrategyApp(Base):
             return
 
         work_job = WorkJob()
-        ReadData(self, use_fleets_data, work_job)
+        ReadData(self, use_fleets_data, work_job, self.fleet)
 
     all_generated_missions = Input([])
     winning_mission = Input(None)
@@ -247,14 +242,14 @@ class MissionStrategyApp(Base):
             simply appended to the winning mission.
         """
         print("=== DEBUG: current machines ===")
-        print("Total machines:", len(self.machines))
-        for m in self.machines:
+        print("Total machines:", len(self.fleet.available_machines))
+        for m in self.fleet.available_machines:
             print(type(m).__name__, getattr(m, "machine_id", None))
 
         self.work_job.needed_machine = self.needed_machinery
         self.work_job.man_hours = self.man_hours
 
-        if self.number_of_machines_per_type[self.needed_machinery] == 0:
+        if self.fleet.number_of_machines_per_type[self.needed_machinery] == 0:
             generate_warning(
                 "No machines available",
                 f"The chosen needed machinery type {self.needed_machinery} "
@@ -632,7 +627,7 @@ class MissionStrategyApp(Base):
         area_factor = 0.1
         job_machines_areas = []
 
-        for m in self.machines:
+        for m in self.fleet.available_machines:
             if m.machine_type == self.needed_machinery:
                 if m.machine_type not in ["Tool", "Pump"]:
                     job_machines_areas.append(np.pi * m.turn_radius**2)
@@ -1092,8 +1087,8 @@ class MissionStrategyApp(Base):
 
         # --- assets: initial fleet: all machines + all trailers ---
         assets_list: List[object] = []
-        assets_list.extend(self.machines)
-        assets_list.extend(self.trailers)
+        assets_list.extend(self.fleet.available_machines)
+        assets_list.extend(self.fleet.available_trailers)
 
         map_obj = FleetMapMaker(
             routes=[],
@@ -1111,10 +1106,14 @@ class MissionStrategyApp(Base):
         return map_obj
 
 
+    @Part(parse=False)
+    def Fleet(self):
+        return self.fleet
+
     @Part
     def new_vehicle(self):
         # Creates an instance of Machine of which the attributes can be filled-in in the GUI, such that it can then be exported into the custom data JSON
-        return Machine()
+        return Machine(machine_id="New Vehicle", is_available=True)
 
     @action(
         label="Export Strategy",
@@ -1162,7 +1161,8 @@ class MissionStrategyApp(Base):
                 "color": m.color,
                 "fuel_type": fuel_type,
                 "emission_class_version": m.emission_class,
-                "consumption_per_hour": m.consumption_per_hour
+                "consumption_per_hour": m.consumption_per_hour,
+                "is_available": str(m.is_available)
             }
         )
 
@@ -1272,10 +1272,11 @@ class MissionStrategyApp(Base):
                         },
                         "overall_dimensions": trailer.overall_dimensions,
                         "color": trailer.color,
+                        "is_available": str(trailer.is_available)
                     }
                 )
         else:
-            for asset in self.trailers:
+            for asset in self.fleet.trailers:
                 data.append(
                     {
                         "type": "asset",
@@ -1287,6 +1288,7 @@ class MissionStrategyApp(Base):
                         },
                         "overall_dimensions": asset.overall_dimensions,
                         "color": asset.color,
+                        "is_available": str(asset.is_available)
                     }
                 )
 
@@ -1332,10 +1334,12 @@ class MissionStrategyApp(Base):
                         "fuel_type": fuel_type,
                         "emission_class_version": asset.emission_class,
                         "consumption_per_hour": asset.consumption_per_hour,
+                        "engine_power": asset.engine_power,
+                        "is_available": str(asset.is_available)
                     }
                 )
         else:
-            for asset in self.machines:
+            for asset in self.fleet.available_machines:
                 if asset.energy_source == "diesel-(fossiel)":
                     fuel_type = "Diesel (fossiel)"
                 elif asset.energy_source == "biodiesel-(hvo)":
@@ -1367,6 +1371,8 @@ class MissionStrategyApp(Base):
                         "fuel_type": fuel_type,
                         "emission_class_version": asset.emission_class,
                         "consumption_per_hour": asset.consumption_per_hour,
+                        "engine_power": asset.engine_power,
+                        "is_available": str(asset.is_available)
                     }
                 )
 
@@ -1414,7 +1420,6 @@ class Mission(Base):
             + w_time * self.normalized_time
             + w_emissions * self.normalized_emissions
         )
-
 
 # ---------------------------------------------------------------------------
 # Jobs
@@ -1517,7 +1522,7 @@ class WorkJob(Base):
         - Specific machinery, man hours and worksite location
     """
 
-    name: str = ""
+    name: str = Input("")
     man_hours: float = Input(0.0)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
 
