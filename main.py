@@ -843,11 +843,18 @@ class MissionStrategyApp(Base):
         This attribute determines for each machine used in the final strategy, its time milestones (its start time, start working time and finished time)
         """
         timelines = []
-        for transport_job in self.winning_mission.transport_jobs:
+        for i, transport_job in enumerate(self.winning_mission.transport_jobs):
             vehicle = transport_job.transporting_vehicle
-            timelines.append(
-                [vehicle, self.start_time, self.start_time + datetime.timedelta(minutes=transport_job.routeDuration),
-                 "transport"])
+            # Check if the current transporting vehicle has already performed a leg
+            if transport_job.transporting_vehicle == self.winning_mission.transport_jobs[i - 1].transporting_vehicle:
+                timelines.append(
+                    [vehicle, timelines[-1][1], timelines[-1][1] + datetime.timedelta(minutes=transport_job.routeDuration),
+                     "transport"])
+            else:
+                timelines.append(
+                    [vehicle, self.start_time,
+                     self.start_time + datetime.timedelta(minutes=transport_job.routeDuration),
+                     "transport"])
         timelines = np.array(timelines)
         for work_job in self.winning_mission.work_jobs:
             vehicles = work_job.assigned_vehicles
@@ -862,8 +869,7 @@ class MissionStrategyApp(Base):
                     else:
                         try:
                             if (
-                                transported_vehicle.contents.contents[0]
-                                == vehicle
+                                vehicle in transported_vehicle.contents.contents
                             ):
                                 index = i
                         except Exception:
