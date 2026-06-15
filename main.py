@@ -1004,9 +1004,14 @@ class MissionStrategyApp(Base):
         for i, transport_job in enumerate(self.winning_mission.transport_jobs):
             vehicle = transport_job.transporting_vehicle
             # Check if the current transporting vehicle has already performed a leg
-            if transport_job.transporting_vehicle == self.winning_mission.transport_jobs[i - 1].transporting_vehicle:
+            if transport_job.transporting_vehicle == self.winning_mission.transport_jobs[i - 1].transporting_vehicle and i > 0:
                 timelines.append(
-                    [vehicle, timelines[-1][1], timelines[-1][1] + datetime.timedelta(minutes=transport_job.routeDuration),
+                    [vehicle, timelines[i-1][2], timelines[i-1][2] + datetime.timedelta(minutes=transport_job.routeDuration),
+                     "transport"])
+            elif transport_job.transporting_vehicle.machine_id == self.winning_mission.transport_jobs[i - 1].transporting_vehicle.machine_id and i > 0:
+                timelines.append(
+                    [vehicle, timelines[i-1][2],
+                     timelines[i-1][2] + datetime.timedelta(minutes=transport_job.routeDuration),
                      "transport"])
             else:
                 timelines.append(

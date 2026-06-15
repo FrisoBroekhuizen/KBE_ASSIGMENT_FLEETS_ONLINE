@@ -272,15 +272,19 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time) -> No
         ]
     ]
 
-    for job in mission.transport_jobs:
+    for i, job in enumerate(mission.transport_jobs):
+        if i > 0 and job.transporting_vehicle.machine_id == mission.transport_jobs[i - 1].transporting_vehicle.machine_id:
+            new_start_time += timedelta(minutes=mission.transport_jobs[i - 1].routeDuration)
+        else:
+            new_start_time = start_time
         if job.routeDuration > 1:
             transport_data.append(
                 [
                     str(job.begin_location_gps),
                     str(job.end_location_gps),
                     job.transporting_vehicle.machine_id,
-                    str(start_time),
-                    str(start_time + timedelta(minutes=job.routeDuration)),
+                    str(new_start_time),
+                    str(new_start_time + timedelta(minutes=job.routeDuration)),
                 ]
             )
 
