@@ -165,26 +165,6 @@
         "engine_power": 100,
     },
     {
-        "type": "asset",
-        "id": "Truck_OostTilburg_2",
-        "name": "Vrachtwagens",
-        "build_year": 2016,
-        "gps_location": {
-            "lat": 51.55,
-            "lon": 5.1
-        },
-        "overall_dimensions": [
-            4.0,
-            2.5,
-            3.0
-        ],
-        "color": "Yellow",
-        "fuel_type": "Diesel (fossiel)",
-        "emission_class_version": "StageIV",
-        "consumption_per_hour": 26.0,
-        "engine_power": 150,
-    },
-    {
     "type": "asset",
     "id": "Truck_OostTilburg_3",
     "name": "Vrachtwagens",
@@ -201,8 +181,8 @@
     "color": "Yellow",
     "fuel_type": "Diesel (fossiel)",
     "emission_class_version": "StageIV",
-    "consumption_per_hour": 26.0,
-        "engine_power": 150,
+    "engine_power": 150,
+    "consumption_per_hour": 26.0
     },
     {
     "type": "asset",
@@ -221,7 +201,7 @@
     "color": "Yellow",
     "fuel_type": "Diesel (fossiel)",
     "emission_class_version": "StageIV",
-        "engine_power": 100,
+    "engine_power": 100,
     "consumption_per_hour": 26.0
     },
     {
@@ -435,6 +415,25 @@
     {
         "type": "asset",
         "id": "Tool_Box_2",
+        "name": "Tool",
+        "build_year": 2019,
+        "gps_location": {
+            "lat": 51.55,
+            "lon": 5.1
+        },
+        "overall_dimensions": [
+            3.0,
+            2.0,
+            2.0
+        ],
+        "color": "Blue",
+        "fuel_type": "Manual",
+        "emission_class_version": "Manual",
+        "consumption_per_hour": 1.0
+    },
+    {
+        "type": "asset",
+        "id": "Tool_Box_3",
         "name": "Tool",
         "build_year": 2019,
         "gps_location": {
