@@ -149,7 +149,18 @@ class MissionStrategyApp(Base):
         "Waalwijk": (51.699574, 5.046544),
         "Fleets-Online offices": (51.589710, 4.836888) # This should be set to the headquarters of the company using the application
     }
+    # important to check winning missions
+    all_generated_missions = Input(
+        [],
+        widget=PyField(background_color="Green"),
+        label="⭐ All Generated Missions"
+    )
 
+    winning_mission = Input(
+        None,
+        widget=PyField(background_color="Green"),
+        label="⭐ Winning Mission (Optimal)"
+    )
     # overall_dimensions: array[x', y'], always a rectangle,
     # in its own reference system
     worksite_name: str = Input("Boomrooierij")
@@ -221,8 +232,6 @@ class MissionStrategyApp(Base):
         work_job = WorkJob()
         ReadData(self, use_fleets_data, work_job, self.fleet)
 
-    all_generated_missions = Input([])
-    winning_mission = Input(None)
 
     @action(label="Generate Strategy", button_label="Generate")
     def MissionIterator(self) -> "MissionStrategyApp":
