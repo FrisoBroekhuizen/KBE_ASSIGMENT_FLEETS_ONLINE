@@ -120,13 +120,7 @@ def GetFleetsOnlineData(app):
     for poi in pois:
         # -- The following can be added if Fleets-Online adds
         #    orientation to their POI data --
-        try:
-            if poi["orientation"] == None:
-                orientation = 0
-            else:
-                orientation = poi["orientation"]
-        except:
-            orientation = 0
+        orientation = poi.get("orientation", 0)
         # Check if the location address and shapeData is defined
         if poi["address"] is not None and poi["shapeData"] is not None:
             # For the time being to put all FleetsOnline assets
@@ -240,11 +234,11 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                     l["gps_location"]["lat"],
                     l["gps_location"]["lon"],
                 )
+                if depot.gps_location == (0, 0):
+                    depot.gps_location = app.standard_location
                 depot.overall_dimensions = l["overall_dimensions"]
                 depot.name = l["name"]
 
-                # NEW: read rotation (in degrees) from JSON,
-                # default to 0.0 if missing
                 depot.rotation = float(l.get("orientation", 0.0))
 
                 app.depots.append(depot)
@@ -326,10 +320,7 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                 l["gps_location"]["lon"],
             )
 
-            try:
-                m.color = l["color"]
-            except Exception:
-                m.color = None
+            m.color = l.get("color", None)
 
             if "Aanhanger" in l["name"]:
                 m.trailer_id = l["id"]
@@ -364,17 +355,7 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                     else:
                         m.color = "Yellow"
                 if m.machine_type in ["Tool", "Pump"]:
-                    try:
-                        m.vehicle_attachable = l["vehicle_attachable"]
-                    except:
-                        m.vehicle_attachable = True
-                # if m.machine_type == "Truck":
-                #     try:
-                #         t = Trailer()
-                #         t.overall_dimensions = l["trailer_dimensions"]
-                #         m.contents = t
-                #     except:
-                #         continue
+                    m.vehicle_attachable = l.get("vehicle_attachable", True)
                 fleet.machines.append(m)
                 fleet.number_of_machines_per_type[m.machine_type] += 1
                 if not np.all(m.overall_dimensions):

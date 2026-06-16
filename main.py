@@ -79,12 +79,6 @@ class MissionStrategyApp(Base):
         - The routes of the final strategy
         - PDF summary of the chosen strategy
         - Current fleet visualized on the map
-
-    To Do's:
-        - make preference interface (action with standard preference
-          with easy names such as greedy or hurry), also the option to
-          define own preferences and normalize within function.
-        - If time: combine multiple work jobs into one mission.
     """
     # List of weights for the different optimisation goals
     mission_preferences: List[float] = Input(
@@ -125,7 +119,6 @@ class MissionStrategyApp(Base):
         widget=PyField(),
         label="Tool IDs to pack (machine_id list, e.g. ['T1', 'T2'])",
     )
-#TODO: ADD VALIDATOR FOR GOODS TO PAK IDS
     man_hours: float = Input(
         0.0,
         validator=IsInstance((int, float)),
@@ -743,7 +736,7 @@ class MissionStrategyApp(Base):
         del road_parked
 
         for i, d in enumerate(self.depots):
-            d.visual_y_offset = current_y
+            d.gps_location = (0, current_y)
             current_y += 10 + d.overall_dimensions[1]
             depots_local.append(d)
 
