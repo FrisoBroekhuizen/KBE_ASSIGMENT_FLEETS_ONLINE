@@ -216,7 +216,7 @@ def viable_mission_generator(
     """Standalone version of MissionStrategyApp.viableMissionGenerator()."""
     max_worksite_machines = app.jobAnalyzer()
     possibleMachines = []
-    for m in app.fleet.machines:
+    for m in app.fleet.available_machines:
         if m.machine_type == app.needed_machinery:
             possibleMachines.append(m)
     max_number_of_machines = min(
