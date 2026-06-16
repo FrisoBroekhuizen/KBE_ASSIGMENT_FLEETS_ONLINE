@@ -388,6 +388,7 @@ class MissionStrategyApp(Base):
         #     to the chosen winning_mission.
         add_goods_transport_to_winning_mission(self, TransportJob)
 
+
         return self.winning_mission
 
     def jobAnalyzer(self):
@@ -736,7 +737,7 @@ class MissionStrategyApp(Base):
         del road_parked
 
         for i, d in enumerate(self.depots):
-            d.gps_location = (0, current_y)
+            d.visual_y_offset = current_y
             current_y += 10 + d.overall_dimensions[1]
             depots_local.append(d)
 

@@ -16,8 +16,8 @@
         "type": "poi",
         "name": "Garage Oost Tilburg",
         "gps_location": {
-            "lat": 0,
-            "lon": 0
+            "lat": 51.55,
+            "lon": 5.1
         },
         "overall_dimensions": [
             200.0,
@@ -113,48 +113,6 @@
     },
     {
         "type": "asset",
-        "id": "Truck_Tilburg",
-        "name": "Vrachtwagens",
-        "build_year": 2020,
-        "gps_location": {
-            "lat": 51.59148,
-            "lon": 5.02378
-        },
-        "overall_dimensions": [
-            4.0,
-            2.5,
-            3.0
-        ],
-        "color": "Yellow",
-        "fuel_type": "Diesel (fossiel)",
-        "emission_class_version": "StageIIIA",
-        "consumption_per_hour": 25.0,
-        "engine_power": 120,
-        "is_available": "True"
-    },
-    {
-        "type": "asset",
-        "id": "Tractor_Electric_Breda",
-        "name": "Tractor",
-        "build_year": 2023,
-        "gps_location": {
-            "lat": 51.5853,
-            "lon": 4.7328
-        },
-        "overall_dimensions": [
-            3.0,
-            2.5,
-            3.0
-        ],
-        "color": "Green",
-        "fuel_type": "Electric",
-        "emission_class_version": "StageIV",
-        "consumption_per_hour": 8.0,
-        "engine_power": 40,
-        "is_available": "True"
-    },
-    {
-        "type": "asset",
         "id": "Tractor_Depot_X",
         "name": "Tractor",
         "build_year": 2020,
@@ -167,10 +125,10 @@
             2.5,
             3.0
         ],
-        "color": "Black",
-        "fuel_type": "Diesel (fossiel)",
+        "color": "Purple",
+        "fuel_type": "Biodiesel",
         "emission_class_version": "StageIIIA",
-        "consumption_per_hour": 16.0,
+        "consumption_per_hour": 25.0,
         "engine_power": 50,
         "is_available": "True"
     },
@@ -180,8 +138,8 @@
         "name": "Tractor",
         "build_year": 2020,
         "gps_location": {
-            "lat": 51.462,
-            "lon": 5.68
+            "lat": 51.385711,
+            "lon": 5.472275
         },
         "overall_dimensions": [
             3.0,

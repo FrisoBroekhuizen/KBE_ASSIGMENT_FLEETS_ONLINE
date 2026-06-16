@@ -81,6 +81,7 @@ class Depot(GeomBase):
     available_machine_types = Input([])
     visual_y_offset: float = Input(0.0)
 
+
     # --------------------------------
     #  FUNCTION 1: Allocating assets to specific depots
     # --------------------------------
