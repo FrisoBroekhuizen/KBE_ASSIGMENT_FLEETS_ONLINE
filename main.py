@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import time
+from msilib.schema import Property
 from typing import List, Tuple, Optional
 
 import numpy as np
@@ -87,7 +88,7 @@ class MissionStrategyApp(Base):
 
     mission_preferences: List[float] = Input(
         [1.0, 1.0, 1.0],
-        label="Mission Preferences (cost, time, emissions)",
+        label="Mission Preferences: (cost, time, emissions)",
         validator=all_is_number,
     )  # List of weights for the different optimisation goals
 
@@ -114,7 +115,7 @@ class MissionStrategyApp(Base):
                 else "White"
             ),
         ),
-        label="Needed Machinery"
+        label="Needed Machinery:"
     )
     # Optional: extra tools to be shipped as "goods" to the work site.
     # List of tool machine_id strings, all of which must be located in the same depot.
@@ -132,7 +133,7 @@ class MissionStrategyApp(Base):
                 "Red" if self.man_hours == 0 else "White"
             ),
         ),
-        label="Man Hours"
+        label="Man Hours:"
     )
 
     # default: no deadline restriction
@@ -163,9 +164,13 @@ class MissionStrategyApp(Base):
     )
     # overall_dimensions: array[x', y'], always a rectangle,
     # in its own reference system
-    worksite_name: str = Input("Boomrooierij")
-    site_dimensions: Tuple[float, float] = Input((100.0, 100.0))
-    orientation: float = Input(0.0)
+    worksite_name: str = Input(
+        "Boomrooierij",
+        widget=TextField(),
+        label="📍 Worksite: Name"
+    )
+    # site_dimensions: Tuple[float, float] = Input((100.0, 100.0))
+    # orientation: float = Input(0.0)
 
     # number_of_machines_per_type = {
     #     "Crane": 0,
@@ -176,19 +181,17 @@ class MissionStrategyApp(Base):
     # }
 
     # Aggregations / associations
-    machines: List[Machine] = Input([])
-    trailers: List[Trailer] = Input([])
     depots: List[Depot] = Input([])
 
     work_job = Input(None)
     fleet = Input(Fleet())
 
-    @Input
+    @property
     def gps_location(self):
         if self.work_job is not None:
             return self.work_job.gps_location
         else:
-            return (0, 0)
+            return (0.0, 0.0)
 
     # This should be the coordinates of the headquarters of the company that uses it
     @Input
@@ -397,7 +400,7 @@ class MissionStrategyApp(Base):
                 else:
                     job_machines_areas.append(m.overall_dimensions[0] * m.overall_dimensions[1] * 2)
 
-        job_area = self.site_dimensions[0] * self.site_dimensions[1]
+        job_area = self.work_job.site_dimensions[0] * self.work_job.site_dimensions[1]
         average_job_machine_area = (
             np.mean(job_machines_areas) if job_machines_areas else 0.0
         )
@@ -692,7 +695,7 @@ class MissionStrategyApp(Base):
 
         for _wj in work_jobs:
             try:
-                L, W = self.site_dimensions
+                L, W = _wj.site_dimensions
                 L *= 10.0
                 W *= 10.0
             except Exception:
@@ -700,7 +703,7 @@ class MissionStrategyApp(Base):
 
             H = 100.0
             worksite_sizes.append((float(L), float(W), float(H)))
-            worksite_rotations.append(float(self.orientation))
+            worksite_rotations.append(float(_wj.orientation))
 
         # Instantiate map object with explicit sizes & rotations + object refs
         map_obj = MapMaker(
@@ -820,21 +823,23 @@ class MissionStrategyApp(Base):
         if self.work_job is not None:
             worksite_points.append(self.work_job.gps_location)
             worksite_objects.append(self.work_job)
+            try:
+                L, W = self.work_job.site_dimensions
+                L *= 10.0
+                W *= 10.0
+            except Exception:
+                L, W = 2000.0, 2000.0
+            orient = float(self.work_job.orientation)
         else:
             # dummy point if no work_job defined
             worksite_points.append((0.0, 0.0))
             worksite_objects.append(None)
-
-        try:
-            L, W = self.site_dimensions
-            L *= 10.0
-            W *= 10.0
-        except Exception:
             L, W = 2000.0, 2000.0
+            orient = 0.0
 
         H = 100.0
         worksite_sizes.append((float(L), float(W), float(H)))
-        worksite_rotations.append(float(self.orientation))
+        worksite_rotations.append(orient)
 
         # --- depot GPS points + sizes + rotations + objects ---
         depot_points: List[Tuple[float, float]] = []
@@ -992,8 +997,8 @@ class MissionStrategyApp(Base):
                     "lat": self.work_job.gps_location[0],
                     "lon": self.work_job.gps_location[1],
                 },
-                "overall_dimensions": self.site_dimensions,
-                "orientation": self.orientation,
+                "overall_dimensions": self.work_job.site_dimensions,
+                "orientation": self.work_job.orientation,
             }
         )
 
@@ -1233,7 +1238,7 @@ class TransportJob(Base):
 
     max_speeds = {
         "Truck": 80,
-        "Tractor": 10,
+        "Tractor": 30,
         "Crane": 45,
         "Excavator": 40,
         "Vehicle": 100,
@@ -1307,6 +1312,9 @@ class WorkJob(Base):
     name: str = Input("")
     man_hours: float = Input(0.0)
     gps_location: Tuple[float, float] = Input((0.0, 0.0))
+
+    site_dimensions: Tuple[float, float] = Input((100.0, 100.0))
+    orientation: float = Input(0.0)
 
     # List specifying which type of machinery is required,
     # order is not important
