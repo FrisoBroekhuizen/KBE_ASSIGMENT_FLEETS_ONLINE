@@ -6,15 +6,51 @@ from typing import Tuple, List
 import numpy as np
 
 from EmissionsExternalTool import CO2Calculator, NOxCalculator
-from parapy.core import Base, Input, Attribute
+from Routing import HaversineDistance
+from parapy.core import Base, Input, Attribute, Part
 from parapy.core.validate import OneOf
-from parapy.core.widgets import PyField, TextField
+from parapy.core.widgets import PyField, TextField, CheckBox
 
 
 # ---------------------------------------------------------------------------
 # Superclass: Machine and its specializations
 # ---------------------------------------------------------------------------
 
+class Fleet(Base):
+    machines = Input([])
+    trailers = Input([])
+
+    number_of_machines_per_type = {
+        "Crane": 0,
+        "Tractor": 0,
+        "Truck": 0,
+        "Tool": 0,
+        "Pump": 0,
+    }
+
+    @Attribute
+    def available_machines(self):
+        available = []
+        for machine in self.machines:
+            if machine.is_available:
+                available.append(machine)
+        return available
+
+    @Attribute
+    def available_trailers(self):
+        available = []
+        for trailer in self.trailers:
+            if trailer.is_available:
+                available.append(trailer)
+        return available
+
+    @Part(parse=False)
+    def Machines(self):
+        return self.machines
+
+    @Part(parse=False)
+    def Trailers(self):
+        return self.trailers
 
 class Machine(Base):
     """
@@ -60,6 +96,8 @@ class Machine(Base):
             ),
         ),
     )
+
+    is_available: bool = Input(True, widget=CheckBox())
 
     # default current year (new)
     build_year: int = Input(
@@ -160,6 +198,7 @@ class Machine(Base):
 
     total_hours_used = Input(0.0)
     hours_used = Input(0.0)
+    engine_power = Input(0.0) # kWh
 
     # Assumed data contains hours/day
     operating_fraction = 8
@@ -225,7 +264,7 @@ class Machine(Base):
         if self.energy_source == "Manual":
             return 0
         fuel_type = self.energy_source.lower()
-        fuel_usage = self.consumption_per_hour * self.hours_used
+        fuel_usage = self.consumption_per_hour * self.hours_used * self.loading_factor
         result = CO2Calculator(
             energy_source=self.energy_source,
             fuel_type=fuel_type,
@@ -239,12 +278,13 @@ class Machine(Base):
         """NOx [g] over self.hours_used using AUB method by default."""
         if self.emission_class == "Manual":
             return 0
-        fuel_usage = self.consumption_per_hour * self.hours_used
+        fuel_usage = self.consumption_per_hour * self.hours_used * self.loading_factor
         result = NOxCalculator(
             energy_source=self.energy_source,
             emission_class=self.emission_class,
             fuel_liters=fuel_usage,
             engine_hours=self.hours_used,
+            engine_power=self.engine_power
         )
         return result
 
@@ -256,27 +296,12 @@ class Machine(Base):
         # extra emissions, reliability, etc.
         wear_factor = self.individual_depreciation
 
-        # Check if vehicle is carrying any additional mass
-        try:
-            content_mass = self.contents.mass
-            try:
-                # Check if vehicle was carrying a trailer that
-                # is carrying additional mass
-                trailer_content_mass = self.contents.contents[0].mass
-            except Exception:
-                trailer_content_mass = 0
-            loading_factor = (
-                self.mass + content_mass + trailer_content_mass
-            ) / self.mass
-        except Exception:
-            loading_factor = 1
-
         # Operating costs: fuel, predicted maintenance and wages
         operating_cost = (
             self.consumption_per_hour
             * hours_used
             * self.energy_source_cost[self.energy_source]
-            * loading_factor
+            * self.loading_factor
             * wear_factor
         )
         operating_cost += self.wage * self.hours_used
@@ -348,6 +373,35 @@ class Machine(Base):
         wear_factor = np.exp(decay_factor * self.age)
         return wear_factor
 
+    @Attribute
+    def loading_factor(self):
+        # Check if vehicle is carrying any additional mass
+        try:
+            content_mass = self.contents.mass
+            try:
+                # Check if vehicle was carrying a trailer that
+                # is carrying additional mass
+                trailer_content_mass = 0
+                for c in self.contents.contents:
+                    trailer_content_mass += c.mass
+            except Exception:
+                trailer_content_mass = 0
+            loading_factor = (
+                                     self.mass + content_mass + trailer_content_mass
+                             ) / self.mass
+        except Exception:
+            loading_factor = 1
+
+        if loading_factor is None: loading_factor = 1
+
+        return loading_factor
+
+    @Attribute
+    def label(self) -> str:
+        if self.is_available:
+            return self.machine_id
+        else:
+            return f"⚠ {self.machine_id} (unavailable)"
 
 class Vehicle(Machine):
     """
@@ -560,6 +614,7 @@ class Tool(Machine):
     vehicle_attachable: bool = Input(False)
     color = Input("Blue")
     upright_only: bool = Input(False)
+    turn_radius = 0
 
 
 class Pump(Tool):
@@ -588,6 +643,8 @@ class Trailer(Base):
     # Identifier for reporting / debug
     trailer_id: str = Input("")
 
+    is_available: bool = Input(True, widget=CheckBox())
+
     # Internal usable cargo volume [L, W, H] in meters
     carrying_bounding_box: Tuple[float, float, float] = Input(
         (0.0, 0.0, 0.0)
@@ -613,6 +670,99 @@ class Trailer(Base):
     # Logical content (IDs, Machine references, or your packing Items)
     contents: List[object] = Input([None])
 
+    @Attribute
+    def label(self):
+        if self.is_available:
+            return self.trailer_id
+        else:
+            return f"⚠ {self.trailer_id} (unavailable)"
+
+def allocate_trailers_to_road_trucks(app, max_distance_m: float = 100.0) -> None:
+    """
+    Allocate nearby road-parked trailers to road-parked trucks.
+
+    Intended call site:
+        - Immediately after machine allocation in MissionStrategyApp.MissionIterator,
+          i.e. just after:
+              self.road_parked = AllocateMachines(self)
+
+    Behavior:
+        - Considers only road-parked trucks in app.road_parked.
+        - Considers only trailers that are:
+            * in app.trailers, and
+            * not already in any depot.trailers, and
+            * not already assigned as .contents of any machine.
+        - For each road truck, finds the closest such trailer within
+          max_distance_m (default: 100 m, great-circle distance).
+        - If found, sets truck.contents = that trailer, and moves the
+          trailer to the truck location (same gps_location).
+        - A trailer is only assigned to at most one truck.
+
+    This function does NOT touch depots or depot.trailers; it only
+    wires up road-parked trucks with nearby road-parked trailers.
+    """
+    # 1) collect road-parked trucks
+    road_trucks = [
+        m
+        for m in getattr(app, "road_parked", [])
+        if getattr(m, "machine_type", None) == "Truck"
+    ]
+    if not road_trucks:
+        return
+
+    # 2) collect trailers that are not in any depot and not already attached
+    #    as contents to some machine
+    all_trailers = list(app.fleet.available_trailers)
+
+    # trailers that live in depots (we don't touch those)
+    depot_trailers = set()
+    for d in getattr(app, "depots", []):
+        for tr in getattr(d, "trailers", []):
+            depot_trailers.add(tr)
+
+    # trailers that are already attached to some machine.contents
+    attached_trailers = set()
+    for m in app.fleet.available_machines:
+        cont = getattr(m, "contents", None)
+        if cont is not None and type(cont).__name__ == "Trailer":
+            attached_trailers.add(cont)
+
+    # candidates: road-parked, unattached trailers
+    available_trailers = [
+        tr
+        for tr in all_trailers
+        if tr not in depot_trailers and tr not in attached_trailers
+    ]
+
+    if not available_trailers:
+        return
+
+    used_trailers = set()
+
+    # 3) for each road truck, find closest available trailer within max_distance_m
+    for truck in road_trucks:
+        best_trailer = None
+        best_distance = max_distance_m
+
+        t_lat, t_lon = truck.gps_location
+
+        for trailer in available_trailers:
+            if trailer in used_trailers:
+                continue
+
+            r_lat, r_lon = trailer.gps_location
+            dist = HaversineDistance(t_lat, t_lon, r_lat, r_lon)
+
+            if dist <= best_distance:
+                best_distance = dist
+                best_trailer = trailer
+
+        if best_trailer is not None:
+            # attach trailer to truck
+            truck.contents = best_trailer
+            # move trailer to exact truck location for consistency
+            best_trailer.gps_location = truck.gps_location
+            used_trailers.add(best_trailer)
 
 if __name__ == "__main__":
     from parapy.gui import display

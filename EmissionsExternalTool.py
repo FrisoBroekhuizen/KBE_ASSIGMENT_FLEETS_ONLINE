@@ -95,6 +95,7 @@ def NOxCalculator(
     emission_class: str,
     fuel_liters: float | None = None,
     engine_hours: float | None = None,
+    engine_power: float | None = None,
 ) -> float:
     if energy_source.strip().lower() == "electric":
         return 0.0
@@ -103,7 +104,7 @@ def NOxCalculator(
 
     body = {
         "emissionClassVersion": emission_class,
-        "kwh": 250,  # required — engine power in kW
+        "kwh": int(engine_power),  # required — engine power in kW
         "usesAdblue": False,
         "adblueLiters": 6.2,
     }
@@ -111,6 +112,7 @@ def NOxCalculator(
         body["fuelLiters"] = float(fuel_liters)
     if engine_hours is not None:
         body["engineHours"] = float(engine_hours)
+        body["fuelLiters"] = fuel_liters * engine_hours
 
     try:
         resp = requests.post(
@@ -125,7 +127,9 @@ def NOxCalculator(
 
         resp.raise_for_status()
         data = resp.json()
-        return float(data["noxGrams"])
+        result = data["noxGrams"] / 1000
+        if result < 0: result = 0 # Prevent negative values caused by too small engine operating hours
+        return float(result)
     except requests.RequestException as exc:
         generate_warning(
             "Emissions API error",

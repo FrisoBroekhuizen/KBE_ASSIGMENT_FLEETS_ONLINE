@@ -120,21 +120,13 @@ def GetFleetsOnlineData(app):
     for poi in pois:
         # -- The following can be added if Fleets-Online adds
         #    orientation to their POI data --
-        try:
-            if poi["orientation"] == None:
-                orientation = 0
-            else:
-                orientation = poi["orientation"]
-        except:
-            orientation = 0
+        orientation = poi.get("orientation", 0)
         # Check if the location address and shapeData is defined
         if poi["address"] is not None and poi["shapeData"] is not None:
             # For the time being to put all FleetsOnline assets
             # in the depot
-            # (
-            #     poi["address"]["lat"],
-            #     poi["address"]["lat"],
-            # ) = app.standard_location
+            poi["address"]["lat"] = app.standard_location[0]
+            poi["address"]["lon"] = app.standard_location[1]
             data.append(
                 {
                     "type": "poi",
@@ -187,10 +179,15 @@ def GetFleetsOnlineData(app):
                         "overall_dimensions": standard_dimensions[
                             asset["type"]["name"]
                         ],
-                        "color": "yellow",
+                        # "color": "yellow",
+                        "is_available": "True"
                     }
                 )
             else:
+                if asset["kwh"] is None:
+                    engine_power = 50
+                else:
+                    engine_power = asset["kwh"]
                 data.append(
                     {
                         "type": "asset",
@@ -204,11 +201,13 @@ def GetFleetsOnlineData(app):
                         "overall_dimensions": standard_dimensions[
                             asset["type"]["name"]
                         ],
-                        "color": "yellow",
+                        # "color": "yellow",
                         "fuel_type": asset["fuelType"]["name"],
                         "emission_class_version": "StageIIIB",
                         # Common emission class for heavy machinery, standard input as our Fleets-Online data does not have emission_class assigned
                         "consumption_per_hour": cons,
+                        "engine_power": engine_power,
+                        "is_available": "True"
                     }
                 )
 
@@ -218,7 +217,7 @@ def GetFleetsOnlineData(app):
 
     return pois, assets
 
-def ReadData(app, use_fleets_data, workjob):
+def ReadData(app, use_fleets_data, workjob, fleet):
     if use_fleets_data:
         with open("FleetsOnlineData.json", "r") as file:
             data = json.load(file)
@@ -235,17 +234,17 @@ def ReadData(app, use_fleets_data, workjob):
                     l["gps_location"]["lat"],
                     l["gps_location"]["lon"],
                 )
+                if depot.gps_location == (0, 0):
+                    depot.gps_location = app.standard_location
                 depot.overall_dimensions = l["overall_dimensions"]
                 depot.name = l["name"]
 
-                # NEW: read rotation (in degrees) from JSON,
-                # default to 0.0 if missing
                 depot.rotation = float(l.get("orientation", 0.0))
 
                 app.depots.append(depot)
-
-            # ---------------- Work site ----------------
+                # ---------------- Work site ---------------
             elif app.worksite_name in l["name"]:
+
                 if l["gps_location"] is None:
                     print("One of the worksites has no location data")
                     workjob.gps_location = (
@@ -263,21 +262,12 @@ def ReadData(app, use_fleets_data, workjob):
                 workjob.name = l["name"]
 
                 app.work_job = workjob
-                app.gps_location = workjob.gps_location
+                # app.gps_location = workjob.gps_location
 
-                # Use only L, W from overall_dimensions; ignore height
-                # for site area
-                dims = l.get(
-                    "overall_dimensions",
-                    [100.0, 100.0, 0.0],
-                )
-                app.site_dimensions = (
-                    float(dims[0]),
-                    float(dims[1]),
-                )
-
-                # Orientation is optional; default to 0 if not in JSON
-                app.orientation = float(l.get("orientation", 0.0))
+                # --- MODIFIED: Assign geometric data directly to workjob ---
+                dims = l.get("overall_dimensions", [100.0, 100.0, 0.0])
+                workjob.site_dimensions = (float(dims[0]), float(dims[1]))
+                workjob.orientation = float(l.get("orientation", 0.0))
 
         elif l["type"] == "asset":
             # --------- create correct machine/trailer type ----------
@@ -317,25 +307,26 @@ def ReadData(app, use_fleets_data, workjob):
                     "[2 x 2 x 2] are used instead.",
                 )
 
-            m.build_year = l["build_year"]
-            if m.build_year is None:
-                m.build_year = 2026
+            try:
+                if l["is_available"] == "True":
+                    m.is_available = True
+                else:
+                    m.is_available = False
+            except:
+                m.is_available = True
 
             m.gps_location = (
                 l["gps_location"]["lat"],
                 l["gps_location"]["lon"],
             )
 
-            try:
-                m.color = l["color"]
-            except Exception:
-                m.color = None
+            m.color = l.get("color", None)
 
             if "Aanhanger" in l["name"]:
                 m.trailer_id = l["id"]
                 if m.color is None:
                     m.color = "Orange"
-                app.trailers.append(m)
+                fleet.trailers.append(m)
                 if not np.all(m.overall_dimensions):
                     generate_warning(
                         "Warning: Dimension(s) missing",
@@ -354,10 +345,19 @@ def ReadData(app, use_fleets_data, workjob):
 
                 m.emission_class = l["emission_class_version"]
                 m.consumption_per_hour = l["consumption_per_hour"]
+                m.engine_power = l["engine_power"]
+                m.build_year = l["build_year"]
+                if m.build_year is None:
+                    m.build_year = 2026
                 if m.color is None:
-                    m.color = "Yellow"
-                app.machines.append(m)
-                app.number_of_machines_per_type[m.machine_type] += 1
+                    if m.machine_type in ["Tool", "Pump"]:
+                        m.color = "Blue"
+                    else:
+                        m.color = "Yellow"
+                if m.machine_type in ["Tool", "Pump"]:
+                    m.vehicle_attachable = l.get("vehicle_attachable", True)
+                fleet.machines.append(m)
+                fleet.number_of_machines_per_type[m.machine_type] += 1
                 if not np.all(m.overall_dimensions):
                     generate_warning(
                         "Warning: Dimension(s) missing",
@@ -397,3 +397,5 @@ def ReadData(app, use_fleets_data, workjob):
                 "an entry of an unknown type, this entry will be "
                 "ignored.",
             )
+
+
