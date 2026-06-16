@@ -136,6 +136,11 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
         )
     )
 
+    if strict_deadline and deadline_time > timelines[-1][2]:
+        story.append(Paragraph(f"<b>Deadline Met:</b> Yes", styles["BodyText"]))
+    elif strict_deadline and deadline_time < timelines[-1][2]:
+        story.append(Paragraph(f"<b>Deadline Met:</b> No", styles["BodyText"]))
+
     story.append(PageBreak())
 
     # ==========================================================
@@ -166,14 +171,15 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
 
     kpi_table = Table(
         [
-            ["Total Cost", r"CO_2", "NOx"],
+            ["Total Cost", r"CO_2", "NOx", "Time Finished"],
             [
                 f"€ {mission.mission_cost:,.0f} eur",
                 f"{mission.mission_CO2:.1f} kg",
                 f"{mission.mission_NOx:.1f} kg",
+                f"{timelines[-1][2]}"
             ],
         ],
-        colWidths=[60 * mm, 50 * mm, 50 * mm],
+        colWidths=[42 * mm, 42 * mm, 42 * mm, 42 * mm],
     )
 
     kpi_table.setStyle(
@@ -196,7 +202,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
     # FLEET OVERVIEW
     # ==========================================================
 
-    story.append(Paragraph("Fleet Overview", styles["SectionTitle"]))
+    story.append(Paragraph("Used Fleet Overview", styles["SectionTitle"]))
 
     machine_data = [
         [
@@ -369,7 +375,8 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             "Origin",
             "Destination",
             "Machine",
-            "Start",
+            "Trailer",
+            "Start (" + start_time.strftime("%Y-%m-%d") + ")",
             "Arrival",
         ]
     ]
@@ -379,14 +386,19 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             new_start_time += timedelta(minutes=mission.transport_jobs[i - 1].routeDuration)
         else:
             new_start_time = start_time
+        if job.transporting_vehicle.contents != None:
+            trailer = job.transporting_vehicle.contents.trailer_id
+        else:
+            trailer = "-"
         if job.routeDuration > 1:
             transport_data.append(
                 [
                     str(job.begin_location_gps),
                     str(job.end_location_gps),
                     job.transporting_vehicle.machine_id,
-                    str(new_start_time),
-                    str(new_start_time + timedelta(minutes=job.routeDuration)),
+                    trailer,
+                    str(new_start_time.strftime("%H:%M:%S")),
+                    str((new_start_time + timedelta(minutes=job.routeDuration)).strftime("%H:%M:%S")),
                 ]
             )
 
