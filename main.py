@@ -8,12 +8,13 @@ import subprocess
 import sys
 import time
 from msilib.schema import Property
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional as TypingOptional
+
 
 import numpy as np
 import requests
 from parapy.core import Base, Input, Attribute, Part, child, action
-from parapy.core.validate import OneOf, all_is_number
+from parapy.core.validate import OneOf, all_is_number, IsInstance, Optional as OptionalValidator
 from parapy.core.widgets import PyField, CheckBox, TextField
 from parapy.exchange import STEPWriter
 from parapy.geom import Box
@@ -85,12 +86,12 @@ class MissionStrategyApp(Base):
           define own preferences and normalize within function.
         - If time: combine multiple work jobs into one mission.
     """
-
+    # List of weights for the different optimisation goals
     mission_preferences: List[float] = Input(
         [1.0, 1.0, 1.0],
         label="Mission Preferences: (cost, time, emissions)",
         validator=all_is_number,
-    )  # List of weights for the different optimisation goals
+    )
 
     # Add desired new machinery types here if needed
     possible_machinery = [
@@ -125,8 +126,9 @@ class MissionStrategyApp(Base):
         label="Tool IDs to pack (machine_id list, e.g. ['T1', 'T2'])",
     )
 #TODO: ADD VALIDATOR FOR GOODS TO PAK IDS
-    man_hours = Input(
-        0,
+    man_hours: float = Input(
+        0.0,
+        validator=IsInstance((int, float)),
         widget=PyField(
             autocompute=True,
             background_color=lambda self: (
@@ -138,9 +140,30 @@ class MissionStrategyApp(Base):
 
     # default: no deadline restriction
     strict_deadline: bool = Input(False, widget=CheckBox(), label="Strict Deadline?")
-    start_time = Input((datetime.datetime.now() + datetime.timedelta(days=1)).replace(hour=8, minute=0, second=0, microsecond=0), label="Start Time (yyyy, mm, dd, hrs, min)")
+    start_time: datetime.datetime = Input(
+        (datetime.datetime.now() + datetime.timedelta(days=1)).replace(
+            hour=8, minute=0, second=0, microsecond=0
+        ),
+        validator=IsInstance(datetime.datetime),
+        label="Start Time (yyyy, mm, dd, hrs, min)",
+    )
+
     # Only required / meaningful if strict_deadline is True
-    deadline_time: Optional[datetime.datetime] = Input(None, label="Deadline Time (yyyy, mm, dd, hrs, min)")
+    deadline_time: TypingOptional[datetime.datetime] = Input(
+        None,
+        validator=OptionalValidator(IsInstance(datetime.datetime)),
+        label="Deadline Time (yyyy, mm, dd, hrs, min)",
+    )
+
+    @deadline_time.validator
+    def deadline_time(self, value, slot):
+        """Enforce deadline > start_time when a deadline is given."""
+        if value is None:
+            return True  # allowed through OptionalValidator(...)
+        # IsInstance + OptionalValidator already enforce type, so we only need the ordering check:
+        if value <= self.start_time:
+            return False, "Deadline must be strictly after the start time."
+        return True
 
     standard_locations = {
         "Eindhoven": (51.468288, 5.421365),
@@ -169,16 +192,6 @@ class MissionStrategyApp(Base):
         widget=TextField(),
         label="📍 Worksite: Name"
     )
-    # site_dimensions: Tuple[float, float] = Input((100.0, 100.0))
-    # orientation: float = Input(0.0)
-
-    # number_of_machines_per_type = {
-    #     "Crane": 0,
-    #     "Tractor": 0,
-    #     "Truck": 0,
-    #     "Tool": 0,
-    #     "Pump": 0,
-    # }
 
     # Aggregations / associations
     depots: List[Depot] = Input([])
@@ -730,7 +743,7 @@ class MissionStrategyApp(Base):
         del road_parked
 
         for i, d in enumerate(self.depots):
-            d.gps_location = (0, current_y)
+            d.visual_y_offset = current_y
             current_y += 10 + d.overall_dimensions[1]
             depots_local.append(d)
 
