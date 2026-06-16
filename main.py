@@ -383,13 +383,12 @@ class MissionStrategyApp(Base):
             * Tools are converted into packing Items and packed into the minimum
               number of trailers using pack_items_into_trailers(), with trailers
               sorted from largest to smallest.
-            * Each used trailer is assigned a dedicated truck from the same depot
-              (assumes number of trucks >= number of used trailers).
-            * For each (truck, trailer) pair we create a TransportJob from depot
-              to work site and append it to self.winning_mission.transport_jobs.
+            * Extra trailers are then pulled from that depot to the work site.
+              If there are fewer trucks than trailers, a single truck will shuttle
+              back-and-forth to move the remaining trailers.
             * Trailer.contents is set to the packed tools for trailer_arrangement.
 
-        - JOINT mode (new):
+        - JOINT mode:
             * Only if:
                 - at least one needed machine (self.needed_machinery) in the
                   winning mission comes from the same depot that holds all
@@ -407,7 +406,9 @@ class MissionStrategyApp(Base):
                   its existing mission job is reused, and we only update
                   trailer.contents to include the co-packed tools.
         """
+        # ------------------------------------------------------------------
         # Basic guards
+        # ------------------------------------------------------------------
         if self.winning_mission is None:
             return
         if not self.goods_to_pack_ids:
@@ -421,7 +422,7 @@ class MissionStrategyApp(Base):
             return
 
         # ------------------------------------------------------------------
-        # 1) Collect tool objects per depot (same as before)
+        # 1) Collect tool objects per depot
         # ------------------------------------------------------------------
         requested_ids = set(str(x) for x in self.goods_to_pack_ids)
         candidate_depots = []
@@ -464,7 +465,7 @@ class MissionStrategyApp(Base):
         )
 
         # ------------------------------------------------------------------
-        # 2) Trailers and trucks at this depot (same as before)
+        # 2) Trailers and trucks at this depot
         # ------------------------------------------------------------------
         depot_trailers = list(depot.trailers)
         if not depot_trailers:
@@ -488,7 +489,7 @@ class MissionStrategyApp(Base):
             )
             return
 
-        # Sort trailers from large to small (by volume of carrying_bounding_box)
+        # Sort trailers from large to small (by volume)
         def trailer_volume(tr):
             try:
                 L, W, H = tr.carrying_bounding_box
@@ -503,8 +504,7 @@ class MissionStrategyApp(Base):
         )
 
         # ------------------------------------------------------------------
-        # 3) Detect JOINT mode: is there a Truck+Trailer in the winning
-        #    mission carrying a needed machine from THIS depot to the worksite?
+        # 3) Detect JOINT mode: Truck+Trailer already moving needed machine
         # ------------------------------------------------------------------
         joint_possible = False
         primary_record = None
@@ -545,18 +545,12 @@ class MissionStrategyApp(Base):
             co_ship_records = list(dedup.values())
 
             if co_ship_records:
-                # For now, take the first such (machine, truck, trailer) record.
                 primary_record = co_ship_records[0]
                 joint_possible = True
 
         # ------------------------------------------------------------------
-        # 4) If JOINT possible, try to pack needed machine + tools into that
-        #    primary trailer first using pack_single_trailer().
-        #    If that fails for the machine(s), fall back to normal behavior.
+        # 4) If JOINT possible, try co-pack primary trailer
         # ------------------------------------------------------------------
-        used_trailers = []  # for extra trailers (non-primary)
-        extra_jobs = []  # extra TransportJobs for extra trailers
-
         if joint_possible and primary_record is not None:
             primary_machine = primary_record["machine"]
             primary_trailer = primary_record["trailer"]
@@ -578,7 +572,6 @@ class MissionStrategyApp(Base):
                 joint_possible = False
 
         if joint_possible and primary_record is not None:
-            # Build Items for the (one) primary machine and all tools
             primary_machine_item = item_from_machine(
                 primary_machine,
                 item_type_hint="vehicle",
@@ -588,21 +581,15 @@ class MissionStrategyApp(Base):
                 for tool in tools_to_ship
             ]
 
-            # Try to pack primary machine + all tools INTO the primary trailer
-            placements_primary, veh_unplaced, tools_unplaced = (
-                pack_single_trailer(
-                    vehicles=[primary_machine_item],
-                    tools=tool_items,
-                    L=Lp,
-                    W=Wp,
-                    H=Hp,
-                )
+            placements_primary, veh_unplaced, tools_unplaced = pack_single_trailer(
+                vehicles=[primary_machine_item],
+                tools=tool_items,
+                L=Lp,
+                W=Wp,
+                H=Hp,
             )
 
             if veh_unplaced:
-                # If the needed machine doesn't fully fit in its own trailer
-                # under the 3D packing rules, don't try to co-pack. This should
-                # normally not happen if the mission generator was consistent.
                 print(
                     "[GoodsToPack] WARNING: needed machine did not fit in "
                     "the primary trailer for joint packing; falling back "
@@ -610,13 +597,9 @@ class MissionStrategyApp(Base):
                 )
                 joint_possible = False
             else:
-                # JOINT SUCCESS: commit co-pack on primary trailer only.
-                primary_cargo_sources = [
-                    p.item.source for p in placements_primary
-                ]
+                primary_cargo_sources = [p.item.source for p in placements_primary]
                 primary_trailer.contents = primary_cargo_sources
 
-                # Determine which tools still need separate trailers
                 remaining_tool_items = tools_unplaced
                 remaining_tools = [it.source for it in remaining_tool_items]
 
@@ -627,38 +610,24 @@ class MissionStrategyApp(Base):
                 )
 
                 if not remaining_tools:
-                    # All tools fit into the existing mission trailer.
-                    # Nothing else to do: no extra trucks or trailers are created.
                     print(
                         "[GoodsToPack] All goods-to-pack tools were placed in the "
                         "existing mission trailer; no extra transports added."
                     )
                     return
 
-                # From here on, we only need to pack remaining_tools into
-                # the *other* trailers of this depot.
                 tools_to_ship = remaining_tools
-                # Exclude primary_trailer from the list used by the extra packing
                 sorted_trailers_for_extras = [
                     tr for tr in sorted_trailers if tr is not primary_trailer
                 ]
         else:
-            # No joint packing: proceed with the original behavior.
             sorted_trailers_for_extras = sorted_trailers
 
         # ------------------------------------------------------------------
-        # 5) If we reach here, we either:
-        #    - are in NORMAL mode (joint_possible == False), packing all tools
-        #      into sorted_trailers_for_extras, OR
-        #    - are in JOINT mode but still have remaining tools_to_ship that did
-        #      not fit in the primary trailer, and we now pack these remaining
-        #      tools into sorted_trailers_for_extras.
+        # 5) Pack remaining tools into extra trailers
         # ------------------------------------------------------------------
         if not tools_to_ship:
-            # Joint mode might have consumed them all and returned earlier,
-            # but double-guard here.
             return
-
         if not sorted_trailers_for_extras:
             generate_warning(
                 "Goods-to-pack error",
@@ -667,13 +636,11 @@ class MissionStrategyApp(Base):
             )
             return
 
-        # Convert remaining tools into Items
         items = [
             item_from_machine(tool, item_type_hint="tool")
             for tool in tools_to_ship
         ]
 
-        # Convert extra trailers into TrailerAdapters for packing
         adapters = [
             TrailerAdapter(
                 tr,
@@ -682,13 +649,11 @@ class MissionStrategyApp(Base):
             for i, tr in enumerate(sorted_trailers_for_extras)
         ]
 
-        # Run packing: minimum number of trailers given largest-first heuristic
         try:
             placements_per_trailer = pack_items_into_trailers(
                 all_items=items,
                 trailers=adapters,
             )
-
         except RuntimeError as exc:
             generate_warning(
                 "Goods-to-pack packing error",
@@ -696,7 +661,6 @@ class MissionStrategyApp(Base):
             )
             return
 
-        # Determine which trailer indices among the "extras" are actually used
         used_indices = [
             idx for idx, placed in enumerate(placements_per_trailer) if placed
         ]
@@ -708,7 +672,6 @@ class MissionStrategyApp(Base):
             )
             return
 
-        # Map placements back to real *extra* Trailer objects and set contents
         used_trailers = []
         for idx in used_indices:
             real_trailer = sorted_trailers_for_extras[idx]
@@ -723,35 +686,21 @@ class MissionStrategyApp(Base):
                 f"carries tools {[m.machine_id for m in cargo_machines]}"
             )
 
-        # ------------------------------------------------------------------
-        # 6) Assign one truck per used extra trailer (same as before)
-        # ------------------------------------------------------------------
-        if len(depot_trucks) < len(used_trailers):
-            generate_warning(
-                "Goods-to-pack warning",
-                "Number of available trucks at the depot is less than the "
-                "number of used trailers for goods-to-pack. "
-                "Only a subset will be shipped.",
-            )
-
-        trucks_for_goods = depot_trucks[: len(used_trailers)]
+        if not used_trailers:
+            return
 
         # ------------------------------------------------------------------
-        # 7) Build extra TransportJobs depot -> worksite for each extra
-        #    truck+trailer pair (primary trailer has no extra job).
+        # 6) Determine depot->worksite distance once (route_matrix reuse)
         # ------------------------------------------------------------------
-        extra_jobs = []
         worksite_gps = self.gps_location
         depot_gps = depot.gps_location
 
-        # --- Reuse route_matrix from mission generator if available ---
         distance_m = 0.0
         rm = getattr(self, "route_matrix", None)
         objs = getattr(self, "route_objects", None)
 
         if rm is not None and objs:
             try:
-                # find the index of this depot in route_objects
                 depot_idx = None
                 for idx, obj in enumerate(objs):
                     if obj is depot:
@@ -772,7 +721,6 @@ class MissionStrategyApp(Base):
                             "falling back to Haversine distance."
                         )
                     else:
-                        # cell is [routeDuration_seconds, distance_meters]
                         _, distance_m = cell
             except Exception as exc:
                 print(
@@ -781,41 +729,194 @@ class MissionStrategyApp(Base):
                 )
                 distance_m = 0.0
 
-        # Fallback if route_matrix not available / invalid
         if distance_m <= 0.0:
             distance_m = Routing.HaversineDistance(
                 depot_gps[0],
                 depot_gps[1],
                 worksite_gps[0],
                 worksite_gps[1],
-            ) * 1.3  # small safety factor
+            ) * 1.3
 
-        # Now create one extra TransportJob per extra trailer+truck, all with
-        # the same depot->worksite distance.
-        for trailer, truck in zip(used_trailers, trucks_for_goods):
-            truck.contents = trailer  # attach trailer
+        # ------------------------------------------------------------------
+        # 7) Build TransportJobs with limited trucks and shuttling
+        # ------------------------------------------------------------------
+        extra_jobs = []
+
+        if not depot_trucks:
+            generate_warning(
+                "Goods-to-pack error",
+                f"Depot '{getattr(depot, 'name', None)}' has no trucks "
+                "available to pull trailers for goods-to-pack.",
+            )
+            return
+
+        # Helper to instantiate distinct topological states for ParaPy evaluation
+        def clone_truck_state(source_truck, contents, gps_location):
+            cls = type(source_truck)
+            return cls(
+                gps_location=gps_location,
+                overall_dimensions=source_truck.overall_dimensions,
+                mass=source_truck.mass,
+                consumption_per_hour=source_truck.consumption_per_hour,
+                worth=source_truck.worth,
+                build_year=source_truck.build_year,
+                machine_id=source_truck.machine_id,
+                machine_type=getattr(source_truck, "machine_type", "Truck"),
+                energy_source=getattr(source_truck, "energy_source", None),
+                contents=contents,
+            )
+
+        # 7a) Isolate trucks already executing the primary joint mission
+        busy_truck_ids = set()
+        if joint_possible and primary_record is not None:
+            busy_truck_ids.add(getattr(primary_record["truck"], "machine_id", None))
+
+        free_trucks = [t for t in depot_trucks if getattr(t, "machine_id", None) not in busy_truck_ids]
+        busy_trucks = [t for t in depot_trucks if getattr(t, "machine_id", None) in busy_truck_ids]
+
+        # 7b) First wave: Free trucks transport extra trailers directly (Depot -> Worksite)
+        num_free = len(free_trucks)
+        first_wave_trailers = used_trailers[:num_free]
+        remaining_trailers = used_trailers[num_free:]
+
+        for trailer, truck in zip(first_wave_trailers, free_trucks):
+            cloned_truck = clone_truck_state(truck, contents=trailer, gps_location=depot_gps)
 
             job = TransportJob(
-                transporting_vehicle=truck,
+                transporting_vehicle=cloned_truck,
                 route_distance=float(distance_m),
                 begin_location_gps=depot_gps,
                 end_location_gps=worksite_gps,
             )
             extra_jobs.append(job)
 
+        # 7c) Shuttling remaining trailers using sequential round-trips
+        if remaining_trailers:
+            # Determine the optimal shuttle truck.
+            # Prefer a busy truck (already at worksite, needs to drive back empty first).
+            if busy_trucks:
+                shuttle_base = busy_trucks[0]
+            else:
+                shuttle_base = free_trucks[0]
+
+            for trailer in remaining_trailers:
+                # Leg 1: Worksite -> Depot (Truck EMPTY)
+                empty_truck = clone_truck_state(shuttle_base, contents=None, gps_location=worksite_gps)
+                back_job = TransportJob(
+                    transporting_vehicle=empty_truck,
+                    route_distance=float(distance_m),
+                    begin_location_gps=worksite_gps,
+                    end_location_gps=depot_gps,
+                )
+                extra_jobs.append(back_job)
+
+                # Leg 2: Depot -> Worksite (Truck WITH next trailer)
+                loaded_truck = clone_truck_state(shuttle_base, contents=trailer, gps_location=depot_gps)
+                forth_job = TransportJob(
+                    transporting_vehicle=loaded_truck,
+                    route_distance=float(distance_m),
+                    begin_location_gps=depot_gps,
+                    end_location_gps=worksite_gps,
+                )
+                extra_jobs.append(forth_job)
+
+            print(
+                f"[GoodsToPack] Shuttled {len(remaining_trailers)} extra "
+                f"trailer(s) from depot '{getattr(depot, 'name', None)}' "
+                f"to worksite using truck {getattr(shuttle_base, 'machine_id', None)}."
+            )
+
         if not extra_jobs:
-            # Primary-only joint packing (no extras) would already have returned.
             return
 
         print(
             f"[GoodsToPack] Added {len(extra_jobs)} extra transport jobs "
-            "for goods-to-pack (excluding the existing mission trailer)."
+            "for goods-to-pack (including shuttle trips)."
         )
 
-        # IMPORTANT for ParaPy: reassign the list instead of mutating in place,
-        # to ensure dependency-tracked invalidation of the transport_jobs slot.
         old_jobs = list(self.winning_mission.transport_jobs)
         self.winning_mission.transport_jobs = old_jobs + extra_jobs
+
+        # # ------------------------------------------------------------------
+        # # 7) Build TransportJobs with limited trucks and shuttling
+        # # ------------------------------------------------------------------
+        # extra_jobs = []
+        # num_trailers = len(used_trailers)
+        # num_trucks = len(depot_trucks)
+        #
+        # if num_trucks <= 0:
+        #     generate_warning(
+        #         "Goods-to-pack error",
+        #         f"Depot '{getattr(depot, 'name', None)}' has no trucks "
+        #         "available to pull trailers for goods-to-pack.",
+        #     )
+        #     return
+        #
+        # # 7a) First wave: up to one trailer per available truck
+        # first_wave_trailers = used_trailers[:num_trucks]
+        # first_wave_trucks = depot_trucks[: len(first_wave_trailers)]
+        #
+        # for trailer, truck in zip(first_wave_trailers, first_wave_trucks):
+        #     truck.contents = trailer
+        #     truck.gps_location = depot_gps
+        #
+        #     job = TransportJob(
+        #         transporting_vehicle=truck,
+        #         route_distance=float(distance_m),
+        #         begin_location_gps=depot_gps,
+        #         end_location_gps=worksite_gps,
+        #     )
+        #     extra_jobs.append(job)
+        #
+        # # 7b) Remaining trailers (if any): shuttle with a single truck
+        # remaining_trailers = used_trailers[num_trucks:]
+        #
+        # if remaining_trailers:
+        #     shuttle_truck = depot_trucks[0]
+        #
+        #     # For each remaining trailer: EMPTY back to depot, then LOADED forth
+        #     for trailer in remaining_trailers:
+        #         # back: worksite -> depot (truck EMPTY)
+        #         shuttle_truck.contents = None
+        #         shuttle_truck.gps_location = worksite_gps
+        #
+        #         back_job = TransportJob(
+        #             transporting_vehicle=shuttle_truck,
+        #             route_distance=float(distance_m),
+        #             begin_location_gps=worksite_gps,
+        #             end_location_gps=depot_gps,
+        #         )
+        #         extra_jobs.append(back_job)
+        #
+        #         # forth: depot -> worksite (truck WITH next trailer)
+        #         shuttle_truck.contents = trailer
+        #         shuttle_truck.gps_location = depot_gps
+        #
+        #         forth_job = TransportJob(
+        #             transporting_vehicle=shuttle_truck,
+        #             route_distance=float(distance_m),
+        #             begin_location_gps=depot_gps,
+        #             end_location_gps=worksite_gps,
+        #         )
+        #         extra_jobs.append(forth_job)
+        #
+        #     print(
+        #         f"[GoodsToPack] Shuttled {len(remaining_trailers)} extra "
+        #         f"trailer(s) from depot '{getattr(depot, 'name', None)}' "
+        #         f"to worksite using "
+        #         f"truck {getattr(shuttle_truck, 'machine_id', None)}."
+        #     )
+        #
+        # if not extra_jobs:
+        #     return
+        #
+        # print(
+        #     f"[GoodsToPack] Added {len(extra_jobs)} extra transport jobs "
+        #     "for goods-to-pack (including any shuttle trips)."
+        # )
+        #
+        # old_jobs = list(self.winning_mission.transport_jobs)
+        # self.winning_mission.transport_jobs = old_jobs + extra_jobs
 
     def jobAnalyzer(self):
         """
