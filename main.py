@@ -752,8 +752,12 @@ class MissionStrategyApp(Base):
             if not contents:
                 continue  # skip empty trailers
 
-            tid = getattr(trailer_obj, "trailer_id", None)
-            key = tid if tid not in (None, "") else id(trailer_obj)
+            # tid = getattr(trailer_obj, "trailer_id", None)
+            # key = tid if tid not in (None, "") else id(trailer_obj)
+            # if key in seen:
+            #     continue
+            # seen.add(key)
+            key = id(trailer_obj)
             if key in seen:
                 continue
             seen.add(key)
