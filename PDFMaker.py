@@ -27,8 +27,8 @@ AVAILABLE_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN
 # --- Define column widths that sum to AVAILABLE_WIDTH ---
 # Adjust proportions to match your actual columns
 col_widths = [
-    AVAILABLE_WIDTH * 0.2,
-    AVAILABLE_WIDTH * 0.8,
+    AVAILABLE_WIDTH * 0.25,
+    AVAILABLE_WIDTH * 0.75,
 ]
 
 
@@ -300,7 +300,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             contents = ""
             if len(trailer.contents) > 0:
                 for i, c in enumerate(trailer.contents):
-                    if i < len(trailer.contents):
+                    if i < len(trailer.contents) - 1:
                         contents += c.machine_id + ", "
                     else:
                         contents += c.machine_id
@@ -322,7 +322,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
 
     styles.add(ParagraphStyle(
         "header",
-        parent=cell_style,
+        parent=styles['cell'],
         fontName="Helvetica-Bold",
         textColor=colors.white,
     ))
