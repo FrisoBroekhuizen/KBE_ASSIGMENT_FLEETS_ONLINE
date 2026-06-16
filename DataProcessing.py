@@ -234,6 +234,8 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                     l["gps_location"]["lat"],
                     l["gps_location"]["lon"],
                 )
+                if depot.gps_location == (0, 0):
+                    depot.gps_location = app.standard_location
                 depot.overall_dimensions = l["overall_dimensions"]
                 depot.name = l["name"]
 
