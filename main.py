@@ -197,7 +197,7 @@ class MissionStrategyApp(Base):
 
     @action(label="Use Fleets-Online Data", button_label="Read")
     def ReadFleetsData(self):
-        self.FleetsOnlineData()
+        # self.FleetsOnlineData()
         self.LoadData(True)
 
     @action(label="Use Custom Data", button_label="Read")
@@ -1178,7 +1178,7 @@ class Mission(Base):
     (cost, time, CO₂, NOx), their normalized counterparts, and a
     user-weighted scalar score via cost_function.
     """
-
+    ID = Input("Boomrooijerij_mission_1")
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
     machines: List["Machine"] = Input([])

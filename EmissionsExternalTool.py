@@ -127,7 +127,7 @@ def NOxCalculator(
 
         resp.raise_for_status()
         data = resp.json()
-        result = data["noxGrams"]
+        result = data["noxGrams"] / 1000
         if result < 0: result = 0 # Prevent negative values caused by too small engine operating hours
         return float(result)
     except requests.RequestException as exc:

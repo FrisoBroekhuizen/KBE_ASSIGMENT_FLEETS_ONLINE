@@ -15,6 +15,21 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+
+# --- Page width and margins ---
+PAGE_WIDTH, PAGE_HEIGHT = A4
+LEFT_MARGIN = RIGHT_MARGIN = 20 * mm
+AVAILABLE_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN
+
+# --- Define column widths that sum to AVAILABLE_WIDTH ---
+# Adjust proportions to match your actual columns
+col_widths = [
+    AVAILABLE_WIDTH * 0.25,
+    AVAILABLE_WIDTH * 0.75,
+]
 
 
 def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools) -> None:
@@ -94,7 +109,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
 
     story.append(Spacer(1, 30))
 
-    story.append(Paragraph("<b>Mission ID:</b> ID", styles["BodyText"]))
+    story.append(Paragraph("<b>Mission ID:</b> " + mission.ID, styles["BodyText"]))
 
     story.append(
         Paragraph(
@@ -120,6 +135,11 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             styles["BodyText"],
         )
     )
+
+    if strict_deadline and deadline_time > timelines[-1][2]:
+        story.append(Paragraph(f"<b>Deadline Met:</b> Yes", styles["BodyText"]))
+    elif strict_deadline and deadline_time < timelines[-1][2]:
+        story.append(Paragraph(f"<b>Deadline Met:</b> No", styles["BodyText"]))
 
     story.append(PageBreak())
 
@@ -151,14 +171,15 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
 
     kpi_table = Table(
         [
-            ["Total Cost", r"CO_2", "NOx"],
+            ["Total Cost", r"CO_2", "NOx", "Time Finished"],
             [
                 f"€ {mission.mission_cost:,.0f} eur",
                 f"{mission.mission_CO2:.1f} kg",
                 f"{mission.mission_NOx:.1f} kg",
+                f"{timelines[-1][2]}"
             ],
         ],
-        colWidths=[60 * mm, 50 * mm, 50 * mm],
+        colWidths=[42 * mm, 42 * mm, 42 * mm, 42 * mm],
     )
 
     kpi_table.setStyle(
@@ -181,7 +202,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
     # FLEET OVERVIEW
     # ==========================================================
 
-    story.append(Paragraph("Fleet Overview", styles["SectionTitle"]))
+    story.append(Paragraph("Used Fleet Overview", styles["SectionTitle"]))
 
     machine_data = [
         [
@@ -285,7 +306,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             contents = ""
             if len(trailer.contents) > 0:
                 for i, c in enumerate(trailer.contents):
-                    if i < len(trailer.contents):
+                    if i < len(trailer.contents) - 1:
                         contents += c.machine_id + ", "
                     else:
                         contents += c.machine_id
@@ -297,7 +318,30 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
                     ]
                 )
 
-    machine_table = Table(machine_data, repeatRows=1)
+    styles.add(ParagraphStyle(
+        "cell",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=12,  # line height
+        wordWrap="CJK",  # enables wrapping in table cells
+    ))
+
+    styles.add(ParagraphStyle(
+        "header",
+        parent=styles['cell'],
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+    ))
+
+    def wrap_row(row, style):
+        return [Paragraph(str(cell), style) for cell in row]
+
+    wrapped_data = [wrap_row(machine_data[0], styles['header'])]
+    for row in machine_data[1:]:
+        wrapped_data.append(wrap_row(row, styles['cell']))
+
+    # --- Build table with explicit column widths ---
+    machine_table = Table(wrapped_data, colWidths=col_widths, repeatRows=1)
 
     machine_table.setStyle(
         TableStyle(
@@ -331,7 +375,8 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             "Origin",
             "Destination",
             "Machine",
-            "Start",
+            "Trailer",
+            "Start (" + start_time.strftime("%Y-%m-%d") + ")",
             "Arrival",
         ]
     ]
@@ -341,14 +386,19 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
             new_start_time += timedelta(minutes=mission.transport_jobs[i - 1].routeDuration)
         else:
             new_start_time = start_time
+        if job.transporting_vehicle.contents != None:
+            trailer = job.transporting_vehicle.contents.trailer_id
+        else:
+            trailer = "-"
         if job.routeDuration > 1:
             transport_data.append(
                 [
                     str(job.begin_location_gps),
                     str(job.end_location_gps),
                     job.transporting_vehicle.machine_id,
-                    str(new_start_time),
-                    str(new_start_time + timedelta(minutes=job.routeDuration)),
+                    trailer,
+                    str(new_start_time.strftime("%H:%M:%S")),
+                    str((new_start_time + timedelta(minutes=job.routeDuration)).strftime("%H:%M:%S")),
                 ]
             )
 
