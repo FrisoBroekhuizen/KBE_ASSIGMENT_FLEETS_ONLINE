@@ -185,7 +185,7 @@ def GetFleetsOnlineData(app):
                         "overall_dimensions": standard_dimensions[
                             asset["type"]["name"]
                         ],
-                        "color": "yellow",
+                        # "color": "yellow",
                         "is_available": "True"
                     }
                 )
@@ -207,7 +207,7 @@ def GetFleetsOnlineData(app):
                         "overall_dimensions": standard_dimensions[
                             asset["type"]["name"]
                         ],
-                        "color": "yellow",
+                        # "color": "yellow",
                         "fuel_type": asset["fuelType"]["name"],
                         "emission_class_version": "StageIIIB",
                         # Common emission class for heavy machinery, standard input as our Fleets-Online data does not have emission_class assigned
@@ -368,7 +368,22 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                 if m.build_year is None:
                     m.build_year = 2026
                 if m.color is None:
-                    m.color = "Yellow"
+                    if m.machine_type in ["Tool", "Pump"]:
+                        m.color = "Blue"
+                    else:
+                        m.color = "Yellow"
+                if m.machine_type in ["Tool", "Pump"]:
+                    try:
+                        m.vehicle_attachable = l["vehicle_attachable"]
+                    except:
+                        m.vehicle_attachable = True
+                # if m.machine_type == "Truck":
+                #     try:
+                #         t = Trailer()
+                #         t.overall_dimensions = l["trailer_dimensions"]
+                #         m.contents = t
+                #     except:
+                #         continue
                 fleet.machines.append(m)
                 fleet.number_of_machines_per_type[m.machine_type] += 1
                 if not np.all(m.overall_dimensions):

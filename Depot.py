@@ -24,7 +24,15 @@ class DepotAssetMarker(GeomBase):
     """
 
     asset: object = Input()
-    color: Any = Input("yellow")
+
+    @Input
+    def color(self):
+        if getattr(self.asset, "machine_type", None) == "Trailer":
+            return "orange"
+        elif getattr(self.asset, "machine_type", None) in ["Tool", "Pump"]:
+            return "blue"
+        else:
+            return "yellow"
 
     @Attribute
     def label(self) -> str:
@@ -187,6 +195,7 @@ class Depot(GeomBase):
                     m.__class__.__bases__
                     and m.__class__.__bases__[0].__name__ == "Tool"
                 )
+                or m.machine_type in ["Tool", "Pump"]
             )
             if is_tool:
                 colors.append("blue")
@@ -203,11 +212,13 @@ class Depot(GeomBase):
         trailer_nonattachable_tools = []
 
         self.non_attachable_tools = []
+        self.attachable_tools = []
 
         for machine in list(self.machines):
+            print(machine.machine_type)
             if (
                 type(machine).__bases__[0].__name__ == "Tool"
-                or type(machine).__name__ == "Tool"
+                or type(machine).__name__ == "Tool" or machine.machine_type in ["Tool", "Pump"]
             ):
                 if machine.vehicle_attachable is False:
                     self.machines.remove(machine)
@@ -238,7 +249,6 @@ class Depot(GeomBase):
         self.machines.extend(trailer_vehicles)
         self.attachable_tools.extend(trailer_attachable_tools)
         self.non_attachable_tools.extend(trailer_nonattachable_tools)
-
         self.attachable_tools = sorted(
             self.attachable_tools,
             key=lambda m: m[0].overall_dimensions[0],

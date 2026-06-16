@@ -186,7 +186,7 @@ class MissionStrategyApp(Base):
 
     @action(label="Use Fleets-Online Data", button_label="Read")
     def ReadFleetsData(self):
-        self.FleetsOnlineData()
+        # self.FleetsOnlineData()
         self.LoadData(True)
 
     @action(label="Use Custom Data", button_label="Read")

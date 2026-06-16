@@ -613,6 +613,7 @@ class Tool(Machine):
     vehicle_attachable: bool = Input(False)
     color = Input("Blue")
     upright_only: bool = Input(False)
+    turn_radius = 0
 
 
 class Pump(Tool):
