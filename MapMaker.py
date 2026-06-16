@@ -615,21 +615,22 @@ class FleetMapMaker(MapMaker):
 
         raw.sort(key=lambda d: (d["y"], d["x"]))
         placed = []
-
         for info in raw:
             base_z = 0.0
             for other in placed:
                 if (
-                    overlap_1d(info["x"], info["L"], other["x"], other["L"])
-                    and overlap_1d(
-                        info["y"], info["W"], other["y"], other["W"]
-                    )
+                        overlap_1d(info["x"], info["L"], other["x"], other["L"])
+                        and overlap_1d(
+                    info["y"], info["W"], other["y"], other["W"]
+                )
                 ):
-                    top_other = other["z_center"] + 0.5 * other["H"]
+                    # The actual top of 'other' is its bottom Z + its height H
+                    top_other = other["z_bottom"] + other["H"]
                     if top_other > base_z:
                         base_z = top_other
 
-            info["z_center"] = base_z + 0.5 * info["H"]
+            # Store the bottom Z coordinate directly
+            info["z_bottom"] = base_z
             placed.append(info)
 
         return placed
@@ -645,7 +646,7 @@ class FleetMapMaker(MapMaker):
             H=self._asset_infos[child.index]["H"],
             x=self._asset_infos[child.index]["x"],
             y=self._asset_infos[child.index]["y"],
-            z=self._asset_infos[child.index]["z_center"],
+            z=self._asset_infos[child.index]["z_bottom"],
             color=self._asset_infos[child.index]["color"],
         )
 
