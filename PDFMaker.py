@@ -15,6 +15,21 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+
+# --- Page width and margins ---
+PAGE_WIDTH, PAGE_HEIGHT = A4
+LEFT_MARGIN = RIGHT_MARGIN = 20 * mm
+AVAILABLE_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN
+
+# --- Define column widths that sum to AVAILABLE_WIDTH ---
+# Adjust proportions to match your actual columns
+col_widths = [
+    AVAILABLE_WIDTH * 0.2,
+    AVAILABLE_WIDTH * 0.8,
+]
 
 
 def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools) -> None:
@@ -94,7 +109,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
 
     story.append(Spacer(1, 30))
 
-    story.append(Paragraph("<b>Mission ID:</b> ID", styles["BodyText"]))
+    story.append(Paragraph("<b>Mission ID:</b> " + mission.ID, styles["BodyText"]))
 
     story.append(
         Paragraph(
@@ -297,7 +312,30 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools
                     ]
                 )
 
-    machine_table = Table(machine_data, repeatRows=1)
+    styles.add(ParagraphStyle(
+        "cell",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=12,  # line height
+        wordWrap="CJK",  # enables wrapping in table cells
+    ))
+
+    styles.add(ParagraphStyle(
+        "header",
+        parent=cell_style,
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+    ))
+
+    def wrap_row(row, style):
+        return [Paragraph(str(cell), style) for cell in row]
+
+    wrapped_data = [wrap_row(machine_data[0], styles['header'])]
+    for row in machine_data[1:]:
+        wrapped_data.append(wrap_row(row, styles['cell']))
+
+    # --- Build table with explicit column widths ---
+    machine_table = Table(wrapped_data, colWidths=col_widths, repeatRows=1)
 
     machine_table.setStyle(
         TableStyle(

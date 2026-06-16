@@ -1178,7 +1178,7 @@ class Mission(Base):
     (cost, time, CO₂, NOx), their normalized counterparts, and a
     user-weighted scalar score via cost_function.
     """
-
+    ID = Input("Boomrooijerij_mission_1")
     transport_jobs: List["TransportJob"] = Input([])
     work_jobs: List["WorkJob"] = Input([])
     machines: List["Machine"] = Input([])
