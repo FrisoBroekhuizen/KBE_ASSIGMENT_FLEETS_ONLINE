@@ -719,12 +719,12 @@ class Depot(GeomBase):
         writer.write()
 
 def AllocateMachines(app):
-    machines = app.fleet.machines
+    machines = app.fleet.available_machines
     for machine in machines:
         machine.number_of_this_type = (
             app.fleet.number_of_machines_per_type[machine.machine_type]
         )
-    trailers = app.fleet.trailers
+    trailers = app.fleet.available_trailers
     road_parked: List[Machine] = []
 
     for depot in app.depots:
