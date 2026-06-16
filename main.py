@@ -78,12 +78,6 @@ class MissionStrategyApp(Base):
         - The routes of the final strategy
         - PDF summary of the chosen strategy
         - Current fleet visualized on the map
-
-    To Do's:
-        - make preference interface (action with standard preference
-          with easy names such as greedy or hurry), also the option to
-          define own preferences and normalize within function.
-        - If time: combine multiple work jobs into one mission.
     """
 
     mission_preferences: List[float] = Input(
@@ -124,7 +118,6 @@ class MissionStrategyApp(Base):
         widget=PyField(),
         label="Tool IDs to pack (machine_id list, e.g. ['T1', 'T2'])",
     )
-#TODO: ADD VALIDATOR FOR GOODS TO PAK IDS
     man_hours = Input(
         0,
         widget=PyField(
