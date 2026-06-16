@@ -248,9 +248,9 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                 depot.rotation = float(l.get("orientation", 0.0))
 
                 app.depots.append(depot)
-
-            # ---------------- Work site ----------------
+                # ---------------- Work site ---------------
             elif app.worksite_name in l["name"]:
+
                 if l["gps_location"] is None:
                     print("One of the worksites has no location data")
                     workjob.gps_location = (
@@ -270,19 +270,10 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                 app.work_job = workjob
                 app.gps_location = workjob.gps_location
 
-                # Use only L, W from overall_dimensions; ignore height
-                # for site area
-                dims = l.get(
-                    "overall_dimensions",
-                    [100.0, 100.0, 0.0],
-                )
-                app.site_dimensions = (
-                    float(dims[0]),
-                    float(dims[1]),
-                )
-
-                # Orientation is optional; default to 0 if not in JSON
-                app.orientation = float(l.get("orientation", 0.0))
+                # --- MODIFIED: Assign geometric data directly to workjob ---
+                dims = l.get("overall_dimensions", [100.0, 100.0, 0.0])
+                workjob.site_dimensions = (float(dims[0]), float(dims[1]))
+                workjob.orientation = float(l.get("orientation", 0.0))
 
         elif l["type"] == "asset":
             # --------- create correct machine/trailer type ----------
