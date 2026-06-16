@@ -17,7 +17,7 @@ from reportlab.platypus import (
 )
 
 
-def Export(mission, start_time, timelines, strict_deadline, deadline_time) -> None:
+def Export(mission, start_time, timelines, strict_deadline, deadline_time, tools) -> None:
     """Export the final mission strategy to a PDF file.
 
     Parameters
@@ -232,6 +232,70 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time) -> No
                         f"{machine.individual_nox:.1f}",
                     ]
                 )
+        for tool in tools:
+            machine_data.append(
+                [tool,
+                 "-",
+                 "-",
+                 "-",
+                 "-",
+                 "-",
+                 "-",
+                 "-"]
+            )
+
+    machine_table = Table(machine_data, repeatRows=1)
+
+    machine_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#F6F8FA")],
+                ),
+            ]
+        )
+    )
+
+    story.append(machine_table)
+
+    story.append(Spacer(1, 25))
+
+    story.append(Paragraph("Trailer Overview", styles["SectionTitle"]))
+
+    machine_data = [
+        [
+            "Name",
+            "Content",
+        ]
+    ]
+
+    trailers = []
+
+    # Transport machines
+    for transport_job in mission.transport_jobs:
+        trailer = transport_job.transporting_vehicle.contents
+        if trailer is not None:
+            contents = ""
+            if len(trailer.contents) > 0:
+                for i, c in enumerate(trailer.contents):
+                    if i < len(trailer.contents):
+                        contents += c.machine_id + ", "
+                    else:
+                        contents += c.machine_id
+                trailers.append(trailer)
+                machine_data.append(
+                    [
+                        trailer.trailer_id,
+                        contents,
+                    ]
+                )
 
     machine_table = Table(machine_data, repeatRows=1)
 
@@ -353,6 +417,7 @@ def Export(mission, start_time, timelines, strict_deadline, deadline_time) -> No
     # ==========================================================
     # PLANNING
     # ==========================================================
+    story.append(Spacer(1, 25))
 
     story.append(Paragraph("Planning", styles["SectionTitle"]))
 

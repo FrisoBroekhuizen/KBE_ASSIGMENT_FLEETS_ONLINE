@@ -891,6 +891,7 @@ class MissionStrategyApp(Base):
             self.timelines,
             self.strict_deadline,
             self.deadline_time,
+            self.goods_to_pack_ids
         )
 
     @action(
@@ -1061,9 +1062,12 @@ class MissionStrategyApp(Base):
         if final_mission_only:
             machines = self.winning_mission.machines
             for transport_job in self.winning_mission.transport_jobs:
-                if transport_job.transporting_vehicle not in machines:
+                if transport_job.transporting_vehicle.machine_id not in [m.machine_id for m in machines]:
                     if transport_job.transporting_vehicle.machine_type == "Truck":
-                        if transport_job.transporting_vehicle.contents == None: # Only add truck once, not the truck copy used for the second leg of the mission
+                        if transport_job.transporting_vehicle.contents != None:
+                            for c in transport_job.transporting_vehicle.contents.contents:
+                                machines.append(c)
+                        if transport_job.transporting_vehicle not in machines: # Only add truck once, not the truck copy used for the second leg of the mission
                             machines.append(transport_job.transporting_vehicle)
                     else:
                         machines.append(transport_job.transporting_vehicle)
