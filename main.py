@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import time
+from msilib.schema import Property
 from typing import List, Tuple, Optional
 
 import numpy as np
@@ -87,7 +88,7 @@ class MissionStrategyApp(Base):
 
     mission_preferences: List[float] = Input(
         [1.0, 1.0, 1.0],
-        label="Mission Preferences (cost, time, emissions)",
+        label="Mission Preferences: (cost, time, emissions)",
         validator=all_is_number,
     )  # List of weights for the different optimisation goals
 
@@ -114,7 +115,7 @@ class MissionStrategyApp(Base):
                 else "White"
             ),
         ),
-        label="Needed Machinery"
+        label="Needed Machinery:"
     )
     # Optional: extra tools to be shipped as "goods" to the work site.
     # List of tool machine_id strings, all of which must be located in the same depot.
@@ -132,7 +133,7 @@ class MissionStrategyApp(Base):
                 "Red" if self.man_hours == 0 else "White"
             ),
         ),
-        label="Man Hours"
+        label="Man Hours:"
     )
 
     # default: no deadline restriction
@@ -180,19 +181,17 @@ class MissionStrategyApp(Base):
     # }
 
     # Aggregations / associations
-    machines: List[Machine] = Input([])
-    trailers: List[Trailer] = Input([])
     depots: List[Depot] = Input([])
 
     work_job = Input(None)
     fleet = Input(Fleet())
 
-    @Input
+    @property
     def gps_location(self):
         if self.work_job is not None:
             return self.work_job.gps_location
         else:
-            return (0, 0)
+            return (0.0, 0.0)
 
     # This should be the coordinates of the headquarters of the company that uses it
     @Input

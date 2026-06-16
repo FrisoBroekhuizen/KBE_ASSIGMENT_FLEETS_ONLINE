@@ -268,7 +268,7 @@ def ReadData(app, use_fleets_data, workjob, fleet):
                 workjob.name = l["name"]
 
                 app.work_job = workjob
-                app.gps_location = workjob.gps_location
+                # app.gps_location = workjob.gps_location
 
                 # --- MODIFIED: Assign geometric data directly to workjob ---
                 dims = l.get("overall_dimensions", [100.0, 100.0, 0.0])

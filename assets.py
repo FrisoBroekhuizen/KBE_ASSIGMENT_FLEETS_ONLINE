@@ -6,6 +6,7 @@ from typing import Tuple, List
 import numpy as np
 
 from EmissionsExternalTool import CO2Calculator, NOxCalculator
+from Routing import HaversineDistance
 from parapy.core import Base, Input, Attribute, Part
 from parapy.core.validate import OneOf
 from parapy.core.widgets import PyField, TextField, CheckBox
@@ -711,7 +712,7 @@ def allocate_trailers_to_road_trucks(app, max_distance_m: float = 100.0) -> None
 
     # 2) collect trailers that are not in any depot and not already attached
     #    as contents to some machine
-    all_trailers = list(getattr(app, "trailers", []))
+    all_trailers = list(app.fleet.available_trailers)
 
     # trailers that live in depots (we don't touch those)
     depot_trailers = set()
@@ -721,7 +722,7 @@ def allocate_trailers_to_road_trucks(app, max_distance_m: float = 100.0) -> None
 
     # trailers that are already attached to some machine.contents
     attached_trailers = set()
-    for m in getattr(app, "machines", []):
+    for m in app.fleet.available_machines:
         cont = getattr(m, "contents", None)
         if cont is not None and type(cont).__name__ == "Trailer":
             attached_trailers.add(cont)
